@@ -101,13 +101,7 @@ npm run release:codex-plugin:daemon
 
 That optional variant also starts the daemon on a temporary localhost port and verifies interrupted job recovery. `prepublishOnly` runs `release:codex-plugin`.
 
-To publish the installable plugin repository after release checks pass, run:
-
-```bash
-npm run sync:codex-plugin-repo
-```
-
-This syncs the complete plugin directory, including `./runtime`, to the dedicated `GxFn/AlembicCodex` distribution repository.
+After release checks pass, commit and push any changed plugin files from inside this submodule, then commit the updated `plugins/alembic-codex` pointer in the Alembic monorepo.
 
 For the full release, testing, and promotion plan, see [RELEASE-PLAYBOOK.md](./RELEASE-PLAYBOOK.md).
 

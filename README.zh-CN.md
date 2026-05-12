@@ -101,13 +101,7 @@ npm run release:codex-plugin:daemon
 
 这个可选流程还会在临时 localhost 端口启动 daemon，并验证被中断 job 的恢复行为。`prepublishOnly` 会运行 `release:codex-plugin`。
 
-发布可安装插件仓库时，在 release 检查通过后运行：
-
-```bash
-npm run sync:codex-plugin-repo
-```
-
-这会把完整插件目录，包括 `./runtime`，同步到独立的 `GxFn/AlembicCodex` 分发仓库。
+release 检查通过后，如果插件文件有变化，先在这个 submodule 内提交并推送，然后回到 Alembic 主仓库提交更新后的 `plugins/alembic-codex` 指针。
 
 完整发布、测试和推广计划见 [RELEASE-PLAYBOOK.md](./RELEASE-PLAYBOOK.md)。
 
