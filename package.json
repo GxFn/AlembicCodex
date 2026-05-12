@@ -1,0 +1,14 @@
+{
+  "name": "alembic-codex-plugin-repo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:gxfn-marketplace": "node ./scripts/sync-gxfn-marketplace.mjs",
+    "sync:gxfn-marketplace:commit": "node ./scripts/sync-gxfn-marketplace.mjs --commit",
+    "sync:gxfn-marketplace:push": "node ./scripts/sync-gxfn-marketplace.mjs --commit --push"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

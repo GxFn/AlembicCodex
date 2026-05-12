@@ -1,0 +1,5 @@
+# Release automation only; not part of the installable plugin snapshot.
+package.json
+scripts/
+.agents/
+runtime/plugins/alembic-codex/.agents/

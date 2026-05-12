@@ -103,6 +103,14 @@ That optional variant also starts the daemon on a temporary localhost port and v
 
 After release checks pass, commit and push any changed plugin files from inside this submodule, then commit the updated `plugins/alembic-codex` pointer in the Alembic monorepo.
 
+To update the aggregate `GxFn/GxFnCodexMarketplace` listing after this submodule is current, run:
+
+```bash
+npm run sync:gxfn-marketplace
+```
+
+Use `npm run sync:gxfn-marketplace:push` when the marketplace snapshot should also be committed and pushed. Set `GXFN_CODEX_MARKETPLACE_DIR=/path/to/GxFnCodexMarketplace` if the marketplace repository is not checked out next to the Alembic monorepo or standalone AlembicCodex repository.
+
 For the full release, testing, and promotion plan, see [RELEASE-PLAYBOOK.md](./RELEASE-PLAYBOOK.md).
 
 ## Local Marketplace

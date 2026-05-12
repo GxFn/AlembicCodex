@@ -103,6 +103,14 @@ npm run release:codex-plugin:daemon
 
 release 检查通过后，如果插件文件有变化，先在这个 submodule 内提交并推送，然后回到 Alembic 主仓库提交更新后的 `plugins/alembic-codex` 指针。
 
+这个 submodule 已经是最新之后，把可安装插件快照同步到聚合 `GxFn/GxFnCodexMarketplace`：
+
+```bash
+npm run sync:gxfn-marketplace
+```
+
+如果要让脚本同时在市场仓库里提交并推送，运行 `npm run sync:gxfn-marketplace:push`。如果 `GxFnCodexMarketplace` 没有和 Alembic 主仓库或独立 AlembicCodex 仓库放在同一层目录，用 `GXFN_CODEX_MARKETPLACE_DIR=/path/to/GxFnCodexMarketplace` 指定路径。
+
 完整发布、测试和推广计划见 [RELEASE-PLAYBOOK.md](./RELEASE-PLAYBOOK.md)。
 
 ## 本地 Marketplace
