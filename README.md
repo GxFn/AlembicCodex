@@ -13,35 +13,35 @@ Use it when you want Codex to:
 
 ## Install
 
-Install from the GxFn Codex Marketplace plugin target:
+Install this repository as a Codex plugin marketplace:
 
 ```bash
-npx codex-marketplace add GxFn/AlembicCodex --plugin
+codex plugin marketplace add GxFn/AlembicCodex --ref main
 ```
 
 For a pinned release after the matching Git tag exists:
 
 ```bash
-npx codex-marketplace add https://github.com/GxFn/AlembicCodex/tree/v0.1.0 --plugin
+codex plugin marketplace add GxFn/AlembicCodex --ref v0.1.0
 ```
 
 If Codex asks for a GitHub target or direct artifact path, use:
 
 ```text
-https://github.com/GxFn/AlembicCodex/tree/v0.1.0
+GxFn/AlembicCodex
 ```
 
 If the Codex dialog separates source, ref, and sparse path, fill it like this:
 
 ```text
 Source:
-https://github.com/GxFn/AlembicCodex.git
+GxFn/AlembicCodex
 
 Git ref:
-v0.1.0
+main
 
 Sparse path:
-.
+leave empty
 ```
 
 Enable `alembic-codex` from the plugin list after installation.
@@ -107,18 +107,20 @@ For the full release, testing, and promotion plan, see [RELEASE-PLAYBOOK.md](./R
 
 ## Local Marketplace
 
-This repository includes `.agents/plugins/marketplace.json` so local Codex builds can discover Alembic as an installable plugin entry under the `gxfn` marketplace, matching `codex-lark-remote`. The entry points to `./plugins/alembic-codex`, marks installation as `AVAILABLE`, and uses `ON_INSTALL` authentication policy.
+This distribution repository includes `.agents/plugins/marketplace.json` so Codex can add the repository itself as a plugin marketplace. The marketplace is named `alembic-codex`, the single entry points to `.`, installation is `AVAILABLE`, and authentication is `ON_INSTALL`.
 
 Register this repository as a local marketplace during development:
 
 ```toml
-[marketplaces.gxfn]
+[marketplaces.alembic-codex]
 source_type = "local"
-source = "/absolute/path/to/Alembic"
+source = "/absolute/path/to/AlembicCodex"
 
-[plugins."alembic-codex@gxfn"]
+[plugins."alembic-codex@alembic-codex"]
 enabled = true
 ```
+
+The Alembic monorepo still keeps its local development marketplace at `.agents/plugins/marketplace.json`, named `gxfn`, pointing to `./plugins/alembic-codex`.
 
 `npm run smoke:codex-plugin` packages the runtime, resolves this marketplace entry from the packed tarball, copies the plugin into a temporary install root, validates the installed manifest, embedded `./runtime` package, MCP config, assets, skills, and stdio MCP calls.
 
