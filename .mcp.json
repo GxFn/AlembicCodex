@@ -6,11 +6,13 @@
       "cwd": ".",
       "env": {
         "ALEMBIC_CHANNEL_ID": "codex",
+        "ALEMBIC_PLUGIN_HOST": "codex",
         "ALEMBIC_CODEX_ENABLE_ADMIN": "0",
         "ALEMBIC_CODEX_MCP_MODE": "1",
         "ALEMBIC_CODEX_PLUGIN_ROOT": ".",
         "ALEMBIC_MCP_MODE": "1",
         "ALEMBIC_MCP_TIER": "agent",
+        "ALEMBIC_RUNTIME_MODE": "plugin",
         "npm_config_cache": "/tmp/alembic-codex-npm-cache"
       }
     }

@@ -51,6 +51,7 @@ main
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
 - 插件内置 Alembic 业务运行时代码在 `./runtime`；这个内置 package 是 `alembic-ai@0.1.0`。
 - Marketplace MCP 配置运行 `npx --package ./runtime.tgz alembic-codex-mcp`，所以 `npx` 安装的是插件本地 runtime tarball，并解析它的生产 npm 依赖，而不是从 registry 下载 Alembic 业务代码。
+- Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会设置 `ALEMBIC_CHANNEL_ID=codex`；项目功能判断应使用这个稳定渠道标识。
 - Marketplace MCP 配置会显式设置 `ALEMBIC_MCP_MODE=1` 和 `ALEMBIC_CODEX_MCP_MODE=1`；binary 入口仍会做同样兜底。
 - MCP 启动命令不使用 `--prefix`，这样 `./runtime.tgz` 会相对于已安装插件根目录解析。

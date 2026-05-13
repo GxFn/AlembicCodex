@@ -51,6 +51,7 @@ Enable `alembic-codex` from the plugin list after installation.
 - Node.js 22 or newer is required. Node 22 LTS is recommended for local development; keep the MCP shim and daemon on the same Node executable.
 - The plugin ships Alembic business runtime code in `./runtime`; that embedded package is `alembic-ai@0.1.0`.
 - The marketplace MCP config runs `npx --package ./runtime.tgz alembic-codex-mcp`, so `npx` installs the plugin-local runtime tarball and resolves its production npm dependencies instead of downloading Alembic code from the registry.
+- The marketplace MCP config sets `ALEMBIC_RUNTIME_MODE=plugin` as the generic plugin runtime signal and `ALEMBIC_PLUGIN_HOST=codex` as the current host signal.
 - The marketplace MCP config sets `ALEMBIC_CHANNEL_ID=codex`; project feature checks should use that stable channel id.
 - The marketplace MCP config explicitly sets `ALEMBIC_MCP_MODE=1` and `ALEMBIC_CODEX_MCP_MODE=1`; the binary still applies the same defaults as a safety net.
 - The MCP launch command does not use `--prefix`; that keeps `./runtime.tgz` relative to the installed plugin root.
