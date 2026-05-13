@@ -22,7 +22,7 @@ export class CodexMcpServer {
         this.sessionId = `codex-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     }
     async start() {
-        this.sdkServer = new SdkMcpServer({ name: 'alembic-codex', version: '0.1.0' }, { capabilities: { tools: {} } });
+        this.sdkServer = new SdkMcpServer({ name: 'alembic-codex', version: '0.1.1' }, { capabilities: { tools: {} } });
         this.registerHandlers();
         await this.sdkServer.connect(new StdioServerTransport());
         process.stderr.write(`Alembic Codex MCP ready — ${getVisibleCodexTools(undefined, this.projectRoot).length} tools\n`);

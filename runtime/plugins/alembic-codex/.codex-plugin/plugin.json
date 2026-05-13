@@ -1,6 +1,6 @@
 {
   "name": "alembic-codex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first project memory, Recipes, Guard checks, and recoverable bootstrap jobs for Codex.",
   "author": {
     "name": "gaoxuefeng",
