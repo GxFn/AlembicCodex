@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "alembic": {
-      "command": "npx",
-      "args": ["-y", "--package", "./runtime.tgz", "alembic-codex-mcp"],
+      "command": "node",
+      "args": ["./bin/alembic-codex-mcp-wrapper.mjs"],
       "cwd": ".",
       "env": {
         "ALEMBIC_CHANNEL_ID": "codex",
@@ -12,8 +12,7 @@
         "ALEMBIC_CODEX_PLUGIN_ROOT": ".",
         "ALEMBIC_MCP_MODE": "1",
         "ALEMBIC_MCP_TIER": "agent",
-        "ALEMBIC_RUNTIME_MODE": "plugin",
-        "npm_config_cache": "/tmp/alembic-codex-npm-cache"
+        "ALEMBIC_RUNTIME_MODE": "plugin"
       }
     }
   }

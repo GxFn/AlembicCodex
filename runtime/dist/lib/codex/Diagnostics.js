@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { asString, CODEX_REQUIRED_SKILLS, loadCodexPluginRegistry } from './PluginRegistry.js';
 import { buildCodexProjectRootRequiredMessage, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
@@ -115,7 +115,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             },
         },
         offlineFallback: {
-            note: 'The Codex plugin ships Alembic runtime code in ./runtime and starts MCP from ./runtime.tgz. npx installs that local package tarball and resolves its production npm dependencies on first MCP start.',
+            note: 'The Codex plugin ships Alembic runtime code in ./runtime and starts MCP through ./bin/alembic-codex-mcp-wrapper.mjs. The wrapper invokes npx against ./runtime.tgz with a plugin-specific npm cache and startup lock.',
             globalInstall: `npm install -g ${context.pinnedRuntimeSpecifier}`,
             localPackage: context.embeddedRuntimeSpecifier,
             command: context.runtimeBin,
@@ -133,9 +133,21 @@ export function buildCodexPluginDiagnostics(context = resolveCodexRuntimeContext
     const packageIndex = args.indexOf('--package');
     const runtimeSpecifier = packageIndex >= 0 ? args[packageIndex + 1] || null : null;
     const command = typeof registry.mcp.server?.command === 'string' ? registry.mcp.server.command : null;
-    const binary = args.find((arg) => arg === context.runtimeBin) || null;
-    const embeddedRuntime = command === 'npx' &&
-        runtimeSpecifier === context.embeddedRuntimeSpecifier &&
+    const wrapperArg = args.find((arg) => arg.endsWith('alembic-codex-mcp-wrapper.mjs')) || null;
+    const wrapperPath = wrapperArg
+        ? join(registry.plugin.root, wrapperArg.replace(/^\.\//, ''))
+        : null;
+    const wrapperSource = wrapperPath && existsSync(wrapperPath) ? readFileSync(wrapperPath, 'utf8') : '';
+    const wrapperUsesRuntime = wrapperSource.includes('npx') &&
+        wrapperSource.includes('--package') &&
+        wrapperSource.includes(context.embeddedRuntimeSpecifier) &&
+        wrapperSource.includes(context.runtimeBin);
+    const wrapperUsesStartupLock = wrapperSource.includes('lockDir') && wrapperSource.includes('npm_config_cache');
+    const binary = args.find((arg) => arg === context.runtimeBin) ||
+        (wrapperUsesRuntime ? context.runtimeBin : null);
+    const embeddedRuntime = command === 'node' &&
+        wrapperUsesRuntime &&
+        wrapperUsesStartupLock &&
         binary === context.runtimeBin &&
         !args.includes('latest');
     const packagePin = embeddedRuntime;
@@ -188,10 +200,15 @@ export function buildCodexPluginDiagnostics(context = resolveCodexRuntimeContext
             path: registry.mcp.json.path,
             pluginHost,
             pluginHostValue,
-            pinnedSpecifier: runtimeSpecifier,
+            pinnedSpecifier: context.embeddedRuntimeSpecifier,
             runtimeMode,
             runtimeModeValue,
-            runtimeSpecifier,
+            runtimeSpecifier: runtimeSpecifier || context.embeddedRuntimeSpecifier,
+            wrapper: {
+                exists: Boolean(wrapperPath && existsSync(wrapperPath)),
+                path: wrapperPath,
+                startupLock: wrapperUsesStartupLock,
+            },
         },
         ok: registry.plugin.manifest.ok &&
             embeddedRuntime &&
@@ -263,7 +280,7 @@ function buildDiagnosticIssues(input) {
     }
     if (!input.checks.packagePin) {
         issues.push({
-            action: 'Update plugins/alembic-codex/.mcp.json to use npx --package ./runtime.tgz alembic-codex-mcp, then run npm run prepare:codex-plugin-runtime.',
+            action: 'Update plugins/alembic-codex/.mcp.json to launch ./bin/alembic-codex-mcp-wrapper.mjs, then run npm run prepare:codex-plugin-runtime.',
             code: 'PLUGIN_RUNTIME_PIN_MISMATCH',
             message: 'Codex plugin MCP config is not using the embedded Alembic runtime tarball from ./runtime.tgz.',
             severity: 'error',

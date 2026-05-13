@@ -18,16 +18,19 @@ resolve that package's production npm dependencies:
 
 ```json
 {
-  "command": "npx",
-  "args": ["-y", "--package", "./runtime.tgz", "alembic-codex-mcp"],
+  "command": "node",
+  "args": ["./bin/alembic-codex-mcp-wrapper.mjs"],
   "cwd": "."
 }
 ```
 
 `./runtime/package.json` is still `alembic-ai@<version>`, and
 `./runtime.tgz` is packed from that exact directory. The tarball is what makes
-`npx` install production dependencies with normal npm package semantics while
-keeping Alembic business code inside the installed plugin.
+the wrapper install production dependencies with normal npm package semantics
+while keeping Alembic business code inside the installed plugin. The wrapper
+uses a plugin-specific npm cache plus a startup lock before invoking
+`npx --package ./runtime.tgz`, so local verification and Codex restarts can
+reuse npm artifacts without contending for one shared `_npx` install directory.
 
 That means every package version bump must keep these surfaces aligned:
 
