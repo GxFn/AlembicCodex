@@ -211,10 +211,7 @@ function isRecord(value) {
     return !!value && typeof value === 'object';
 }
 function serviceKindForPreset(preset) {
-    if (preset === 'remote-exec') {
-        return 'remote-operation';
-    }
-    if (preset === 'chat' || preset === 'lark') {
+    if (preset === 'chat') {
         return 'conversation';
     }
     if (preset === 'evolution') {

@@ -131,9 +131,6 @@ function buildRuntimeOptions(input) {
     };
 }
 function runtimeSourceFor(source) {
-    if (source === 'lark') {
-        return 'user';
-    }
     if (source === 'http-chat' || source === 'http-stream') {
         return 'user';
     }
@@ -147,9 +144,6 @@ function stripProfileSelectionMetadata(metadata) {
     return rest;
 }
 function toChannel(source) {
-    if (source === 'lark') {
-        return Channel.LARK;
-    }
     if (source === 'mcp') {
         return Channel.MCP;
     }

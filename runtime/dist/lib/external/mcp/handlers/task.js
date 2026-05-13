@@ -10,7 +10,6 @@
  *
  * Architecture: Zero DB. Pure memory (IntentState) + SignalBus → JSONL signals.
  */
-import { notifyTaskProgress } from '#infra/notification/LarkNotifier.js';
 import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { envelope } from '../envelope.js';
 import { createIdleIntent } from './types.js';
@@ -71,10 +70,6 @@ export async function taskHandler(ctx, args) {
                 meta: { tool: 'alembic_task' },
             });
     }
-    // ── Lark notification (async, non-blocking) ──
-    notifyTaskProgress(args.operation, args, result).catch((err) => {
-        process.stderr.write(`[MCP/Task] Notify error: ${err instanceof Error ? err.message : String(err)}\n`);
-    });
     return result;
 }
 // ═══ prime ═══════════════════════════════════════════════

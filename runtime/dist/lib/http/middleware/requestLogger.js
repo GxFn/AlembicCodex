@@ -19,7 +19,6 @@ const SILENT_PATHS = [
     '/api/health',
     '/api/realtime/events',
     '/api/sse',
-    '/api/v1/remote/wait',
     '/socket.io',
 ];
 /** 从 originalUrl 中提取 pathname（去除 query string） */

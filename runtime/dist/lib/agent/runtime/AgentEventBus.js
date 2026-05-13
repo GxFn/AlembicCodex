@@ -35,7 +35,6 @@ export const AgentEvents = Object.freeze({
     STREAM_DELTA: 'stream:delta',
     // ── 外部触发 ──
     USER_INPUT: 'user:input',
-    LARK_MESSAGE: 'lark:message',
     SCAN_REQUEST: 'scan:request',
 });
 export class AgentEventBus extends EventEmitter {

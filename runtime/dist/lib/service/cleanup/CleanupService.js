@@ -59,8 +59,6 @@ const ALL_DATA_TABLES = [
     'sessions',
     'semantic_memories',
     'code_entities',
-    'remote_commands',
-    'remote_state',
 ];
 /** rescanClean 时清除的 DB 表（保留知识/进化/增量证据相关表） */
 const RESCAN_CLEAN_TABLES = [
@@ -69,8 +67,6 @@ const RESCAN_CLEAN_TABLES = [
     'semantic_memories',
     'sessions',
     'audit_logs',
-    'remote_commands',
-    'remote_state',
 ];
 /**
  * forceRescanClean 时清除的 DB 表
@@ -82,8 +78,6 @@ const FORCE_RESCAN_CLEAN_TABLES = [
     'semantic_memories',
     'sessions',
     'audit_logs',
-    'remote_commands',
-    'remote_state',
 ];
 // ── CleanupService ──────────────────────────────────────────
 export class CleanupService {

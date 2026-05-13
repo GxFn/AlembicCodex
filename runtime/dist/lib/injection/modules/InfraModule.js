@@ -26,8 +26,6 @@ import { GuardViolationRepositoryImpl } from '../../repository/guard/GuardViolat
 import { KnowledgeEdgeRepositoryImpl } from '../../repository/knowledge/KnowledgeEdgeRepository.js';
 import { KnowledgeRepositoryImpl } from '../../repository/knowledge/KnowledgeRepository.impl.js';
 import { MemoryRepositoryImpl } from '../../repository/memory/MemoryRepository.js';
-import { RemoteCommandRepository } from '../../repository/remote/RemoteCommandRepository.js';
-import { unwrapRawDb } from '../../repository/search/SearchRepoAdapter.js';
 import { SessionRepositoryImpl } from '../../repository/session/SessionRepository.js';
 import { RecipeSourceRefRepositoryImpl } from '../../repository/sourceref/RecipeSourceRefRepository.js';
 import { BootstrapTaskManager } from '../../service/bootstrap/BootstrapTaskManager.js';
@@ -122,10 +120,6 @@ export function register(c) {
         const db = ct.get('database');
         const drizzle = db.getDrizzle();
         return new ProposalRepository(drizzle);
-    });
-    c.singleton('remoteCommandRepository', (ct) => {
-        const db = ct.get('database');
-        return new RemoteCommandRepository(unwrapRawDb(db), db.getDrizzle());
     });
     c.singleton('recipeSourceRefRepository', (ct) => {
         const db = ct.get('database');
