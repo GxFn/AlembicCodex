@@ -13,6 +13,8 @@ Call `alembic_codex_status` before assuming Alembic is initialized. This status 
 
 If status reports runtime or environment problems, call `alembic_codex_diagnostics` and surface the suggested fix. Diagnostics also runs without starting the daemon.
 
+If status or diagnostics says the project root is unresolved or points inside the Codex plugin cache, pass the current workspace directory as the `projectRoot` argument on subsequent Alembic tool calls. `projectRoot` must be an absolute path; without it, Alembic project workflows cannot run.
+
 If the workspace is not initialized and the user wants Alembic knowledge for this project, call `alembic_codex_init`. The default profile is Ghost mode, so Alembic data is stored in the external workspace data root and Codex does not write IDE configuration into the project.
 
 ## Daily Coding Flow

@@ -22,7 +22,7 @@ codex plugin marketplace add GxFn/AlembicCodex --ref main
 For a pinned release after the matching Git tag exists:
 
 ```bash
-codex plugin marketplace add GxFn/AlembicCodex --ref v0.1.1
+codex plugin marketplace add GxFn/AlembicCodex --ref v0.1.2
 ```
 
 If Codex asks for a GitHub target or direct artifact path, use:
@@ -49,7 +49,7 @@ Enable `alembic-codex` from the plugin list after installation.
 ## Runtime
 
 - Node.js 22 or newer is required. Node 22 LTS is recommended for local development; keep the MCP shim and daemon on the same Node executable.
-- The plugin ships Alembic business runtime code in `./runtime`; that embedded package is `alembic-ai@0.1.1`.
+- The plugin ships Alembic business runtime code in `./runtime`; that embedded package is `alembic-ai@0.1.2`.
 - The marketplace MCP config runs `npx --package ./runtime.tgz alembic-codex-mcp`, so `npx` installs the plugin-local runtime tarball and resolves its production npm dependencies instead of downloading Alembic code from the registry.
 - The marketplace MCP config sets `ALEMBIC_RUNTIME_MODE=plugin` as the generic plugin runtime signal and `ALEMBIC_PLUGIN_HOST=codex` as the current host signal.
 - The marketplace MCP config sets `ALEMBIC_CHANNEL_ID=codex`; project feature checks should use that stable channel id.
@@ -138,7 +138,7 @@ The Alembic monorepo still keeps its local development marketplace at `.agents/p
 The default plugin config launches the embedded `./runtime.tgz` package through `npx`. If the first run cannot reach the npm registry to resolve production dependencies, install the same runtime version globally and run the MCP binary from `PATH`:
 
 ```bash
-npm install -g alembic-ai@0.1.1
+npm install -g alembic-ai@0.1.2
 alembic-codex-mcp
 ```
 

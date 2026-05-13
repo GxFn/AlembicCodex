@@ -1,22 +1,34 @@
 import { rmSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { isAbsolute } from 'node:path';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SetupService } from '../../cli/SetupService.js';
-import { allowedCodexToolNames, buildCodexKnowledgeGateActions, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isToolAllowedForCodexKnowledge, resolveCodexRuntimeContext, resolveCodexToolPolicy, summarizeCodexDaemonStatus, } from '../../codex/index.js';
+import { allowedCodexToolNames, buildCodexKnowledgeGateActions, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isToolAllowedForCodexKnowledge, isTrustedCodexProjectRoot, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { resolveDaemonPaths } from '../../daemon/DaemonState.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
 import { JobStore } from '../../daemon/JobStore.js';
 import { TIER_ORDER, TOOLS, withMcpToolAnnotations } from './tools.js';
 export class CodexMcpServer {
     projectRoot;
+    projectRootResolution;
     supervisor;
     waitUntilReadyMs;
     sessionId;
     sdkServer = null;
+    #initPromise = null;
+    #initRuntimeState = {
+        attempted: false,
+        lastAttemptedAt: null,
+        lastError: null,
+        ok: false,
+        requestedTool: null,
+        route: null,
+    };
     constructor(options = {}) {
-        this.projectRoot = resolveProjectRoot(options.projectRoot);
+        this.projectRootResolution = resolveCodexProjectRoot({ projectRoot: options.projectRoot });
+        this.projectRoot = this.projectRootResolution.path || safeProjectRootFallback();
         this.supervisor = options.supervisor || new DaemonSupervisor();
         this.waitUntilReadyMs = options.waitUntilReadyMs ?? 3000;
         this.sessionId = `codex-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -59,13 +71,71 @@ export class CodexMcpServer {
         });
     }
     async handleToolCall(name, args) {
-        const knowledge = inspectCodexKnowledge(this.projectRoot);
+        const projectRootArg = args.projectRoot;
+        if (projectRootArg !== undefined) {
+            if (typeof projectRootArg !== 'string' || projectRootArg.trim().length === 0) {
+                return failureResult(name, 'projectRoot must be a non-empty absolute path string.', {
+                    errorCode: 'CODEX_INVALID_PROJECT_ROOT_ARGUMENT',
+                    required: { projectRoot: 'absolute path' },
+                });
+            }
+            if (!isAbsolute(projectRootArg)) {
+                return failureResult(name, 'projectRoot must be an absolute path.', {
+                    errorCode: 'CODEX_INVALID_PROJECT_ROOT_ARGUMENT',
+                    received: projectRootArg,
+                    required: { projectRoot: 'absolute path' },
+                });
+            }
+            const scopedArgs = { ...args };
+            delete scopedArgs.projectRoot;
+            const scopedServer = new CodexMcpServer({
+                projectRoot: projectRootArg,
+                supervisor: this.supervisor,
+                waitUntilReadyMs: this.waitUntilReadyMs,
+            });
+            if (isTrustedCodexProjectRoot(scopedServer.projectRootResolution)) {
+                writeCodexSavedProjectRoot(scopedServer.projectRoot);
+            }
+            return scopedServer.handleToolCallInCurrentProject(name, scopedArgs);
+        }
+        return this.handleToolCallInCurrentProject(name, args);
+    }
+    async handleToolCallInCurrentProject(name, args) {
+        if (!isTrustedCodexProjectRoot(this.projectRootResolution) &&
+            !isProjectRootDiscoveryTool(name)) {
+            const errorCode = this.projectRootResolution.trust === 'rejected'
+                ? 'CODEX_PROJECT_ROOT_REJECTED'
+                : 'CODEX_PROJECT_ROOT_UNRESOLVED';
+            return failureResult(name, buildCodexProjectRootRequiredMessage(this.projectRootResolution), {
+                errorCode,
+                needsUserInput: true,
+                projectRootResolution: summarizeCodexProjectRootResolution(this.projectRootResolution),
+                required: { projectRoot: 'absolute path' },
+                requiredActions: buildCodexProjectRootRequiredActions(),
+            });
+        }
+        let knowledge = inspectCodexKnowledge(this.projectRoot);
         if (!isToolAllowedForCodexKnowledge(name, knowledge)) {
             return failureResult(name, 'Alembic project-knowledge tools are hidden until this project has a usable Alembic knowledge base. Use the cold-start initialization tools first.', {
                 allowedTools: [...allowedCodexToolNames(knowledge)],
                 errorCode: 'CODEX_ALEMBIC_KNOWLEDGE_REQUIRED',
                 nextActions: buildCodexKnowledgeGateActions(knowledge),
             });
+        }
+        if (!knowledge.initialized && isInitOnDemandTool(name)) {
+            const initResult = await this.ensureWorkspaceInitializedForTool(name);
+            if (isErrorResult(initResult)) {
+                return initResult;
+            }
+            knowledge = inspectCodexKnowledge(this.projectRoot);
+            if (!isToolAllowedForCodexKnowledge(name, knowledge)) {
+                return failureResult(name, 'Alembic workspace was initialized, but this tool still requires usable Alembic project knowledge. Start bootstrap first.', {
+                    allowedTools: [...allowedCodexToolNames(knowledge)],
+                    autoInit: initResult,
+                    errorCode: 'CODEX_ALEMBIC_KNOWLEDGE_REQUIRED',
+                    nextActions: buildCodexKnowledgeGateActions(knowledge),
+                });
+            }
         }
         switch (name) {
             case 'alembic_codex_status':
@@ -93,7 +163,11 @@ export class CodexMcpServer {
     async buildStatus() {
         return {
             success: true,
-            data: await buildCodexStatus(this.projectRoot, { supervisor: this.supervisor }),
+            data: await buildCodexStatus(this.projectRoot, {
+                autoInit: this.#initRuntimeState,
+                projectRootResolution: this.projectRootResolution,
+                supervisor: this.supervisor,
+            }),
         };
     }
     async buildDiagnostics() {
@@ -101,21 +175,28 @@ export class CodexMcpServer {
         const runtime = resolveCodexRuntimeContext();
         return {
             success: true,
-            data: buildCodexRuntimeDiagnostics(daemonStatus, runtime),
+            data: buildCodexRuntimeDiagnostics(daemonStatus, runtime, {
+                autoInit: this.#initRuntimeState,
+                projectRootResolution: this.projectRootResolution,
+            }),
         };
     }
     async initializeWorkspace(args) {
-        const service = new SetupService({
-            projectRoot: this.projectRoot,
+        const initResult = await this.runWorkspaceInitialization({
             force: Boolean(args.force),
+            initializedBy: 'alembic_codex_init',
+            route: 'explicit',
             seed: Boolean(args.seed),
-            ghost: args.standard !== true,
-            profile: CODEX_SETUP_PROFILE,
-            quiet: true,
+            standard: args.standard === true,
         });
-        const results = await service.run();
+        if (isErrorResult(initResult)) {
+            return initResult;
+        }
+        const results = Array.isArray(initResult.data?.results)
+            ? (initResult.data.results ?? [])
+            : [];
         const status = await this.buildStatus();
-        const ok = results.every((result) => result.ok);
+        const ok = initResult.success !== false && results.every((result) => result.ok !== false);
         const knowledgeAfterInit = status.data?.knowledge ??
             EMPTY_CODEX_KNOWLEDGE_STATE;
         return {
@@ -140,6 +221,150 @@ export class CodexMcpServer {
                 ? buildCodexPostInitMessage(knowledgeAfterInit)
                 : 'Alembic Codex initialization failed. Run diagnostics before retrying.',
         };
+    }
+    async ensureWorkspaceInitializedForTool(toolName) {
+        if (!isInitOnDemandTool(toolName)) {
+            return { success: true, data: { initialized: false, reason: 'tool is not init-on-demand' } };
+        }
+        if (inspectCodexKnowledge(this.projectRoot).initialized) {
+            return {
+                success: true,
+                data: {
+                    initialized: false,
+                    reason: 'workspace already initialized',
+                    requestedTool: toolName,
+                },
+            };
+        }
+        return this.runWorkspaceInitialization({
+            force: false,
+            initializedBy: 'codex-plugin-init-on-demand',
+            requestedTool: toolName,
+            route: 'tool-call',
+            seed: false,
+            standard: false,
+        });
+    }
+    async runWorkspaceInitialization(input) {
+        if (!isTrustedCodexProjectRoot(this.projectRootResolution)) {
+            const errorCode = this.projectRootResolution.trust === 'rejected'
+                ? 'CODEX_PROJECT_ROOT_REJECTED'
+                : 'CODEX_PROJECT_ROOT_UNRESOLVED';
+            this.#initRuntimeState = {
+                attempted: false,
+                lastAttemptedAt: null,
+                lastError: buildCodexProjectRootRequiredMessage(this.projectRootResolution),
+                ok: false,
+                requestedTool: input.requestedTool || null,
+                route: input.route,
+            };
+            return failureResult(input.requestedTool || 'alembic_codex_init', buildCodexProjectRootRequiredMessage(this.projectRootResolution), {
+                errorCode,
+                needsUserInput: true,
+                projectRootResolution: summarizeCodexProjectRootResolution(this.projectRootResolution),
+                required: { projectRoot: 'absolute path' },
+                requiredActions: buildCodexProjectRootRequiredActions(),
+            });
+        }
+        if (this.#initPromise) {
+            return this.#initPromise;
+        }
+        const promise = this.performWorkspaceInitialization(input).finally(() => {
+            if (this.#initPromise === promise) {
+                this.#initPromise = null;
+            }
+        });
+        this.#initPromise = promise;
+        return promise;
+    }
+    async performWorkspaceInitialization(input) {
+        const startedAt = new Date().toISOString();
+        this.#initRuntimeState = {
+            attempted: true,
+            lastAttemptedAt: startedAt,
+            lastError: null,
+            ok: false,
+            requestedTool: input.requestedTool || null,
+            route: input.route,
+        };
+        if (inspectCodexKnowledge(this.projectRoot).initialized &&
+            !input.force &&
+            !input.seed &&
+            !input.standard) {
+            this.#initRuntimeState = { ...this.#initRuntimeState, ok: true };
+            return {
+                success: true,
+                data: {
+                    alreadyInitialized: true,
+                    initialized: false,
+                    requestedTool: input.requestedTool || null,
+                    results: [],
+                    route: input.route,
+                },
+                message: 'Alembic Codex workspace is already initialized.',
+            };
+        }
+        try {
+            const service = new SetupService({
+                projectRoot: this.projectRoot,
+                force: input.force,
+                seed: input.seed,
+                ghost: input.standard !== true,
+                profile: CODEX_SETUP_PROFILE,
+                quiet: true,
+            });
+            const results = (await service.run());
+            const ok = results.every((result) => result.ok !== false);
+            if (!ok) {
+                this.#initRuntimeState = {
+                    ...this.#initRuntimeState,
+                    lastError: 'One or more setup steps failed.',
+                    ok: false,
+                };
+                return failureResult(input.requestedTool || 'alembic_codex_init', 'Alembic Codex initialization failed. Run diagnostics before retrying.', {
+                    errorCode: 'CODEX_AUTO_INIT_FAILED',
+                    results,
+                    route: input.route,
+                });
+            }
+            const marker = writeCodexInitMarker(this.projectRoot, {
+                initializedBy: input.initializedBy,
+                requestedTool: input.requestedTool,
+                results,
+                route: input.route,
+            });
+            this.#initRuntimeState = {
+                ...this.#initRuntimeState,
+                lastAttemptedAt: marker.initializedAt,
+                ok: true,
+            };
+            return {
+                success: true,
+                data: {
+                    initialized: true,
+                    marker,
+                    requestedTool: input.requestedTool || null,
+                    results,
+                    route: input.route,
+                },
+                message: input.route === 'explicit'
+                    ? 'Alembic Codex workspace initialized.'
+                    : 'Alembic Codex workspace initialized before running the requested tool.',
+            };
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            this.#initRuntimeState = {
+                ...this.#initRuntimeState,
+                lastError: message,
+                ok: false,
+            };
+            return failureResult(input.requestedTool || 'alembic_codex_init', 'Alembic Codex initialization failed. Run diagnostics before retrying.', {
+                errorCode: 'CODEX_AUTO_INIT_FAILED',
+                lastError: message,
+                route: input.route,
+            });
+        }
     }
     async openDashboard() {
         const daemon = await this.supervisor.ensure({
@@ -343,15 +568,57 @@ export class CodexMcpServer {
         });
     }
 }
-export function getVisibleCodexTools(tierName = process.env[CODEX_MCP_TIER_ENV] || CODEX_DEFAULT_MCP_TIER, projectRoot = resolveProjectRoot()) {
-    const knowledge = inspectCodexKnowledge(projectRoot);
+export function getVisibleCodexTools(tierName = process.env[CODEX_MCP_TIER_ENV] || CODEX_DEFAULT_MCP_TIER, projectRoot = resolveCodexProjectRoot().path || safeProjectRootFallback()) {
+    const resolution = resolveCodexProjectRoot({ projectRoot });
+    const knowledge = isTrustedCodexProjectRoot(resolution)
+        ? inspectCodexKnowledge(projectRoot)
+        : buildExplicitProjectRootRequiredKnowledgeState();
     return resolveCodexToolPolicy({
         adminEnabled: process.env[CODEX_ADMIN_ENABLE_ENV] === '1',
         coreTools: TOOLS,
         knowledge,
         tierName,
         tierOrder: TIER_ORDER,
-    }).visibleTools.map(withMcpToolAnnotations);
+    })
+        .visibleTools.map(withMcpToolAnnotations)
+        .map(withCodexProjectRootInput);
+}
+function isInitOnDemandTool(name) {
+    return (name === 'alembic_codex_dashboard' ||
+        name === 'alembic_codex_bootstrap' ||
+        name === 'alembic_codex_rescan' ||
+        name === 'alembic_codex_job');
+}
+function isProjectRootDiscoveryTool(name) {
+    return name === 'alembic_codex_status' || name === 'alembic_codex_diagnostics';
+}
+function buildExplicitProjectRootRequiredKnowledgeState() {
+    return {
+        ...EMPTY_CODEX_KNOWLEDGE_STATE,
+        initialized: true,
+        hasKnowledge: true,
+        recipeCount: 1,
+        skillCount: 0,
+        status: 'knowledge_ready',
+        usable: true,
+    };
+}
+function withCodexProjectRootInput(tool) {
+    const inputSchema = tool.inputSchema || {};
+    const properties = inputSchema.properties && typeof inputSchema.properties === 'object'
+        ? inputSchema.properties
+        : {};
+    return {
+        ...tool,
+        inputSchema: {
+            ...inputSchema,
+            type: 'object',
+            properties: {
+                projectRoot: CODEX_PROJECT_ROOT_PROPERTY,
+                ...properties,
+            },
+        },
+    };
 }
 async function callDaemonBridge(state, name, args, actor) {
     const response = await fetch(`${state.url}/api/v1/mcp/call`, {
@@ -454,13 +721,13 @@ function buildJobQuery(args) {
     const query = params.toString();
     return query ? `?${query}` : '';
 }
-function resolveProjectRoot(projectRoot) {
-    return resolve(projectRoot ||
-        process.env.ALEMBIC_PROJECT_DIR ||
-        process.env.CODEX_WORKSPACE_DIR ||
-        process.env.INIT_CWD ||
-        process.env.PWD ||
-        process.cwd());
+function safeProjectRootFallback() {
+    try {
+        return process.cwd();
+    }
+    catch {
+        return process.env.PWD || homedir();
+    }
 }
 export async function startCodexMcpServer() {
     const server = new CodexMcpServer();

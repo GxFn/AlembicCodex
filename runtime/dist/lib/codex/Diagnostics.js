@@ -2,8 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { asString, CODEX_REQUIRED_SKILLS, loadCodexPluginRegistry } from './PluginRegistry.js';
+import { buildCodexProjectRootRequiredMessage, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
 import { ALEMBIC_PLUGIN_HOST_ENV, ALEMBIC_RUNTIME_MODE_ENV, ALEMBIC_RUNTIME_MODE_PLUGIN, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_MODE_ENV, CODEX_MCP_SHIM_ENV, CODEX_PLUGIN_HOST, CODEX_PLUGIN_NAME, resolveCodexRuntimeContext, } from './RuntimeContext.js';
-export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCodexRuntimeContext()) {
+export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCodexRuntimeContext(), options = {}) {
     const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] || '0', 10);
     const npm = probeCommand('npm');
     const npx = probeCommand('npx');
@@ -25,6 +26,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
         pluginManifest: plugin.manifest.ok,
         pluginMcp: plugin.mcp.ok,
         pluginSkills: plugin.skills.ok,
+        projectRoot: !options.projectRootResolution || options.projectRootResolution.trust === 'trusted',
     };
     const issues = buildDiagnosticIssues({
         adminEnabled: context.adminEnabled,
@@ -34,6 +36,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
         packageVersion: context.packageVersion,
         pluginHost: context.pluginHost,
         plugin,
+        projectRootResolution: options.projectRootResolution,
         requestedTier: context.requestedTier,
         runtimeMode: context.runtimeMode,
     });
@@ -76,6 +79,10 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             pinnedSpecifier: context.pinnedRuntimeSpecifier,
             mcpBinary: context.runtimeBin,
         },
+        projectRootResolution: options.projectRootResolution
+            ? summarizeCodexProjectRootResolution(options.projectRootResolution)
+            : null,
+        autoInit: options.autoInit || null,
         plugin,
         daemon: {
             ready: daemonStatus.ready,
@@ -213,6 +220,15 @@ export function buildCodexPluginDiagnostics(context = resolveCodexRuntimeContext
 }
 function buildDiagnosticIssues(input) {
     const issues = [];
+    if (input.projectRootResolution && input.projectRootResolution.trust !== 'trusted') {
+        const rejected = input.projectRootResolution.trust === 'rejected';
+        issues.push({
+            action: 'Pass the current workspace directory as the projectRoot argument, then rerun the Alembic tool.',
+            code: rejected ? 'CODEX_PROJECT_ROOT_REJECTED' : 'CODEX_PROJECT_ROOT_UNRESOLVED',
+            message: buildCodexProjectRootRequiredMessage(input.projectRootResolution),
+            severity: 'error',
+        });
+    }
     if (!input.checks.node) {
         issues.push({
             action: 'Install Node.js 22 LTS or newer, then restart Codex. Keep MCP and daemon on the same Node executable.',

@@ -6,6 +6,7 @@ import { WorkspaceResolver } from '../shared/WorkspaceResolver.js';
 import { WorkspaceSettingsStore } from '../shared/WorkspaceSettingsStore.js';
 import { buildCodexRuntimeDiagnostics } from './Diagnostics.js';
 import { inspectCodexKnowledge } from './KnowledgeState.js';
+import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, getCodexInitMarkerPath, readCodexInitMarker, resolveCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
 import { CODEX_SETUP_PROFILE, resolveCodexRuntimeContext, } from './RuntimeContext.js';
 import { buildCodexToolPolicySignals, resolveCodexToolPolicyState, } from './ToolPolicy.js';
 export async function buildCodexStatus(projectRootInput, options = {}) {
@@ -17,7 +18,14 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const daemonStatus = await supervisor.status(projectRoot);
     const knowledge = inspectCodexKnowledge(projectRoot);
     const runtime = options.runtime || resolveCodexRuntimeContext();
-    const diagnostics = buildCodexRuntimeDiagnostics(daemonStatus, runtime);
+    const projectRootResolution = options.projectRootResolution || resolveCodexProjectRoot({ projectRoot: projectRootInput });
+    const autoInit = buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, {
+        runtimeState: options.autoInit,
+    });
+    const diagnostics = buildCodexRuntimeDiagnostics(daemonStatus, runtime, {
+        autoInit,
+        projectRootResolution,
+    });
     const policyInput = {
         coreTools: [],
         daemon: daemonStatus,
@@ -29,6 +37,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         daemonStatus,
         diagnostics,
         knowledge,
+        projectRootResolution,
     });
     const daemonStatePath = join(resolver.runtimeDir, 'daemon.json');
     const daemonPidPath = join(resolver.runtimeDir, 'daemon.pid');
@@ -42,6 +51,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         },
         initialized: knowledge.initialized,
         projectRoot,
+        projectRootResolution: summarizeCodexProjectRootResolution(projectRootResolution),
         registry: {
             registered: facts.registered,
             path: facts.registryPath,
@@ -72,6 +82,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             secretsPath: settingsStore.secretsPath,
             secretsExists: existsSync(settingsStore.secretsPath),
         },
+        autoInit,
         knowledge,
         projectArtifacts: {
             runtimeDir: join(projectRoot, DEFAULT_FOLDER_NAMES.project.runtime),
@@ -109,6 +120,38 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             signals: buildCodexToolPolicySignals(policyInput, policyState),
             state: policyState,
         },
+    };
+}
+function buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, options = {}) {
+    let markerPath = null;
+    let markerExists = false;
+    let marker = null;
+    try {
+        markerPath = getCodexInitMarkerPath(projectRoot);
+        marker = readCodexInitMarker(projectRoot);
+        markerExists = Boolean(marker);
+    }
+    catch {
+        markerPath = null;
+    }
+    const runtimeState = options.runtimeState || {};
+    const skippedReason = projectRootResolution.trust !== 'trusted'
+        ? buildCodexProjectRootRequiredMessage(projectRootResolution)
+        : knowledge.initialized
+            ? 'workspace already initialized'
+            : 'waiting for explicit init or an init-on-demand tool call';
+    return {
+        enabled: true,
+        attempted: Boolean(runtimeState.attempted) || markerExists,
+        ok: runtimeState.ok === true || markerExists,
+        skippedReason,
+        route: runtimeState.route || marker?.route || null,
+        requestedTool: runtimeState.requestedTool || marker?.requestedTool || null,
+        lastError: runtimeState.lastError || null,
+        lastAttemptedAt: runtimeState.lastAttemptedAt || marker?.initializedAt || null,
+        markerPath,
+        markerExists,
+        marker,
     };
 }
 export function summarizeCodexDaemonStatus(status) {
@@ -199,6 +242,31 @@ export function buildCodexKnowledgeGateActions(knowledge) {
     return actions;
 }
 export function buildCodexStatusOnboarding(input) {
+    if (input.projectRootResolution && input.projectRootResolution.trust !== 'trusted') {
+        return {
+            state: 'project_root_unresolved',
+            summary: 'Alembic Codex cannot determine the target project directory, so project workflows cannot be used yet.',
+            primaryAction: buildCodexRecommendedAction({
+                label: 'Run diagnostics',
+                reason: 'Show why the project root is unavailable and which absolute path must be provided.',
+                startsDaemon: false,
+                tool: 'alembic_codex_diagnostics',
+            }),
+            nextActions: [
+                buildCodexRecommendedAction({
+                    label: 'Run diagnostics',
+                    reason: 'Show the rejected or fallback project root and required environment variables.',
+                    startsDaemon: false,
+                    tool: 'alembic_codex_diagnostics',
+                }),
+            ],
+            notes: [
+                buildCodexProjectRootRequiredMessage(input.projectRootResolution),
+                ...buildCodexProjectRootRequiredActions(),
+                'Initialization and init-on-demand tools fail closed until the project root is trusted.',
+            ],
+        };
+    }
     const diagnosticsOk = input.diagnostics.ok !== false;
     if (!diagnosticsOk) {
         return {
