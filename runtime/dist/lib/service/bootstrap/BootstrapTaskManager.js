@@ -444,7 +444,7 @@ export class BootstrapTaskManager {
                 }
             }
             catch {
-                // RealtimeService 可能未初始化（CLI 模式），静默忽略
+                // RealtimeService 可能未初始化，静默忽略
             }
         }
     }

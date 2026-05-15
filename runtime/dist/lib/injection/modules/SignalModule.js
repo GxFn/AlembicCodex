@@ -17,7 +17,7 @@ import { resolveDataRoot } from '../../shared/resolveProjectRoot.js';
 import { shutdown } from '../../shared/shutdown.js';
 /**
  * Register intent signal subscriber for JSONL persistence.
- * Replaces standalone SignalLogger — writes IntentChainRecord to .asd/logs/signals/YYYY-MM-DD.jsonl.
+ * Replaces the old SignalLogger singleton — writes IntentChainRecord to .asd/logs/signals/YYYY-MM-DD.jsonl.
  */
 function registerIntentPersistence(signalBus, projectRoot, writeZone) {
     signalBus.subscribe('intent', (signal) => {

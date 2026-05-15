@@ -30,7 +30,6 @@ import commandsRouter from './routes/commands.js';
 import daemonRouter from './routes/daemon.js';
 import evolutionRouter from './routes/evolution.js';
 import extractRouter from './routes/extract.js';
-import fileChangesRouter from './routes/file-changes.js';
 import guardRouter from './routes/guard.js';
 import guardReportRouter from './routes/guardReport.js';
 import guardRuleRouter from './routes/guardRules.js';
@@ -46,7 +45,6 @@ import recipesRouter from './routes/recipes.js';
 import searchRouter from './routes/search.js';
 import signalsRouter from './routes/signals.js';
 import skillsRouter from './routes/skills.js';
-import taskRouter from './routes/task.js';
 import violationsRouter from './routes/violations.js';
 import wikiRouter from './routes/wiki.js';
 export class HttpServer {
@@ -244,14 +242,12 @@ export class HttpServer {
         if (this.config.enableMonitoring) {
             this.app.use(`${apiPrefix}/monitoring`, monitoringRouter);
         }
-        // Guard 实时检查路由（Extension DiagnosticCollection 调用）
+        // Guard 检查路由
         this.app.use(`${apiPrefix}/guard`, guardRouter);
         // Guard 合规报告路由
         this.app.use(`${apiPrefix}/guard/report`, guardReportRouter);
         // 守护规则路由
         this.app.use(`${apiPrefix}/rules`, guardRuleRouter);
-        // TaskGraph 路由（Extension taskTool.ts 转发调用）
-        this.app.use(`${apiPrefix}/task`, taskRouter);
         // 搜索路由
         this.app.use(`${apiPrefix}/search`, searchRouter);
         // AI 路由
@@ -278,8 +274,6 @@ export class HttpServer {
         this.app.use(`${apiPrefix}/panorama`, panoramaRouter);
         // 进化路由（文件变更驱动 Recipe 修复/弃用）
         this.app.use(`${apiPrefix}/evolution`, evolutionRouter);
-        // 文件变更事件接收（领域无关，由 FileChangeDispatcher 分发）
-        this.app.use(`${apiPrefix}/file-changes`, fileChangesRouter);
         // 信号留痕 & 报告路由
         this.app.use(`${apiPrefix}/signals`, signalsRouter);
         // 审计日志路由

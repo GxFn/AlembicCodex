@@ -5,7 +5,7 @@
  * Transport 适配器负责将渠道特定格式转换为 AgentMessage,
  * Agent 只处理 AgentMessage, 通过 replyFn 返回结果。
  *
- * Transport factory methods keep HTTP, CLI, MCP, and internal surfaces
+ * Transport factory methods keep HTTP, MCP, and internal surfaces
  * normalized before they reach AgentRuntime.
  *
  * @module AgentMessage
@@ -14,7 +14,6 @@ import { randomUUID } from 'node:crypto';
 /** 通信渠道枚举 */
 export const Channel = Object.freeze({
     HTTP: 'http',
-    CLI: 'cli',
     MCP: 'mcp',
     INTERNAL: 'internal', // Agent 间通信
 });
@@ -90,23 +89,6 @@ export class AgentMessage {
                 stream: body.stream ?? true,
             },
             replyFn,
-        });
-    }
-    /**
-     * 从 CLI 输入构建
-     * @param input 命令行输入
-     */
-    static fromCli(input, opts = {}) {
-        return new AgentMessage({
-            content: input,
-            channel: Channel.CLI,
-            session: { id: opts.sessionId || 'cli-session', history: opts.history || [] },
-            sender: { id: 'cli-user', type: 'user' },
-            metadata: {
-                cwd: opts.cwd || process.cwd(),
-                mode: opts.mode,
-                ...opts.metadata,
-            },
         });
     }
     /**

@@ -34,7 +34,6 @@ export function walkDir(dir, callback, maxFiles = 500) {
         '__tests__',
         'Tests',
         DEFAULT_KNOWLEDGE_BASE_DIR,
-        '.cursor',
     ]);
     let count = 0;
     const walk = (d) => {

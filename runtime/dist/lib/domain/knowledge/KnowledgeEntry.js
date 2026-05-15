@@ -21,7 +21,7 @@ export class KnowledgeEntry {
     scope;
     difficulty;
     tags;
-    // Cursor delivery fields
+    // IDE plugin adapter fields
     trigger;
     topicHint;
     whenClause;
@@ -78,7 +78,7 @@ export class KnowledgeEntry {
         this.scope = props.scope || 'universal';
         this.difficulty = props.difficulty || null;
         this.tags = props.tags || [];
-        // ── Cursor 交付字段（AI 直接产出）──
+        // ── 插件适配字段（AI 直接产出）──
         this.trigger = props.trigger || '';
         this.topicHint = props.topicHint || '';
         this.whenClause = props.whenClause || '';

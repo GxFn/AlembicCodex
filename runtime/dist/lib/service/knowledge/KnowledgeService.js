@@ -96,7 +96,6 @@ export class KnowledgeService {
             }
             // 注意: staging 条目由 StagingManager.checkAndPromote() 在到期后自动转为 active。
             // autoApprovable 标记保留，供前端显示「推荐批准」徽章。
-            // CursorDelivery 已支持高置信度 staging/pending 条目的交付。
             // ── file-first: 先落盘 .md，再写 DB（文件=真相源） ──
             // fileWriter.persist() 会设置 entry.sourceFile，
             // 后续 repository.create() 自动包含 sourceFile 字段，无需异步回写。
@@ -186,7 +185,7 @@ export class KnowledgeService {
                 'includeHeaders',
                 'agentNotes',
                 'aiInsight',
-                // Cursor 交付字段
+                // 插件适配字段
                 'topicHint',
                 'whenClause',
                 'doClause',
@@ -337,27 +336,7 @@ export class KnowledgeService {
         const result = await this._lifecycleTransition(id, 'publish', context, {
             entityArgs: [context.userId],
         });
-        // 发布后触发 Cursor Delivery 增量更新（非阻塞）
-        this._triggerCursorDeliveryAsync();
         return result;
-    }
-    /**
-     * 触发 Cursor Delivery Pipeline（非阻塞、容错）
-     */
-    _triggerCursorDeliveryAsync() {
-        import('../../injection/ServiceContainer.js')
-            .then(({ getServiceContainer }) => {
-            const container = getServiceContainer();
-            if (container.services.cursorDeliveryPipeline) {
-                const pipeline = container.get('cursorDeliveryPipeline');
-                pipeline.deliver().catch(() => {
-                    /* ignore */
-                });
-            }
-        })
-            .catch(() => {
-            // ServiceContainer 未初始化或服务不可用 — 静默忽略
-        });
     }
     /** 弃用 (pending|active → deprecated) */
     async deprecate(id, reason, context) {

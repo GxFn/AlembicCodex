@@ -40,11 +40,11 @@ export class WriteZone {
         this.#globalRoot = path.join(process.env.HOME || process.env.USERPROFILE || '', '.asd');
     }
     // ─── 静态工厂（pre-DI 场景） ─────────────────────
-    /** 从已有的 WorkspaceResolver 创建 — SetupService/UpgradeService 等 */
+    /** 从已有的 WorkspaceResolver 创建 — SetupService 等初始化场景 */
     static fromResolver(resolver) {
         return new WriteZone(resolver);
     }
-    /** 从项目根路径创建（异步）— CLI 工具、脚本等一次性场景 */
+    /** 从项目根路径创建（异步）— 脚本等一次性场景 */
     static async fromProjectRoot(projectRoot) {
         const { WorkspaceResolver: WR } = await import('#shared/WorkspaceResolver.js');
         return new WriteZone(WR.fromProject(projectRoot));

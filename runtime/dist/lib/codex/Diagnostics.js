@@ -83,6 +83,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             ? summarizeCodexProjectRootResolution(options.projectRootResolution)
             : null,
         autoInit: options.autoInit || null,
+        gitDiffCheckpoint: readHealthGitDiffCheckpoint(daemonStatus.health),
         plugin,
         daemon: {
             ready: daemonStatus.ready,
@@ -369,4 +370,15 @@ function readHealthVersion(health) {
     }
     const version = data.version;
     return typeof version === 'string' ? version : null;
+}
+function readHealthGitDiffCheckpoint(health) {
+    const data = health?.data;
+    if (!data || typeof data !== 'object') {
+        return null;
+    }
+    const status = data.gitDiffCheckpoint;
+    if (!status || typeof status !== 'object') {
+        return null;
+    }
+    return status;
 }

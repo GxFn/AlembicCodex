@@ -8,9 +8,11 @@ router.get('/health', (_req, res) => {
     const container = getServiceContainer();
     const projectRoot = resolveProjectRoot(container);
     const resolver = WorkspaceResolver.fromProject(projectRoot);
+    const gitDiffCheckpoint = readGitDiffCheckpointStatus(container);
     res.json({
         success: true,
         data: {
+            gitDiffCheckpoint,
             mode: process.env.ALEMBIC_DAEMON_MODE === '1' ? 'daemon' : 'api',
             projectRoot,
             dataRoot: resolver.dataRoot,
@@ -23,6 +25,10 @@ router.get('/health', (_req, res) => {
         },
     });
 });
+function readGitDiffCheckpointStatus(container) {
+    const checkpoint = container.singletons.gitDiffCheckpoint;
+    return checkpoint?.getStatus?.() ?? null;
+}
 function getSchemaMigrationVersion(container) {
     try {
         const db = container.get('database');

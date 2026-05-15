@@ -16,7 +16,6 @@
     "#inject/*": "./dist/lib/injection/*",
     "#core/*": "./dist/lib/core/*",
     "#external/*": "./dist/lib/external/*",
-    "#platform/*": "./dist/lib/platform/*",
     "#repo/*": "./dist/lib/repository/*",
     "#types/*": "./dist/lib/types/*",
     "#http/*": "./dist/lib/http/*",
@@ -48,8 +47,7 @@
     "swift",
     "rust",
     "kotlin",
-    "developer-tools",
-    "cli"
+    "developer-tools"
   ],
   "homepage": "https://github.com/GxFn/Alembic#readme",
   "repository": {
@@ -71,7 +69,6 @@
     "helmet": "^8.1.0",
     "js-yaml": "^4.1.1",
     "minimist": "^1.2.8",
-    "open": "^11.0.0",
     "ora": "^9.3.0",
     "p-limit": "^7.3.0",
     "socket.io": "^4.8.3",

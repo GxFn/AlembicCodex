@@ -17,7 +17,6 @@ const IGNORED_DIRS = new Set([
     '.turbo',
     'bower_components',
     '.idea',
-    '.vscode',
 ]);
 function shouldIgnore(name) {
     return IGNORED_DIRS.has(name);

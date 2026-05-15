@@ -36,7 +36,7 @@ export function resetDiscovererRegistry() {
 }
 export { CustomConfigDiscoverer } from './CustomConfigDiscoverer.js';
 export { DartDiscoverer } from './DartDiscoverer.js';
-export { detectConflict, loadPreference, promptDiscovererChoice, savePreference, } from './DiscovererPreference.js';
+export { detectConflict, loadPreference, savePreference, } from './DiscovererPreference.js';
 export { DiscovererRegistry } from './DiscovererRegistry.js';
 export { GenericDiscoverer } from './GenericDiscoverer.js';
 export { GoDiscoverer } from './GoDiscoverer.js';

@@ -24,7 +24,7 @@ async function _checkRateLimit(toolName, clientId, container) {
 }
 function _enrichToV3(args, container) {
     const data = { ...args };
-    // 来源标记（非 Cursor 职责）
+    // 来源标记（非调用方职责）
     if (!data.source) {
         data.source = 'mcp';
     }
@@ -59,7 +59,7 @@ function _enrichToV3(args, container) {
  * 单条知识提交 (alembic_submit_knowledge)
  *
  * MCP wire format → V3 增强 → KnowledgeService.create()
- * 增强包括：source='mcp'、reasoning 默认值、Delivery 字段补齐、QualityScorer、语义标签。
+ * 增强包括：source='mcp'、reasoning 默认值、插件适配字段补齐、QualityScorer、语义标签。
  */
 export async function submitKnowledge(ctx, args) {
     // 限流

@@ -43,10 +43,6 @@ export function getSnippetsPath() {
     // 非 macOS: 放到全局缓存目录下
     return ensureDir(path.join(USER_HOME, DEFAULT_FOLDER_NAMES.global.root, DEFAULT_FOLDER_NAMES.global.snippets));
 }
-/** VSCode 项目级 Snippets 目录 = projectRoot/.vscode/ */
-export function getVSCodeSnippetsPath(projectRoot) {
-    return ensureDir(path.join(projectRoot, DEFAULT_FOLDER_NAMES.ide.vscodeRoot));
-}
 /**
  * Alembic 全局缓存目录 ~/.asd/cache
  * 可通过 ALEMBIC_CACHE_PATH 环境变量覆盖
@@ -121,7 +117,6 @@ export default {
     SPEC_FILENAME,
     ensureDir,
     getSnippetsPath,
-    getVSCodeSnippetsPath,
     getCachePath,
     getKnowledgeBaseDirName,
     getProjectKnowledgePath,

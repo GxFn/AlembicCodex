@@ -42,7 +42,7 @@ export const knowledgeEntries = sqliteTable('knowledge_entries', {
     scope: text('scope').default('universal'),
     difficulty: text('difficulty'),
     tags: text('tags').default('[]'),
-    // Cursor 交付字段
+    // 插件适配字段
     trigger: text('trigger').default(''),
     topicHint: text('topicHint').default(''),
     whenClause: text('whenClause').default(''),

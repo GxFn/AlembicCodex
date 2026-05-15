@@ -41,6 +41,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     });
     const daemonStatePath = join(resolver.runtimeDir, 'daemon.json');
     const daemonPidPath = join(resolver.runtimeDir, 'daemon.pid');
+    const gitDiffCheckpoint = readGitDiffCheckpointStatus(daemonStatus.health);
     return {
         ok: knowledge.initialized,
         packageVersion: runtime.packageVersion,
@@ -89,10 +90,6 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             runtimeExists: existsSync(join(projectRoot, DEFAULT_FOLDER_NAMES.project.runtime)),
             knowledgeDir: join(projectRoot, DEFAULT_FOLDER_NAMES.project.knowledgeBase),
             knowledgeExists: existsSync(join(projectRoot, DEFAULT_FOLDER_NAMES.project.knowledgeBase)),
-            cursorDir: join(projectRoot, DEFAULT_FOLDER_NAMES.ide.cursorRoot),
-            cursorDirExists: existsSync(join(projectRoot, DEFAULT_FOLDER_NAMES.ide.cursorRoot)),
-            vscodeMcpPath: join(projectRoot, '.vscode', 'mcp.json'),
-            vscodeMcpExists: existsSync(join(projectRoot, '.vscode', 'mcp.json')),
         },
         mcp: {
             runtimeCommand: runtime.runtimeBin,
@@ -102,6 +99,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             adminEnabled: runtime.adminEnabled,
             requiresProjectEnv: null,
         },
+        gitDiffCheckpoint,
         daemon: {
             ...summarizeCodexDaemonStatus(daemonStatus),
             implemented: true,
@@ -121,6 +119,14 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             state: policyState,
         },
     };
+}
+function readGitDiffCheckpointStatus(health) {
+    const data = (health?.data || null);
+    const status = data?.gitDiffCheckpoint;
+    if (!status || typeof status !== 'object') {
+        return null;
+    }
+    return status;
 }
 function buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, options = {}) {
     let markerPath = null;

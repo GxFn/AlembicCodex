@@ -57,7 +57,6 @@ export function prepareInternalDimensionFillRun(view, dimensions) {
         agentService,
         systemRunContextFactory,
         isMockMode,
-        skipTargetDelivery: view.skipTargetDelivery === true,
     };
 }
 export function emitInternalDimensionFillAiUnavailable(preparation) {

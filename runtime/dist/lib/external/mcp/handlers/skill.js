@@ -12,7 +12,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getProjectSkillsPath } from '#infra/config/Paths.js';
-import { getCursorRulesDir, getCursorRulesRelativePath } from '#shared/ide-paths.js';
 import pathGuard from '#shared/PathGuard.js';
 import { INJECTABLE_SKILLS_DIR } from '#shared/package-root.js';
 import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
@@ -330,8 +329,6 @@ export function createSkill(ctx, args) {
             },
         });
     }
-    // ── regenerate 编辑器索引 ──
-    const indexResult = _regenerateEditorIndex(ctx ?? undefined);
     // ── 清理 SignalCollector 已创建的 pendingSuggestions ──
     try {
         const g = globalThis;
@@ -362,88 +359,16 @@ export function createSkill(ctx, args) {
             skillName: name,
             path: skillPath,
             overwritten: fs.existsSync(skillPath) && overwrite,
-            editorIndex: indexResult,
             hint: `Skill "${name}" created. Use alembic_skill({ operation: "load", name: "${name}" }) to verify content.`,
         },
     });
-}
-/**
- * Regenerate .cursor/rules/alembic-skills.mdc 索引文件
- * 扫描所有项目级 Skills，生成摘要索引供 External Agent 被动发现
- *
- * @returns }
- */
-function _regenerateEditorIndex(ctx) {
-    try {
-        // 扫描项目级 Skills
-        const projectSkills = [];
-        const projectSkillsDir = _getProjectSkillsDir(ctx);
-        try {
-            const dirs = fs
-                .readdirSync(projectSkillsDir, { withFileTypes: true })
-                .filter((d) => d.isDirectory())
-                .map((d) => d.name);
-            for (const name of dirs) {
-                const meta = _parseSkillMeta(name, projectSkillsDir);
-                projectSkills.push({ name, summary: meta.description });
-            }
-        }
-        catch {
-            /* no project skills dir */
-        }
-        const wz = _getWriteZone(ctx);
-        const projectRoot = resolveProjectRoot(ctx?.container);
-        const rulesDir = getCursorRulesDir(projectRoot);
-        if (projectSkills.length === 0) {
-            try {
-                if (wz) {
-                    wz.remove(wz.project(getCursorRulesRelativePath('alembic-skills.mdc')));
-                }
-                else {
-                    fs.unlinkSync(path.join(rulesDir, 'alembic-skills.mdc'));
-                }
-            }
-            catch {
-                /* not exists */
-            }
-            return { success: true, skillCount: 0 };
-        }
-        const skillLines = projectSkills.map((s) => `- **${s.name}**: ${s.summary}`).join('\n');
-        const mdcContent = [
-            '---',
-            'description: Alembic 项目级 Skills 索引（自动生成，请勿手动编辑）',
-            'alwaysApply: true',
-            '---',
-            '',
-            '# Alembic Project Skills',
-            '',
-            `本项目已注册 ${projectSkills.length} 个自定义 Skill。使用 \`alembic_skill({ operation: "load", name })\` 加载完整内容。`,
-            '',
-            skillLines,
-            '',
-        ].join('\n');
-        if (wz) {
-            wz.ensureDir(wz.project(getCursorRulesRelativePath()));
-            wz.writeFile(wz.project(getCursorRulesRelativePath('alembic-skills.mdc')), mdcContent);
-        }
-        else {
-            pathGuard.assertProjectWriteSafe(rulesDir);
-            fs.mkdirSync(rulesDir, { recursive: true });
-            fs.writeFileSync(path.join(rulesDir, 'alembic-skills.mdc'), mdcContent, 'utf8');
-        }
-        const indexPath = path.join(rulesDir, 'alembic-skills.mdc');
-        return { success: true, path: indexPath, skillCount: projectSkills.length };
-    }
-    catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : String(err) };
-    }
 }
 // ═══════════════════════════════════════════════════════════
 // Handler: deleteSkill
 // ═══════════════════════════════════════════════════════════
 /**
  * 删除项目级 Skill — 移除 {projectRoot}/Alembic/skills/<name>/ 整个目录
- * 内置 Skill 不可删除。删除后自动 regenerate 编辑器索引。
+ * 内置 Skill 不可删除。
  *
  * @param _ctx MCP context
  * @param args { name: string }
@@ -501,8 +426,6 @@ export function deleteSkill(ctx, args) {
             },
         });
     }
-    // ── regenerate 编辑器索引 ──
-    const indexResult = _regenerateEditorIndex(ctx ?? undefined);
     // ── SkillHooks: onSkillExpired (fire-and-forget) ──
     try {
         const skillHooks = ctx?.container?.get?.('skillHooks');
@@ -520,7 +443,6 @@ export function deleteSkill(ctx, args) {
         data: {
             skillName: name,
             deleted: true,
-            editorIndex: indexResult,
             hint: `Skill "${name}" deleted successfully.`,
         },
     });
@@ -613,15 +535,12 @@ export function updateSkill(ctx, args) {
             },
         });
     }
-    // ── regenerate 编辑器索引 ──
-    const indexResult = _regenerateEditorIndex(ctx ?? undefined);
     return JSON.stringify({
         success: true,
         data: {
             skillName: name,
             updated: true,
             fieldsUpdated: [description ? 'description' : null, content ? 'content' : null].filter(Boolean),
-            editorIndex: indexResult,
             hint: `Skill "${name}" updated. Use alembic_skill({ operation: "load", name: "${name}" }) to verify content.`,
         },
     });

@@ -11,7 +11,7 @@ import { DAEMON_STATE_SCHEMA_VERSION, getPackageVersion, resolveDaemonPaths, wri
 import HttpServer from '../lib/http/HttpServer.js';
 import Logger from '../lib/infrastructure/logging/Logger.js';
 import { getServiceContainer } from '../lib/injection/ServiceContainer.js';
-import { DaemonFileChangeCollector } from '../lib/service/evolution/DaemonFileChangeCollector.js';
+import { GitDiffCheckpointService } from '../lib/service/evolution/git-diff-checkpoint/index.js';
 import { DASHBOARD_DIR } from '../lib/shared/package-root.js';
 import { shutdown } from '../lib/shared/shutdown.js';
 import { timerRegistry } from '../lib/shared/TimerRegistry.js';
@@ -70,7 +70,7 @@ async function main() {
         /* EventBus 不可用不阻塞 daemon */
     }
     const httpServer = await startHttpServer(requestedPort, host);
-    const fileChangeCollector = startDaemonFileChangeCollector({
+    registerDaemonGitDiffCheckpoint({
         container,
         logger,
         projectRoot,
@@ -122,9 +122,6 @@ async function main() {
         await timerRegistry.dispose();
     }, 'timer-registry');
     shutdown.register(() => {
-        fileChangeCollector?.stop();
-    }, 'daemon-file-change-collector');
-    shutdown.register(() => {
         markInterruptedDaemonJobs({
             code: 'DAEMON_SHUTDOWN',
             container,
@@ -133,21 +130,15 @@ async function main() {
         });
     }, 'daemon-jobs');
 }
-function startDaemonFileChangeCollector(options) {
-    if (process.env.ALEMBIC_DAEMON_FILE_CHANGES === '0') {
-        options.logger.info('[daemon-file-change] disabled by ALEMBIC_DAEMON_FILE_CHANGES=0');
-        return null;
-    }
+function registerDaemonGitDiffCheckpoint(options) {
     const dispatcher = options.container.get('fileChangeDispatcher');
-    const collector = new DaemonFileChangeCollector({
+    const checkpoint = new GitDiffCheckpointService({
         projectRoot: options.projectRoot,
         dispatcher,
-        intervalMs: Number.parseInt(process.env.ALEMBIC_DAEMON_FILE_CHANGE_INTERVAL_MS || '', 10),
-        extensionTtlMs: Number.parseInt(process.env.ALEMBIC_VSCODE_HEARTBEAT_TTL_MS || '', 10),
         logger: options.logger,
     });
-    collector.start();
-    return collector;
+    options.container.singletons.gitDiffCheckpoint = checkpoint;
+    return checkpoint;
 }
 function resolveBoundDaemonPort(httpServer, requestedPort) {
     let actualPort = getListeningPort(httpServer) ?? requestedPort;

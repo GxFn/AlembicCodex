@@ -11,7 +11,6 @@ import { ProjectDiscoverer, } from './ProjectDiscoverer.js';
 const SOURCE_EXTENSIONS = new Set(['.go']);
 const EXCLUDE_DIRS = new Set([
     '.git',
-    '.cursor',
     'vendor',
     'node_modules',
     'testdata',

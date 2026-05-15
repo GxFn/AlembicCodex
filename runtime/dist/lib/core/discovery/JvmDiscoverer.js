@@ -15,7 +15,6 @@ const SOURCE_EXTENSIONS = new Set(['.java', '.kt', '.kts']);
 const EXCLUDE_DIRS = new Set([
     '.gradle',
     '.idea',
-    '.cursor',
     'build',
     'target',
     '.git',

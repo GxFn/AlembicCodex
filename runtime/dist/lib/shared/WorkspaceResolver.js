@@ -40,7 +40,7 @@ export class WorkspaceResolver {
             // Ghost 模式：从 ProjectRegistry 查 ID 或用显式传入的 ID
             this.projectId = opts.projectId ?? inspection.projectId ?? null;
             if (!this.projectId) {
-                throw new Error(`[WorkspaceResolver] Ghost 模式需要项目已注册。请先运行 alembic setup --ghost`);
+                throw new Error(`[WorkspaceResolver] Ghost 模式需要项目已注册。请先由插件初始化 Alembic 工作区`);
             }
             this.dataRoot = getGhostWorkspaceDir(this.projectId);
         }
@@ -143,10 +143,6 @@ export class WorkspaceResolver {
     /** 记忆嵌入: .asd/context/memory_embeddings.json */
     get memoryEmbeddingsPath() {
         return path.join(this.runtimeDir, 'context', 'memory_embeddings.json');
-    }
-    /** 自动审批标记: .asd/.auto-approve-pending */
-    get autoApprovePendingPath() {
-        return path.join(this.runtimeDir, '.auto-approve-pending');
     }
     /** Skills 迁移目录: .asd/skills */
     get runtimeSkillsDir() {

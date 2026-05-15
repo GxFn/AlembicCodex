@@ -22,7 +22,6 @@ const SOURCE_EXTENSIONS = new Set([
 const EXCLUDE_DIRS = new Set([
     'node_modules',
     '.git',
-    '.cursor',
     'dist',
     'build',
     'out',

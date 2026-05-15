@@ -9,8 +9,6 @@ import { AgentProfileCompiler, AgentProfileRegistry, AgentRunCoordinator, AgentR
 import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
 import { DashboardOperationAdapter } from '#tools/adapters/DashboardOperationAdapter.js';
 import { DASHBOARD_OPERATION_HANDLERS, DASHBOARD_OPERATION_MANIFESTS, } from '#tools/adapters/DashboardOperations.js';
-import { MacSystemAdapter } from '#tools/adapters/MacSystemAdapter.js';
-import { MAC_SYSTEM_CAPABILITY_MANIFESTS } from '#tools/adapters/MacSystemCapabilities.js';
 import { SkillAdapter } from '#tools/adapters/SkillAdapter.js';
 import { SKILL_CAPABILITY_MANIFESTS } from '#tools/adapters/SkillCapabilities.js';
 import { TerminalAdapter } from '#tools/adapters/TerminalAdapter.js';
@@ -24,9 +22,6 @@ import { V2CapabilityCatalog } from '#tools/v2/adapter/V2CapabilityCatalog.js';
 import { V2ToolRouterAdapter } from '#tools/v2/adapter/V2ToolRouterAdapter.js';
 import { WorkflowRegistry } from '#tools/workflow/WorkflowRegistry.js';
 import { ToolForge } from '../../agent/forge/ToolForge.js';
-import { buildMcpToolCapabilities, } from '../../external/mcp/McpCapabilityProjection.js';
-import { McpToolAdapter } from '../../external/mcp/McpToolAdapter.js';
-import { McpToolDiscovery } from '../../external/mcp/McpToolDiscovery.js';
 import { AIRecallStrategy } from '../../service/skills/AIRecallStrategy.js';
 import { FeedbackStore } from '../../service/skills/FeedbackStore.js';
 import { RecommendationMetrics } from '../../service/skills/RecommendationMetrics.js';
@@ -53,24 +48,9 @@ export function register(c) {
             ...DASHBOARD_OPERATION_MANIFESTS,
             ...TERMINAL_CAPABILITY_MANIFESTS,
             ...SKILL_CAPABILITY_MANIFESTS,
-            ...MAC_SYSTEM_CAPABILITY_MANIFESTS,
         ]) {
             catalog.register(m);
         }
-        // MCP tools
-        const mcpDeclarations = ct.get('mcpToolDeclarations');
-        if (mcpDeclarations.length > 0) {
-            const { manifests: mcpManifests } = buildMcpToolCapabilities(mcpDeclarations);
-            for (const m of mcpManifests) {
-                if (!catalog.has(m.id)) {
-                    catalog.register(m);
-                }
-            }
-        }
-        const mcpExecutor = ct.singletons.mcpToolExecutor ??
-            (async (_name, _args) => {
-                throw new Error('MCP tool executor not configured');
-            });
         catalog.setRouter(new LightweightRouter({
             catalog,
             adapters: [
@@ -79,9 +59,7 @@ export function register(c) {
                     sessionManager: ct.get('terminalSessionManager'),
                 }),
                 new SkillAdapter(),
-                new MacSystemAdapter(),
                 new WorkflowAdapter(ct.get('workflowRegistry')),
-                new McpToolAdapter(mcpExecutor),
             ],
             projectRoot: resolveProjectRoot(ct),
             dataRoot: resolveDataRoot(ct),
@@ -91,15 +69,6 @@ export function register(c) {
     });
     c.singleton('workflowRegistry', () => new WorkflowRegistry());
     c.singleton('terminalSessionManager', () => new InMemoryTerminalSessionManager());
-    c.singleton('mcpToolDeclarations', (ct) => {
-        try {
-            const discovery = new McpToolDiscovery();
-            return discovery.discover(resolveProjectRoot(ct));
-        }
-        catch {
-            return [];
-        }
-    });
     c.singleton('toolForge', (ct) => {
         const catalog = ct.get('toolRegistry');
         const signalBus = ct.singletons.signalBus;

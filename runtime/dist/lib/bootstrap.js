@@ -43,13 +43,13 @@ export class Bootstrap {
             // 0. 加载工作区设置；显式进程环境变量优先
             await this.loadRuntimeSettings();
             // 0.5 确保 PathGuard 已配置（如果调用方未提前配置）
-            // MCP 服务器会在 initialize() 之前配置，但 CLI/测试可能跳过
+            // 插件 MCP 服务器会在 initialize() 之前配置，但脚本/测试可能跳过
             if (!pathGuard.configured) {
                 const isMcpMode = process.env.ALEMBIC_MCP_MODE === '1';
                 const projectRoot = process.env.ALEMBIC_PROJECT_DIR || (isMcpMode ? undefined : process.cwd());
                 if (!projectRoot) {
                     throw new Error('[Bootstrap] MCP 模式下缺少 ALEMBIC_PROJECT_DIR 环境变量，' +
-                        '且 PathGuard 未提前配置。请在 .vscode/mcp.json 中设置 ALEMBIC_PROJECT_DIR。');
+                        '且 PathGuard 未提前配置。请由插件宿主传入准确的项目目录。');
                 }
                 Bootstrap.configurePathGuard(projectRoot);
             }

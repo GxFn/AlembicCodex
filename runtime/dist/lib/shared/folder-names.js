@@ -29,13 +29,6 @@ export const DEFAULT_FOLDER_NAMES = {
         skills: 'skills',
         wiki: 'wiki',
     },
-    ide: {
-        cursorRoot: '.cursor',
-        cursorRules: 'rules',
-        cursorSkills: 'skills',
-        githubRoot: '.github',
-        vscodeRoot: '.vscode',
-    },
 };
 export function validateFolderNameSegment(name, label) {
     if (typeof name !== 'string') {
@@ -61,7 +54,6 @@ export function resolveFolderNames(overrides = {}) {
         dev: { ...DEFAULT_FOLDER_NAMES.dev, ...overrides.dev },
         global: { ...DEFAULT_FOLDER_NAMES.global, ...overrides.global },
         project: { ...DEFAULT_FOLDER_NAMES.project, ...overrides.project },
-        ide: { ...DEFAULT_FOLDER_NAMES.ide, ...overrides.ide },
     };
     for (const [sectionName, section] of Object.entries(resolved)) {
         for (const [fieldName, value] of Object.entries(section)) {

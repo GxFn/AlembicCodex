@@ -124,7 +124,7 @@ async function _prime(ctx, args) {
     if (ctx.session) {
         ctx.session.intent = freshIntent;
     }
-    // ─── Delivery: build response ───
+    // ─── Build response ───
     const relatedCount = searchResult?.relatedKnowledge.length ?? 0;
     const ruleCount = searchResult?.guardRules.length ?? 0;
     const lines = [];

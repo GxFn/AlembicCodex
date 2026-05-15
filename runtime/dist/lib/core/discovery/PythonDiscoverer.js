@@ -22,7 +22,6 @@ const EXCLUDE_DIRS = new Set([
     'node_modules',
     '.nox',
     '.ruff_cache',
-    '.cursor',
 ]);
 export class PythonDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;

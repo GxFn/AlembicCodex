@@ -19,7 +19,6 @@ const SKIP_DIRS = new Set([
     'Pods',
     'DerivedData',
     'Carthage',
-    '.cursor',
 ]);
 export class SpmDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;

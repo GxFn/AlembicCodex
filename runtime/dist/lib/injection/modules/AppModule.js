@@ -4,13 +4,12 @@
  * 负责注册:
  *   - recipeParser, recipeCandidateValidator
  *   - qualityScorer, feedbackCollector, tokenUsageStore, recipeExtractor
- *   - moduleService, cursorDeliveryPipeline
+ *   - moduleService
  *   - primeSearchPipeline (for prime multi-query search — no DB dependency)
  */
 import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
 import { unwrapRawDb } from '../../repository/search/SearchRepoAdapter.js';
 import { TokenUsageStore } from '../../repository/token/TokenUsageStore.js';
-import { CursorDeliveryPipeline } from '../../service/delivery/CursorDeliveryPipeline.js';
 import { RecipeExtractor } from '../../service/knowledge/RecipeExtractor.js';
 import { ModuleService } from '../../service/module/ModuleService.js';
 import { FeedbackCollector } from '../../service/quality/FeedbackCollector.js';
@@ -48,14 +47,6 @@ export function register(c) {
             violationsStore: ct.get('violationsStore'),
         });
     });
-    c.singleton('cursorDeliveryPipeline', (ct) => new CursorDeliveryPipeline({
-        knowledgeService: ct.get('knowledgeService'),
-        projectRoot: resolveProjectRoot(ct),
-        dataRoot: resolveDataRoot(ct),
-        database: ct.get('database'),
-        logger: ct.logger,
-        wz: ct.singletons.writeZone,
-    }));
     // ═══ PrimeSearchPipeline (for prime multi-query search) ═══
     c.singleton('primeSearchPipeline', (ct) => new PrimeSearchPipeline(ct.get('searchEngine')));
 }

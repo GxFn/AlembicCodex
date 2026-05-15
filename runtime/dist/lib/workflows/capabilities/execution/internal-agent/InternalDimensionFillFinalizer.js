@@ -20,8 +20,8 @@ export async function finalizeInternalDimensionFill({ preparation, runtime, sess
     const pipelineMode = preparation.view.mode ?? 'bootstrap';
     let workflowCompletion;
     if (pipelineMode === 'rescan') {
-        Logger.info('[InternalDimensionFill] rescan mode — skipping delivery/wiki/memory (pipeline isolation)');
-        workflowCompletion = { deliveryVerification: null, semanticMemoryResult: null };
+        Logger.info('[InternalDimensionFill] rescan mode — skipping wiki/memory (pipeline isolation)');
+        workflowCompletion = { semanticMemoryResult: null };
     }
     else {
         workflowCompletion = await runWorkflowCompletionFinalizer({
@@ -33,7 +33,6 @@ export async function finalizeInternalDimensionFill({ preparation, runtime, sess
                 getServiceContainer: () => preparation.ctx.container,
             },
             semanticMemory: { mode: 'immediate' },
-            steps: preparation.skipTargetDelivery ? { delivery: 'skip', wiki: 'skip' } : undefined,
             shouldAbort,
         });
     }
@@ -78,8 +77,7 @@ export function buildInternalDimensionCompletionSummary({ pipelineMode, workflow
         return {
             mode: 'rescan',
             isolation: 'pipeline-isolation',
-            reason: 'rescan skips delivery/wiki/semantic memory to avoid rebuilding downstream artifacts',
-            delivery: { status: 'skipped', verification: null },
+            reason: 'rescan skips wiki/semantic memory to avoid rebuilding downstream artifacts',
             wiki: { status: 'skipped' },
             semanticMemory: { status: 'skipped', result: null },
         };
@@ -87,11 +85,6 @@ export function buildInternalDimensionCompletionSummary({ pipelineMode, workflow
     return {
         mode: 'bootstrap',
         isolation: 'full-completion',
-        delivery: {
-            status: workflowCompletion.deliveryStatus ??
-                (workflowCompletion.deliveryVerification ? 'completed' : 'skipped'),
-            verification: workflowCompletion.deliveryVerification,
-        },
         wiki: { status: workflowCompletion.wikiStatus ?? 'scheduled' },
         semanticMemory: {
             status: workflowCompletion.semanticMemoryResult ? 'completed' : 'skipped',

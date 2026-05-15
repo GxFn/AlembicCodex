@@ -16,7 +16,6 @@ export function createInternalColdStartIntent(args = {}) {
         dimensionIds: normalizeDimensionIds(args.dimensions),
         internalExecution: {
             skipAsyncFill: args.skipAsyncFill ?? false,
-            skipTargetDelivery: args.skipTargetDelivery ?? false,
         },
         ignoredFileDiffIncremental: args.incremental === true,
     };

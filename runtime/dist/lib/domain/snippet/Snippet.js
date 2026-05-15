@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
  *
  * 与 Recipe 的区别:
  * - Recipe: 抽象的知识模式 / 最佳实践
- * - Snippet: 具体的、可安装的代码片段（支持多 IDE: Xcode / VSCode / Cursor）
+ * - Snippet: 具体的、可安装的代码片段（由各 IDE 插件适配安装目标）
  */
 export class Snippet {
     category;
@@ -31,8 +31,8 @@ export class Snippet {
         this.completion = props.completion || ''; // 自动补全触发词
         this.summary = props.summary || '';
         this.code = Array.isArray(props.code) ? props.code.join('\n') : props.code || '';
-        // 多 IDE 安装状态
-        // targets = { xcode: { installed, path }, vscode: { installed, path } }
+        // 多插件目标安装状态
+        // targets = { codex: { installed, path }, xcode: { installed, path } }
         this.targets = props.targets || {};
         // 向后兼容: 旧数据的 installed/installedPath 迁移到 targets.xcode
         if (props.installed && !this.targets.xcode) {
@@ -48,8 +48,7 @@ export class Snippet {
         this.updatedAt = props.updatedAt || Math.floor(Date.now() / 1000);
     }
     /**
-     * 是否已安装到指定 IDE (不传则检查任意)
-     * @param [target] 'xcode' | 'vscode'
+     * 是否已安装到指定插件目标 (不传则检查任意)
      */
     isInstalled(target) {
         if (target) {

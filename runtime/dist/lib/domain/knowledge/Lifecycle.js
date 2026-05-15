@@ -24,7 +24,7 @@ export const Lifecycle = {
 };
 /** 候选阶段的所有状态 */
 export const CANDIDATE_STATES = [Lifecycle.PENDING, Lifecycle.STAGING];
-/** 可消费状态（Guard/Search/Delivery 可使用的状态） */
+/** 可消费状态（Guard/Search/插件适配可使用的状态） */
 export const CONSUMABLE_STATES = [Lifecycle.STAGING, Lifecycle.ACTIVE, Lifecycle.EVOLVING];
 /** 降级消费状态（Guard violation 降为 warning，Search 降权） */
 export const DEGRADED_STATES = [Lifecycle.DECAYING];
@@ -89,7 +89,7 @@ export function isCandidate(lifecycle) {
     const normalized = normalizeLifecycle(lifecycle);
     return normalized === Lifecycle.PENDING || normalized === Lifecycle.STAGING;
 }
-/** 是否为可消费状态（Guard/Search/Delivery 可使用） */
+/** 是否为可消费状态（Guard/Search/插件适配可使用） */
 export function isConsumable(lifecycle) {
     const normalized = normalizeLifecycle(lifecycle);
     return CONSUMABLE_STATES.includes(normalized);
