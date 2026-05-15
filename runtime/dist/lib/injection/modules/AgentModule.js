@@ -3,7 +3,6 @@
  *
  * 负责注册:
  *   - agentService, toolRegistry, toolForge, skillHooks
- *   - feedbackStore, recommendationPipeline, recommendationMetrics
  */
 import { AgentProfileCompiler, AgentProfileRegistry, AgentRunCoordinator, AgentRuntimeBuilder, AgentService, AgentStageFactoryRegistry, SystemRunContextFactory, } from '#agent/service/index.js';
 import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
@@ -22,11 +21,6 @@ import { V2CapabilityCatalog } from '#tools/v2/adapter/V2CapabilityCatalog.js';
 import { V2ToolRouterAdapter } from '#tools/v2/adapter/V2ToolRouterAdapter.js';
 import { WorkflowRegistry } from '#tools/workflow/WorkflowRegistry.js';
 import { ToolForge } from '../../agent/forge/ToolForge.js';
-import { AIRecallStrategy } from '../../service/skills/AIRecallStrategy.js';
-import { FeedbackStore } from '../../service/skills/FeedbackStore.js';
-import { RecommendationMetrics } from '../../service/skills/RecommendationMetrics.js';
-import { RecommendationPipeline } from '../../service/skills/RecommendationPipeline.js';
-import { RuleRecallStrategy } from '../../service/skills/RuleRecallStrategy.js';
 import { SkillHooks } from '../../service/skills/SkillHooks.js';
 export function register(c) {
     // ── V2 Tool System ─────────────────────────────────────────────────
@@ -109,28 +103,5 @@ export function register(c) {
             /* skill hooks load is best-effort */
         });
         return hooks;
-    });
-    // ── Recommendation 子系统 ──
-    c.singleton('feedbackStore', (ct) => {
-        const dataRoot = resolveDataRoot(ct);
-        const wz = ct.singletons.writeZone;
-        return new FeedbackStore(dataRoot, wz);
-    });
-    c.singleton('recommendationPipeline', (ct) => {
-        const feedbackStore = ct.get('feedbackStore');
-        const skillHooks = ct.get('skillHooks');
-        const pipeline = new RecommendationPipeline({ feedbackStore, skillHooks });
-        // 注册召回策略
-        pipeline.addStrategy(new RuleRecallStrategy());
-        // AI 策略 — SignalCollector 可能尚未初始化，使用延迟绑定
-        const aiStrategy = new AIRecallStrategy(null);
-        pipeline.addStrategy(aiStrategy);
-        // 在 singletons 上保存 aiStrategy 引用，供后续绑定 SignalCollector
-        ct.singletons._aiRecallStrategy = aiStrategy;
-        return pipeline;
-    });
-    c.singleton('recommendationMetrics', (ct) => {
-        const feedbackStore = ct.get('feedbackStore');
-        return new RecommendationMetrics(feedbackStore);
     });
 }

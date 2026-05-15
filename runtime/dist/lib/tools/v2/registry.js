@@ -124,7 +124,7 @@ const CODE_SPEC = {
 /* ================================================================== */
 const TERMINAL_SPEC = {
     name: 'terminal',
-    description: 'Execute commands in sandbox with structured output compression',
+    description: 'Execute governed commands with structured output compression',
     actions: {
         exec: {
             summary: 'Execute a shell command',

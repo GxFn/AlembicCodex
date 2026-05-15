@@ -21,8 +21,7 @@
     "#http/*": "./dist/lib/http/*",
     "#workflows/*": "./dist/lib/workflows/*",
     "#tools/*": "./dist/lib/tools/*",
-    "#codex/*": "./dist/lib/codex/*",
-    "#sandbox/*": "./dist/lib/sandbox/*"
+    "#codex/*": "./dist/lib/codex/*"
   },
   "bin": {
     "alembic-codex-mcp": "dist/bin/codex-mcp.js"

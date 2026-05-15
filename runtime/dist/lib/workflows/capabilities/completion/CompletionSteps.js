@@ -1,7 +1,7 @@
 /**
  * CompletionSteps — Workflow 完成阶段的各步骤实现
  *
- * 包含 Panorama 刷新、Wiki 生成和语义记忆固化，
+ * 包含 Panorama 刷新和语义记忆固化，
  * 由 WorkflowCompletionFinalizer 按顺序调用。
  */
 // ── PanoramaCompletionStep ──
@@ -20,30 +20,6 @@ export async function refreshPanorama({ getServiceContainer, log, }) {
     }
     catch (err) {
         log.warn(`[DimensionComplete] Panorama refresh failed (non-blocking): ${err instanceof Error ? err.message : String(err)}`);
-    }
-}
-// ── WikiCompletionStep ──
-export async function generateWiki({ getServiceContainer, projectRoot, log, }) {
-    try {
-        const container = await getServiceContainer();
-        const { WikiGenerator } = await import('#service/wiki/WikiGenerator.js');
-        const moduleService = container.get?.('moduleService');
-        const knowledgeService = container.get?.('knowledgeService');
-        if (!moduleService || !knowledgeService) {
-            return;
-        }
-        const wikiDeps = {
-            projectRoot,
-            moduleService: moduleService,
-            knowledgeService: knowledgeService,
-            options: { mode: 'bootstrap' },
-        };
-        const wikiGenerator = new WikiGenerator(wikiDeps);
-        const wikiResult = await wikiGenerator.generate();
-        log.info(`[DimensionComplete] Auto Wiki generation: ${wikiResult.totalPages || 0} pages`);
-    }
-    catch (err) {
-        log.warn(`[DimensionComplete] Wiki generation failed (non-blocking): ${err instanceof Error ? err.message : String(err)}`);
     }
 }
 export async function consolidateSemanticMemory({ ctx, session, dataRoot, log, dependencies = {}, }) {

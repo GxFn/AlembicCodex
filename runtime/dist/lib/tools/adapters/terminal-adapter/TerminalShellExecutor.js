@@ -2,7 +2,7 @@ import { buildTerminalShellPolicyInput, evaluateTerminalShellPolicy, } from '../
 import { materializeTerminalOutput } from './TerminalArtifacts.js';
 import { envelopeForError, envelopeForPolicyBlock, envelopeForTerminalResult, } from './TerminalEnvelopes.js';
 import { buildTerminalEnvironment, summarizeTerminalEnv } from './TerminalEnvironment.js';
-import { recordAndReturn, sandboxedExecFile, shellAuditData, statusForFailure, } from './TerminalExecutorShared.js';
+import { executeTerminalFile, recordAndReturn, shellAuditData, statusForFailure, } from './TerminalExecutorShared.js';
 export async function executeShell(request, startedAt, startedMs) {
     const built = buildTerminalShellPolicyInput(request.args, request.context.projectRoot, request.manifest.execution.timeoutMs);
     if (!built.ok) {
@@ -15,7 +15,7 @@ export async function executeShell(request, startedAt, startedMs) {
     }
     const envSummary = summarizeTerminalEnv(shell.env, 'none');
     try {
-        const execResult = await sandboxedExecFile(shell.shell, ['-lc', shell.command], {
+        const execResult = await executeTerminalFile(shell.shell, ['-lc', shell.command], {
             cwd: shell.cwd,
             timeout: shell.timeoutMs,
             maxBuffer: 1024 * 1024,
@@ -31,10 +31,7 @@ export async function executeShell(request, startedAt, startedMs) {
             stdout: execResult.stdout,
             stderr: execResult.stderr,
         });
-        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, 'success', {
-            ...shellStructuredContent(shell, output, 0, envSummary, policy),
-            sandbox: execResult.sandbox,
-        }, output.artifacts));
+        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, 'success', shellStructuredContent(shell, output, 0, envSummary, policy), output.artifacts));
     }
     catch (err) {
         const failure = err;
@@ -42,10 +39,7 @@ export async function executeShell(request, startedAt, startedMs) {
             stdout: failure.stdout || '',
             stderr: failure.stderr || failure.message || '',
         });
-        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, statusForFailure(request, failure), {
-            ...shellStructuredContent(shell, output, failure.code ?? 1, envSummary, policy),
-            sandbox: failure._sandboxMeta,
-        }, output.artifacts));
+        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, statusForFailure(request, failure), shellStructuredContent(shell, output, failure.code ?? 1, envSummary, policy), output.artifacts));
     }
 }
 function shellStructuredContent(shell, output, exitCode, env, policy) {

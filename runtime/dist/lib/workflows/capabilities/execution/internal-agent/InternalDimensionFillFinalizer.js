@@ -20,14 +20,13 @@ export async function finalizeInternalDimensionFill({ preparation, runtime, sess
     const pipelineMode = preparation.view.mode ?? 'bootstrap';
     let workflowCompletion;
     if (pipelineMode === 'rescan') {
-        Logger.info('[InternalDimensionFill] rescan mode — skipping wiki/memory (pipeline isolation)');
+        Logger.info('[InternalDimensionFill] rescan mode — skipping semantic memory (pipeline isolation)');
         workflowCompletion = { semanticMemoryResult: null };
     }
     else {
         workflowCompletion = await runWorkflowCompletionFinalizer({
             ctx: preparation.ctx,
             session: { id: preparation.sessionId, sessionStore: runtime.sessionStore },
-            projectRoot: preparation.projectRoot,
             dataRoot: preparation.dataRoot,
             dependencies: {
                 getServiceContainer: () => preparation.ctx.container,
@@ -77,15 +76,13 @@ export function buildInternalDimensionCompletionSummary({ pipelineMode, workflow
         return {
             mode: 'rescan',
             isolation: 'pipeline-isolation',
-            reason: 'rescan skips wiki/semantic memory to avoid rebuilding downstream artifacts',
-            wiki: { status: 'skipped' },
+            reason: 'rescan skips semantic memory to avoid rebuilding downstream artifacts',
             semanticMemory: { status: 'skipped', result: null },
         };
     }
     return {
         mode: 'bootstrap',
         isolation: 'full-completion',
-        wiki: { status: workflowCompletion.wikiStatus ?? 'scheduled' },
         semanticMemory: {
             status: workflowCompletion.semanticMemoryResult ? 'completed' : 'skipped',
             result: workflowCompletion.semanticMemoryResult,

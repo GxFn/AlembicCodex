@@ -168,7 +168,6 @@ export function register(c) {
             sourceRefRepo: ct.services.recipeSourceRefRepository
                 ? ct.get('recipeSourceRefRepository')
                 : undefined,
-            drizzle: ct.get('database').getDrizzle(),
         });
     });
     c.singleton('redundancyAnalyzer', (ct) => {

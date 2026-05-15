@@ -2,7 +2,7 @@ import { buildTerminalCommandPolicyInput, evaluateTerminalCommandPolicy, } from 
 import { materializeTerminalOutput } from './TerminalArtifacts.js';
 import { envelopeForError, envelopeForPolicyBlock, envelopeForTerminalResult, } from './TerminalEnvelopes.js';
 import { buildCommandEnvironment, buildTerminalEnvironment, summarizeTerminalEnv, } from './TerminalEnvironment.js';
-import { getTerminalSessionManager, recordAndReturn, sandboxedExecFile, statusForFailure, } from './TerminalExecutorShared.js';
+import { executeTerminalFile, getTerminalSessionManager, recordAndReturn, statusForFailure, } from './TerminalExecutorShared.js';
 export async function executeStructuredCommand(request, fallbackSessionManager, startedAt, startedMs) {
     const built = buildTerminalCommandPolicyInput(request.args, request.context.projectRoot, request.manifest.execution.timeoutMs);
     if (!built.ok) {
@@ -32,7 +32,7 @@ export async function executeStructuredCommand(request, fallbackSessionManager, 
     const persistedEnv = terminal.session.envPersistence === 'explicit' ? commandEnv : undefined;
     const envSummary = summarizeTerminalEnv(commandEnv, terminal.session.envPersistence);
     try {
-        const execResult = await sandboxedExecFile(terminal.bin, terminal.args, {
+        const execResult = await executeTerminalFile(terminal.bin, terminal.args, {
             cwd: executionCwd,
             timeout: terminal.timeoutMs,
             maxBuffer: 1024 * 1024,
@@ -66,7 +66,6 @@ export async function executeStructuredCommand(request, fallbackSessionManager, 
             session: terminal.session,
             sessionRecord,
             policy,
-            sandbox: execResult.sandbox,
         }, output.artifacts));
     }
     catch (err) {
@@ -93,7 +92,6 @@ export async function executeStructuredCommand(request, fallbackSessionManager, 
             session: terminal.session,
             sessionRecord,
             policy,
-            sandbox: failure._sandboxMeta,
         }, output.artifacts));
     }
 }

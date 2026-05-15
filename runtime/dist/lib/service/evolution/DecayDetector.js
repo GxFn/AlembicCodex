@@ -1,11 +1,10 @@
 /**
  * DecayDetector — 知识衰退检测 + 评分
  *
- * 6 种衰退检测策略（任一满足即触发 decaying 转换）：
+ * 5 种衰退检测策略（任一满足即触发 decaying 转换）：
  *   1. daysSinceLastHit > 90 — 90 天无使用
  *   2. ruleFalsePositiveRate > 0.4 && triggers > 10 — 规则已不准
- *   3. ReverseGuard: coreCode 引用的 API 符号已删除
- *   3b. SourceRefReconciler: 来源文件路径失效（recipe_source_refs.status = stale）
+ *   3. SourceRefReconciler: 来源文件路径失效（recipe_source_refs.status = stale）
  *   4. 同域新 Recipe 发布且 deprecated_by 关系指向它
  *   5. 矛盾检测: Agent 在 evolve 流程中语义判断
  *
@@ -19,8 +18,6 @@
  *   0-19:   死亡 → 跳过确认直接 deprecated
  */
 var _a;
-import { and, like, sql } from 'drizzle-orm';
-import { auditLogs } from '../../infrastructure/database/drizzle/schema.js';
 import Logger from '../../infrastructure/logging/Logger.js';
 /* ────────────────────── Helpers ────────────────────── */
 /**
@@ -54,14 +51,12 @@ export class DecayDetector {
     #knowledgeRepo;
     #edgeRepo;
     #sourceRefRepo;
-    #drizzle;
     #signalBus;
     #logger = Logger.getInstance();
     constructor(knowledgeRepo, options = {}) {
         this.#knowledgeRepo = knowledgeRepo;
         this.#edgeRepo = options.knowledgeEdgeRepo ?? null;
         this.#sourceRefRepo = options.sourceRefRepo ?? null;
-        this.#drizzle = options.drizzle ?? null;
         this.#signalBus = options.signalBus ?? null;
     }
     /**
@@ -134,15 +129,7 @@ export class DecayDetector {
                 detail: `FP rate ${(fpRate * 100).toFixed(0)}% with ${triggers} triggers (threshold: ${DECAY_THRESHOLDS.FALSE_POSITIVE_RATE * 100}%)`,
             });
         }
-        // 策略 3: 符号漂移（由 ReverseGuard 提供，此处从 DB 查 drift 标记）
-        if (await this.#hasSymbolDrift(recipe.id)) {
-            signals.push({
-                recipeId: recipe.id,
-                strategy: 'symbol_drift',
-                detail: 'ReverseGuard detected symbol drift in coreCode',
-            });
-        }
-        // 策略 3b: 来源引用失效（由 SourceRefReconciler 填充 recipe_source_refs）
+        // 策略 3: 来源引用失效（由 SourceRefReconciler 填充 recipe_source_refs）
         const staleRefCount = await this.#getStaleSourceRefCount(recipe.id);
         if (staleRefCount > 0) {
             signals.push({
@@ -248,23 +235,6 @@ export class DecayDetector {
         const authorityRaw = stats.authority ?? 50;
         const authority = Math.min(1, authorityRaw / 100);
         return { freshness, usage, quality, authority };
-    }
-    async #hasSymbolDrift(recipeId) {
-        try {
-            if (!this.#drizzle) {
-                return false;
-            }
-            const row = this.#drizzle
-                .select({ id: auditLogs.id })
-                .from(auditLogs)
-                .where(and(like(auditLogs.action, '%ReverseGuard%'), sql `json_extract(${auditLogs.operationData}, '$.target') = ${recipeId}`))
-                .limit(1)
-                .get();
-            return !!row;
-        }
-        catch {
-            return false;
-        }
     }
     async #getStaleSourceRefCount(recipeId) {
         try {

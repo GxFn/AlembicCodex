@@ -125,7 +125,6 @@ export async function consolidatedGraph(ctx, args) {
 // ─── alembic_guard (整合 3 → 1) ─────────────────────────
 /**
  * Guard 检查：按参数自动路由
- *   operation: 'reverse_audit'      → guardReverseAudit()     (Recipe→Code 反向验证)
  *   operation: 'coverage_matrix'    → guardCoverageMatrix()    (模块覆盖率矩阵)
  *   operation: 'compliance_report'  → guardComplianceReport()  (3D 合规报告)
  *   无参数       → guardReview()    (自动 git diff 检测 + inline recipe)
@@ -134,9 +133,6 @@ export async function consolidatedGraph(ctx, args) {
  */
 export async function consolidatedGuard(ctx, args) {
     // operation 显式路由
-    if (args.operation === 'reverse_audit') {
-        return guardHandlers.guardReverseAudit(ctx, args);
-    }
     if (args.operation === 'coverage_matrix') {
         return guardHandlers.guardCoverageMatrix(ctx, args);
     }
@@ -159,12 +155,11 @@ export async function consolidatedGuard(ctx, args) {
  *   create  → createSkill()
  *   update  → updateSkill()
  *   delete  → deleteSkill()
- *   suggest → suggestSkills()
  */
 export async function consolidatedSkill(ctx, args) {
     const op = args.operation;
     if (!op) {
-        throw new Error('Missing required parameter: operation. Expected: list, load, create, update, delete, suggest, feedback');
+        throw new Error('Missing required parameter: operation. Expected: list, load, create, update, delete');
     }
     // loadSkill expects { skillName }, map from { name }
     if (args.name && !args.skillName) {
@@ -181,12 +176,8 @@ export async function consolidatedSkill(ctx, args) {
             return skillHandlers.updateSkill(ctx, args);
         case 'delete':
             return skillHandlers.deleteSkill(ctx, args);
-        case 'suggest':
-            return skillHandlers.suggestSkills(ctx);
-        case 'feedback':
-            return skillHandlers.recordFeedback(ctx, args);
         default:
-            throw new Error(`Unknown skill operation: ${op}. Expected: list, load, create, update, delete, suggest, feedback`);
+            throw new Error(`Unknown skill operation: ${op}. Expected: list, load, create, update, delete`);
     }
 }
 // ─── alembic_submit_knowledge (unified pipeline) ──────────────────────

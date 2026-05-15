@@ -16,7 +16,6 @@ import { ExclusionManager } from '../../service/guard/ExclusionManager.js';
 import { GuardCheckEngine } from '../../service/guard/GuardCheckEngine.js';
 import { GuardFeedbackLoop } from '../../service/guard/GuardFeedbackLoop.js';
 import { GuardService } from '../../service/guard/GuardService.js';
-import { ReverseGuard } from '../../service/guard/ReverseGuard.js';
 import { RuleLearner } from '../../service/guard/RuleLearner.js';
 import { ViolationsStore } from '../../service/guard/ViolationsStore.js';
 export function register(c) {
@@ -95,11 +94,6 @@ export function register(c) {
         guardCheckEngine: ct.get('guardCheckEngine'),
         signalBus: ct.singletons.signalBus || undefined,
     }));
-    c.singleton('reverseGuard', (ct) => {
-        return new ReverseGuard(ct.get('knowledgeRepository'), ct.get('codeEntityRepository'), ct.get('recipeSourceRefRepository'), {
-            signalBus: ct.singletons.signalBus || undefined,
-        });
-    });
     c.singleton('coverageAnalyzer', (ct) => {
         let ruleLearner;
         try {

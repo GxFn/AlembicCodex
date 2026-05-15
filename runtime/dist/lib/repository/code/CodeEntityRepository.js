@@ -316,7 +316,7 @@ export class CodeEntityRepositoryImpl extends RepositoryBase {
         return inserted;
     }
     /**
-     * 符号名是否存在 (ReverseGuard.#symbolExists)
+     * 符号名是否存在
      */
     existsByName(name) {
         const row = this.drizzle

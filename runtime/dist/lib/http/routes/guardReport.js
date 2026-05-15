@@ -3,7 +3,6 @@
  *
  * 端点:
  *   GET /api/v1/guard/report           — 项目合规性报告（ComplianceReporter + Uncertainty）
- *   GET /api/v1/guard/report/reverse   — ReverseGuard 反向验证
  *   GET /api/v1/guard/report/coverage  — CoverageAnalyzer 覆盖率矩阵
  */
 import express from 'express';
@@ -46,54 +45,6 @@ router.get('/', async (req, res) => {
         res.status(500).json({
             success: false,
             error: { code: 'GUARD_REPORT_ERROR', message: err.message },
-        });
-    }
-});
-/**
- * GET /api/v1/guard/report/reverse
- * ReverseGuard — Recipe→Code 反向验证
- *
- * Query params:
- *   maxFiles — 扫描文件上限 (默认 200)
- */
-router.get('/reverse', async (req, res) => {
-    try {
-        const container = getServiceContainer();
-        const projectRoot = resolveProjectRoot(container);
-        const { ReverseGuard } = await import('../../service/guard/ReverseGuard.js');
-        const { collectSourceFilesWithContent } = await import('../../service/guard/SourceFileCollector.js');
-        let reverseGuard;
-        try {
-            reverseGuard = container.get('reverseGuard');
-        }
-        catch {
-            reverseGuard = new ReverseGuard(container.get('knowledgeRepository'), container.get('codeEntityRepository'), container.get('recipeSourceRefRepository'));
-        }
-        const maxFiles = req.query.maxFiles ? Number(req.query.maxFiles) : 200;
-        const projectFiles = await collectSourceFilesWithContent(projectRoot, { maxFiles });
-        const results = reverseGuard.auditAllRules(projectFiles);
-        const drifts = reverseGuard.getDriftResults(results);
-        res.json({
-            success: true,
-            data: {
-                totalRecipes: results.length,
-                healthy: results.filter((r) => r.recommendation === 'healthy').length,
-                investigate: results.filter((r) => r.recommendation === 'investigate').length,
-                decay: results.filter((r) => r.recommendation === 'decay').length,
-                drifts,
-                allResults: results.map((r) => ({
-                    recipeId: r.recipeId,
-                    title: r.title,
-                    recommendation: r.recommendation,
-                    signalCount: r.signals.length,
-                })),
-            },
-        });
-    }
-    catch (err) {
-        res.status(500).json({
-            success: false,
-            error: { code: 'REVERSE_GUARD_ERROR', message: err.message },
         });
     }
 });

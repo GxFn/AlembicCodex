@@ -72,7 +72,7 @@ export class AgentProfileCompiler {
     }
     #compileDefinition(definition, inputParams, context) {
         const params = mergeParams(defaultParamsForProfile(definition.id), inputParams);
-        const actionSpace = resolveActionSpace(definition, params);
+        const actionSpace = resolveActionSpace(definition);
         const strategy = compileStrategy(definition.strategy, {
             params,
             context: context,
@@ -150,10 +150,7 @@ function additionalToolsFromActionSpace(actionSpace) {
     }
     return [...actionSpace.toolIds];
 }
-function resolveActionSpace(definition, params) {
-    if (definition.id === 'signal-analysis' && params.mode === 'auto') {
-        return { mode: 'listed', toolIds: ['suggest_skills', 'create_skill'] };
-    }
+function resolveActionSpace(definition) {
     return definition.defaults?.actionSpace || { mode: 'listed', toolIds: [] };
 }
 function resolvePolicyDeclarations(definition, params) {

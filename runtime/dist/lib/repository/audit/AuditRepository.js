@@ -194,7 +194,7 @@ export class AuditRepositoryImpl extends RepositoryBase {
         }
     }
     /**
-     * Guard 违规规则名 TOP-N (SkillAdvisor.#getGuardPatterns)
+     * Guard 违规规则名 TOP-N
      */
     async findTopGuardViolationRules(minCount, limit) {
         return this.drizzle
@@ -211,7 +211,7 @@ export class AuditRepositoryImpl extends RepositoryBase {
             .all();
     }
     /**
-     * Guard 违规信号 (SignalCollector.#collectGuardSignals)
+     * Guard 违规统计
      */
     async findGuardViolationSignals(limit) {
         return this.drizzle
@@ -229,7 +229,7 @@ export class AuditRepositoryImpl extends RepositoryBase {
             .all();
     }
     /**
-     * 最近动作日志 (SignalCollector.#collectActionSignals)
+     * 最近动作日志
      */
     async findRecentActions(sinceTs, limit) {
         return this.drizzle

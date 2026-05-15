@@ -2,7 +2,7 @@ import { buildTerminalPtyPolicyInput, evaluateTerminalPtyPolicy, } from '../term
 import { fileUriToPath, materializePtyRunnerArtifact, materializeTerminalOutput, } from './TerminalArtifacts.js';
 import { envelopeForError, envelopeForPolicyBlock, envelopeForTerminalResult, } from './TerminalEnvelopes.js';
 import { buildTerminalEnvironment, summarizeTerminalEnv } from './TerminalEnvironment.js';
-import { recordAndReturn, sandboxedExecFile, sandboxedExecFileWithInput, shellAuditData, statusForFailure, } from './TerminalExecutorShared.js';
+import { executeTerminalFile, executeTerminalFileWithInput, recordAndReturn, shellAuditData, statusForFailure, } from './TerminalExecutorShared.js';
 import { buildPtyWrapperCommand } from './TerminalPtyRunner.js';
 export async function executePty(request, startedAt, startedMs) {
     const built = buildTerminalPtyPolicyInput(request.args, request.context.projectRoot, request.manifest.execution.timeoutMs);
@@ -37,23 +37,24 @@ export async function executePty(request, startedAt, startedMs) {
             signal: request.context.abortSignal || undefined,
             env: buildTerminalEnvironment(process.env, ptyEnv),
         };
-        const sandboxInput = {
-            network: pty.network,
-            filesystem: pty.filesystem,
-            projectRoot: pty.projectRoot,
-            env: ptyEnv,
-        };
         const execResult = pty.pty.stdin === 'provided'
-            ? await sandboxedExecFileWithInput(command.bin, command.args, pty.stdin, execOptions, sandboxInput)
-            : await sandboxedExecFile(command.bin, command.args, execOptions, sandboxInput);
+            ? await executeTerminalFileWithInput(command.bin, command.args, pty.stdin, execOptions, {
+                network: pty.network,
+                filesystem: pty.filesystem,
+                projectRoot: pty.projectRoot,
+                env: ptyEnv,
+            })
+            : await executeTerminalFile(command.bin, command.args, execOptions, {
+                network: pty.network,
+                filesystem: pty.filesystem,
+                projectRoot: pty.projectRoot,
+                env: ptyEnv,
+            });
         const output = materializeTerminalOutput(request, {
             stdout: execResult.stdout,
             stderr: execResult.stderr,
         });
-        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, 'success', {
-            ...ptyStructuredContent(pty, output, 0, command, envSummary, policy),
-            sandbox: execResult.sandbox,
-        }, [runnerArtifact, ...output.artifacts]));
+        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, 'success', ptyStructuredContent(pty, output, 0, command, envSummary, policy), [runnerArtifact, ...output.artifacts]));
     }
     catch (err) {
         const failure = err;
@@ -61,10 +62,7 @@ export async function executePty(request, startedAt, startedMs) {
             stdout: failure.stdout || '',
             stderr: failure.stderr || failure.message || '',
         });
-        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, statusForFailure(request, failure), {
-            ...ptyStructuredContent(pty, output, failure.code ?? 1, command, envSummary, policy),
-            sandbox: failure._sandboxMeta,
-        }, [runnerArtifact, ...output.artifacts]));
+        return recordAndReturn(request, envelopeForTerminalResult(request, startedAt, startedMs, statusForFailure(request, failure), ptyStructuredContent(pty, output, failure.code ?? 1, command, envSummary, policy), [runnerArtifact, ...output.artifacts]));
     }
 }
 function ptyStructuredContent(pty, output, exitCode, command, env, policy) {

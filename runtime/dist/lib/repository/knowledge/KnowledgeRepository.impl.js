@@ -582,37 +582,6 @@ export class KnowledgeRepositoryImpl {
             .run();
     }
     /**
-     * 活跃规则 + content 中的 coreCode / pattern 字段 + stats
-     * (ReverseGuard.#loadActiveRules)
-     */
-    findActiveRulesWithContentSync() {
-        return this.#drizzle
-            .select({
-            id: knowledgeEntries.id,
-            title: knowledgeEntries.title,
-            coreCode: sql `json_extract(${knowledgeEntries.content}, '$.coreCode')`.as('coreCode'),
-            guardPattern: sql `json_extract(${knowledgeEntries.content}, '$.pattern')`.as('guardPattern'),
-            stats: knowledgeEntries.stats,
-        })
-            .from(knowledgeEntries)
-            .where(and(eq(knowledgeEntries.lifecycle, 'active'), eq(knowledgeEntries.kind, 'rule')))
-            .all();
-    }
-    /**
-     * 获取单条记录的 guardHits 数
-     * (ReverseGuard.#historicalGuardHits)
-     */
-    getGuardHitsSync(id) {
-        const row = this.#drizzle
-            .select({
-            hits: sql `json_extract(${knowledgeEntries.stats}, '$.guardHits')`.as('hits'),
-        })
-            .from(knowledgeEntries)
-            .where(eq(knowledgeEntries.id, id))
-            .get();
-        return Number(row?.hits ?? 0);
-    }
-    /**
      * 活跃规则的 id + language (CoverageAnalyzer.#loadActiveRules) — sync
      */
     findActiveRuleIdsSync() {
@@ -627,7 +596,7 @@ export class KnowledgeRepositoryImpl {
     }
     /**
      * 活跃条目按 category 分布
-     * (SkillAdvisor.#getKBDistribution)
+     * 知识库分布统计
      */
     async countGroupByCategory() {
         return this.#drizzle
@@ -643,7 +612,7 @@ export class KnowledgeRepositoryImpl {
     }
     /**
      * 活跃条目按 language 分布
-     * (SkillAdvisor.#getKBDistribution)
+     * 知识库分布统计
      */
     async countGroupByLanguage() {
         return this.#drizzle
@@ -659,7 +628,7 @@ export class KnowledgeRepositoryImpl {
     }
     /**
      * 高使用率活跃 Recipe (adoptions + applications >= minUsage)
-     * (SkillAdvisor.#getKBDistribution)
+     * 知识库分布统计
      */
     async findHotRecipesByUsage(minUsage, limit) {
         return this.#drizzle
@@ -676,7 +645,7 @@ export class KnowledgeRepositoryImpl {
     }
     /**
      * 全库生命周期统计 (total / pending / deprecated)
-     * (SkillAdvisor.#getKBDistribution)
+     * 知识库分布统计
      */
     async getLifecycleCounts() {
         const row = this.#drizzle
@@ -694,7 +663,7 @@ export class KnowledgeRepositoryImpl {
         };
     }
     /**
-     * 活跃 Recipe 信号 (SignalCollector.#collectRecipeSignals)
+     * 活跃 Recipe 统计
      */
     async findActiveRecipeSignals(limit) {
         return this.#drizzle
@@ -716,7 +685,7 @@ export class KnowledgeRepositoryImpl {
             .all();
     }
     /**
-     * 待审核 Candidate (SignalCollector.#collectCandidateSignals)
+     * 待审核 Candidate 统计
      */
     async findPendingCandidates(limit) {
         return this.#drizzle

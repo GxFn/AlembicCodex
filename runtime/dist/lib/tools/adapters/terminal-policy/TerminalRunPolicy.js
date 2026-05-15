@@ -75,8 +75,8 @@ export function evaluateTerminalCommandPolicy(input) {
     if (input.interactive === 'allowed') {
         return deny('Interactive terminal commands are not available for terminal_run', 'interactive-command', 'high', preview);
     }
-    if (input.session.envPersistence === 'explicit' && sensitiveEnvKeys(input.env).length > 0) {
-        return deny('Sensitive-looking environment variables cannot be persisted in terminal sessions', 'env-persistence-sensitive-key', 'high', preview);
+    if (sensitiveEnvKeys(input.env).length > 0) {
+        return deny('Sensitive-looking environment variables cannot be passed to terminal_run', 'sensitive-env-key', 'high', preview);
     }
     return { allowed: true, risk, preview };
 }

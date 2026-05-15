@@ -46,7 +46,6 @@ import searchRouter from './routes/search.js';
 import signalsRouter from './routes/signals.js';
 import skillsRouter from './routes/skills.js';
 import violationsRouter from './routes/violations.js';
-import wikiRouter from './routes/wiki.js';
 export class HttpServer {
     app;
     cacheAdapter;
@@ -268,8 +267,6 @@ export class HttpServer {
         this.app.use(`${apiPrefix}/knowledge`, knowledgeRouter);
         // Recipe 操作路由（关系发现等）
         this.app.use(`${apiPrefix}/recipes`, recipesRouter);
-        // Wiki 路由
-        this.app.use(`${apiPrefix}/wiki`, wikiRouter);
         // Panorama 全景路由（项目结构 + 覆盖率 + 健康度）
         this.app.use(`${apiPrefix}/panorama`, panoramaRouter);
         // 进化路由（文件变更驱动 Recipe 修复/弃用）
