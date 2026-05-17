@@ -2,8 +2,8 @@
  * Violations API 路由
  * Guard 违规记录管理、AI 规则生成
  */
+import Logger from '@alembic/core/logging';
 import express from 'express';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 const router = express.Router();
 const _logger = Logger.getInstance();

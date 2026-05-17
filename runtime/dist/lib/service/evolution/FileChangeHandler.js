@@ -14,10 +14,10 @@
  *
  * @module service/evolution/FileChangeHandler
  */
-import { isConsumable, isDegraded } from '../../domain/knowledge/Lifecycle.js';
-import Logger from '../../infrastructure/logging/Logger.js';
-import { rewriteRecipePaths } from '../knowledge/RecipePathRewriter.js';
-import { assessFileImpact, extractRecipeTokens } from './ContentImpactAnalyzer.js';
+import { isConsumable, isDegraded } from '@alembic/core/knowledge';
+import Logger from '@alembic/core/logging';
+import { assessFileImpact, extractRecipeTokens, } from '@alembic/core/service/evolution/ContentImpactAnalyzer';
+import { rewriteRecipePaths } from '@alembic/core/service/knowledge/RecipePathRewriter';
 /** impactLevel → quality signal 权重映射（文档 §5.3）
  *
  * v3 语义：

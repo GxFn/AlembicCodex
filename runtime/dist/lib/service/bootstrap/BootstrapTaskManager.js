@@ -17,8 +17,8 @@
  *   bootstrap:task-failed   — 单个任务失败
  *   bootstrap:all-completed — 全部任务完成
  */
-import { getTestModeConfig } from '#shared/test-mode.js';
-import Logger from '../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
+import { getTestModeConfig } from '@alembic/core/shared/test-mode';
 /** 任务状态枚举 */
 export const TaskStatus = Object.freeze({
     SKELETON: 'skeleton', // 骨架已创建，等待填充
@@ -235,8 +235,7 @@ export class BootstrapTaskManager {
     /**
      * 获取当前 session 的 AbortSignal
      *
-     * 用于传入 AgentRuntime.execute()，使得 abortSession() 可以立即中断正在执行的 AI 调用，
-     * 而不是等到下一个维度边界才检测到取消。
+     * 供外部宿主工作流在可取消步骤中读取，避免等到下一个维度边界才检测到取消。
      */
     getSessionAbortSignal() {
         return this.#sessionAbortController?.signal ?? null;

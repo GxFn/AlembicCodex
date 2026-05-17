@@ -10,15 +10,15 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { LanguageService } from '#shared/LanguageService.js';
-import { resolveProjectRoot } from '#shared/resolveProjectRoot.js';
+import { LanguageService } from '@alembic/core/project-intelligence';
+import { resolveProjectRoot } from '@alembic/core/workspace';
 import { envelope } from '../envelope.js';
 // ═══ Review 轮次追踪（模块私有） ═══════════════════
 const _reviewRounds = new Map(); // projectRoot → round count
 const _lastReviewPassed = new Map(); // projectRoot → boolean
 const MAX_REVIEW_ROUNDS = 5;
 export async function guardCheck(ctx, args) {
-    const { GuardCheckEngine, detectLanguage } = await import('#service/guard/GuardCheckEngine.js');
+    const { GuardCheckEngine, detectLanguage } = await import('@alembic/core/guard');
     // 输入校验：空代码直接返回
     if (!args.code || !args.code.trim()) {
         return envelope({
@@ -75,7 +75,7 @@ export async function guardAuditFiles(ctx, args) {
         throw new Error('files array is required and must not be empty');
     }
     const scope = args.scope || 'project';
-    const { GuardCheckEngine } = await import('#service/guard/GuardCheckEngine.js');
+    const { GuardCheckEngine } = await import('@alembic/core/guard');
     const engine = _getOrCreateEngine(ctx, GuardCheckEngine);
     // 注入 Enhancement Pack Guard 规则
     await _injectEnhancementGuardRules(engine, ctx);
@@ -165,7 +165,7 @@ export async function guardAuditFiles(ctx, args) {
  * @param args { files?: string[] }
  */
 export async function guardReview(ctx, args) {
-    const { GuardCheckEngine } = await import('#service/guard/GuardCheckEngine.js');
+    const { GuardCheckEngine } = await import('@alembic/core/guard');
     const projectRoot = resolveProjectRoot(ctx.container);
     // 轮次追踪（基于 projectRoot，不绑定 task）
     const round = (_reviewRounds.get(projectRoot) || 0) + 1;
@@ -510,7 +510,7 @@ export async function scanProject(ctx, args) {
     // Guard 审计
     let guardAudit = null;
     try {
-        const { GuardCheckEngine } = await import('#service/guard/GuardCheckEngine.js');
+        const { GuardCheckEngine } = await import('@alembic/core/guard');
         const engine = _getOrCreateEngine(ctx, GuardCheckEngine);
         // 注入 Enhancement Pack Guard 规则
         await _injectEnhancementGuardRules(engine, ctx);
@@ -628,7 +628,7 @@ async function _injectEnhancementGuardRules(engine, ctx) {
         return;
     }
     try {
-        const { initEnhancementRegistry } = await import('#core/enhancement/index.js');
+        const { initEnhancementRegistry } = await import('@alembic/core/core/enhancement');
         const enhReg = await initEnhancementRegistry();
         // 仅注入无框架条件的通用 Pack 规则（如 go-web 无 frameworks 条件）
         // 有框架条件的 Pack（如 go-grpc 需要 frameworks: ['grpc']）由 Bootstrap Phase 4
@@ -662,7 +662,7 @@ async function _injectEnhancementGuardRules(engine, ctx) {
  * 计算模块级 Guard 规则覆盖率矩阵
  */
 export async function guardCoverageMatrix(ctx, _args) {
-    const { CoverageAnalyzer } = await import('#service/guard/CoverageAnalyzer.js');
+    const { CoverageAnalyzer } = await import('@alembic/core/guard');
     const projectRoot = resolveProjectRoot(ctx.container);
     // 尝试从 DI 获取，回退到新建
     let analyzer;
@@ -691,7 +691,7 @@ export async function guardCoverageMatrix(ctx, _args) {
  * 包含完整 uncertain 消费数据
  */
 export async function guardComplianceReport(ctx, _args) {
-    const { ComplianceReporter } = await import('#service/guard/ComplianceReporter.js');
+    const { ComplianceReporter } = await import('@alembic/core/guard');
     const projectRoot = resolveProjectRoot(ctx.container);
     // 尝试从 DI 获取，回退到新建
     let reporter;
@@ -699,7 +699,7 @@ export async function guardComplianceReport(ctx, _args) {
         reporter = ctx.container.get('complianceReporter');
     }
     catch {
-        const { GuardCheckEngine } = await import('#service/guard/GuardCheckEngine.js');
+        const { GuardCheckEngine } = await import('@alembic/core/guard');
         const engine = _getOrCreateEngine(ctx, GuardCheckEngine);
         await _injectEnhancementGuardRules(engine, ctx);
         // ComplianceReporter(engine, violationsStore, ruleLearner, exclusionManager, config)

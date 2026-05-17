@@ -1,7 +1,7 @@
 {
   "name": "alembic-ai",
   "version": "0.1.2",
-  "description": "Alembic — Auto Source Distill. Distill project knowledge from source code into structured recipes for humans and AI agents. Embedded Codex plugin runtime.",
+  "description": "Alembic plugin integration repository for Codex and future IDE or agent host plugins. Embedded Codex plugin runtime.",
   "type": "module",
   "main": "dist/lib/bootstrap.js",
   "engines": {
@@ -11,16 +11,11 @@
     "#shared/*": "./dist/lib/shared/*",
     "#infra/*": "./dist/lib/infrastructure/*",
     "#service/*": "./dist/lib/service/*",
-    "#agent/*": "./dist/lib/agent/*",
-    "#domain/*": "./dist/lib/domain/*",
     "#inject/*": "./dist/lib/injection/*",
     "#core/*": "./dist/lib/core/*",
     "#external/*": "./dist/lib/external/*",
-    "#repo/*": "./dist/lib/repository/*",
-    "#types/*": "./dist/lib/types/*",
     "#http/*": "./dist/lib/http/*",
     "#workflows/*": "./dist/lib/workflows/*",
-    "#tools/*": "./dist/lib/tools/*",
     "#codex/*": "./dist/lib/codex/*"
   },
   "bin": {
@@ -48,16 +43,17 @@
     "kotlin",
     "developer-tools"
   ],
-  "homepage": "https://github.com/GxFn/Alembic#readme",
+  "homepage": "https://github.com/GxFn/AlembicPlugin#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GxFn/Alembic.git"
+    "url": "git+https://github.com/GxFn/AlembicPlugin.git"
   },
   "bugs": {
-    "url": "https://github.com/GxFn/Alembic/issues"
+    "url": "https://github.com/GxFn/AlembicPlugin/issues"
   },
   "license": "MIT",
   "dependencies": {
+    "@alembic/core": "file:vendor/AlembicCore",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "ajv": "^8.20.0",
     "better-sqlite3": "^12.6.2",

@@ -1,15 +1,15 @@
 import { readdirSync, statSync } from 'node:fs';
 import { extname as pathExtname, join as pathJoin, relative as pathRelative } from 'node:path';
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
-// ─── v3.0: AST ProjectGraph ──────────────────────────
-import ProjectGraph from '../core/ast/ProjectGraph.js';
 // ─── v3.1: Multi-Language Discovery + Enhancement ────────
-import { initEnhancementRegistry } from '../core/enhancement/index.js';
+import { initEnhancementRegistry } from '@alembic/core/core/enhancement';
+// ─── P3: Infrastructure ──────────────────────────────
+import Logger from '@alembic/core/logging';
+// ─── v3.0: AST ProjectGraph ──────────────────────────
+import { ProjectGraph } from '@alembic/core/project-intelligence';
+import { unwrapRawDb } from '@alembic/core/search';
+import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { CacheCoordinator } from '../infrastructure/cache/CacheCoordinator.js';
 import { GraphCache } from '../infrastructure/cache/GraphCache.js';
-// ─── P3: Infrastructure ──────────────────────────────
-import Logger from '../infrastructure/logging/Logger.js';
-import { unwrapRawDb } from '../repository/search/SearchRepoAdapter.js';
 import * as AgentModule from './modules/AgentModule.js';
 import * as AiModule from './modules/AiModule.js';
 import * as AppModule from './modules/AppModule.js';
@@ -100,6 +100,12 @@ export class ServiceContainer {
             if (bootstrapComponents.skillHooks) {
                 this.singletons.skillHooks = bootstrapComponents.skillHooks;
             }
+            if (bootstrapComponents.aiProvider) {
+                this.singletons.aiProvider = bootstrapComponents.aiProvider;
+            }
+            if (bootstrapComponents.embedProvider) {
+                this.singletons._embedProvider = bootstrapComponents.embedProvider;
+            }
             // ═══ AI Provider 初始化（委托 AiModule）═══
             await AiModule.initialize(this);
             // RecipeExtractor 实例（用于工具增强）
@@ -149,14 +155,7 @@ export class ServiceContainer {
         }
     }
     /**
-     * 热重载 AI Provider（API Key 变更后调用，无需重启进程）
-     *
-     * 委托给 AiProviderManager.switchProvider() — 原子操作:
-     *  1. 替换 provider 引用 + DI 数据管道同步
-     *  2. Token 追踪 AOP 重新挂载
-     *  3. Embedding fallback 重建
-     *  4. 清除已缓存的依赖 AI 的 singleton（SearchEngine 等）
-     *  5. 监听器回调通知
+     * 热重载宿主 AI Provider 引用或配置选择。
      */
     reloadAiProvider(newProvider) {
         if (!newProvider) {

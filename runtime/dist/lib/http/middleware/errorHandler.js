@@ -1,5 +1,5 @@
 /** 错误处理中间件 */
-import { ConflictError, NotFoundError, PermissionDenied, ValidationError, } from '../../shared/errors/index.js';
+import { ConflictError, NotFoundError, PermissionDenied, ValidationError, } from '@alembic/core/shared/errors/index';
 export function errorHandler(logger) {
     return (error, req, res, _next) => {
         const status = error.statusCode || error.status || 500;

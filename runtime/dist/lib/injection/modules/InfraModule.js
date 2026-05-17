@@ -7,29 +7,22 @@
  *   - knowledgeRepository, knowledgeFileWriter, knowledgeSyncService
  */
 import path from 'node:path';
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
-import { KnowledgeSyncService } from '../../cli/KnowledgeSyncService.js';
+import { JobStore } from '@alembic/core/daemon';
+import { EventBus } from '@alembic/core/events';
+import { ReportStore } from '@alembic/core/infrastructure/report/ReportStore';
+import { WriteZone } from '@alembic/core/io';
+import Logger from '@alembic/core/logging';
+import { createAlembicRepositories, } from '@alembic/core/repositories';
+import { MemoryRepositoryImpl } from '@alembic/core/repository/memory/MemoryRepository';
+import { KnowledgeFileWriter } from '@alembic/core/service/knowledge/KnowledgeFileWriter';
+import { KnowledgeSyncService } from '@alembic/core/service/knowledge/KnowledgeSyncService';
+import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import Gateway from '../../core/gateway/Gateway.js';
-import { JobStore } from '../../daemon/JobStore.js';
 import AuditLogger from '../../infrastructure/audit/AuditLogger.js';
 import AuditStore from '../../infrastructure/audit/AuditStore.js';
-import { EventBus } from '../../infrastructure/event/EventBus.js';
-import { WriteZone } from '../../infrastructure/io/WriteZone.js';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getRealtimeService as _getRealtimeService } from '../../infrastructure/realtime/RealtimeService.js';
-import { ReportStore } from '../../infrastructure/report/ReportStore.js';
 import { AuditRepositoryImpl } from '../../repository/audit/AuditRepository.js';
-import { BootstrapRepositoryImpl } from '../../repository/bootstrap/BootstrapRepository.js';
-import { CodeEntityRepositoryImpl } from '../../repository/code/CodeEntityRepository.js';
-import { ProposalRepository } from '../../repository/evolution/ProposalRepository.js';
-import { GuardViolationRepositoryImpl } from '../../repository/guard/GuardViolationRepository.js';
-import { KnowledgeEdgeRepositoryImpl } from '../../repository/knowledge/KnowledgeEdgeRepository.js';
-import { KnowledgeRepositoryImpl } from '../../repository/knowledge/KnowledgeRepository.impl.js';
-import { MemoryRepositoryImpl } from '../../repository/memory/MemoryRepository.js';
-import { SessionRepositoryImpl } from '../../repository/session/SessionRepository.js';
-import { RecipeSourceRefRepositoryImpl } from '../../repository/sourceref/RecipeSourceRefRepository.js';
 import { BootstrapTaskManager } from '../../service/bootstrap/BootstrapTaskManager.js';
-import { KnowledgeFileWriter } from '../../service/knowledge/KnowledgeFileWriter.js';
 export function register(c) {
     // ═══ Infrastructure ═══
     c.register('database', () => {
@@ -77,29 +70,19 @@ export function register(c) {
     });
     // ═══ Repositories ═══
     c.singleton('knowledgeRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new KnowledgeRepositoryImpl(db, drizzle);
+        return getCoreRepositories(ct).knowledgeRepository;
     });
     c.singleton('knowledgeEdgeRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new KnowledgeEdgeRepositoryImpl(drizzle);
+        return getCoreRepositories(ct).knowledgeEdgeRepository;
     });
     c.singleton('codeEntityRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new CodeEntityRepositoryImpl(drizzle);
+        return getCoreRepositories(ct).codeEntityRepository;
     });
     c.singleton('bootstrapRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new BootstrapRepositoryImpl(drizzle);
+        return getCoreRepositories(ct).bootstrapRepository;
     });
     c.singleton('guardViolationRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new GuardViolationRepositoryImpl(drizzle);
+        return getCoreRepositories(ct).guardViolationRepository;
     });
     c.singleton('auditRepository', (ct) => {
         const db = ct.get('database');
@@ -112,19 +95,19 @@ export function register(c) {
         return new MemoryRepositoryImpl(drizzle);
     });
     c.singleton('sessionRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new SessionRepositoryImpl(drizzle);
+        return getCoreRepositories(ct).sessionRepository;
     });
     c.singleton('proposalRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new ProposalRepository(drizzle);
+        return getCoreRepositories(ct).proposalRepository;
+    });
+    c.singleton('warningRepository', (ct) => {
+        return getCoreRepositories(ct).warningRepository;
+    });
+    c.singleton('lifecycleEventRepository', (ct) => {
+        return getCoreRepositories(ct).lifecycleEventRepository;
     });
     c.singleton('recipeSourceRefRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new RecipeSourceRefRepositoryImpl(drizzle);
+        return getCoreRepositories(ct).recipeSourceRefRepository;
     });
     c.singleton('knowledgeFileWriter', (ct) => {
         const dataRoot = resolveDataRoot(ct);
@@ -144,4 +127,13 @@ export function register(c) {
         const wz = ct.get('writeZone');
         return new ReportStore(path.join(dataRoot, '.asd', 'logs', 'reports'), wz ?? undefined);
     });
+}
+function getCoreRepositories(ct) {
+    const cached = ct.singletons.coreRepositories;
+    if (cached) {
+        return cached;
+    }
+    const repositories = createAlembicRepositories(ct.get('database'));
+    ct.singletons.coreRepositories = repositories;
+    return repositories;
 }

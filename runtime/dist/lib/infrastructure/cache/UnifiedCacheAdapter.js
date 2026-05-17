@@ -2,7 +2,7 @@
  * 统一缓存适配器
  * 内存缓存模式
  */
-import Logger from '../logging/Logger.js';
+import Logger from '@alembic/core/logging';
 import { cacheService as memoryCacheService } from './CacheService.js';
 export class UnifiedCacheAdapter {
     memoryService;

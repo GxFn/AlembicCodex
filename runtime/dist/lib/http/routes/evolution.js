@@ -13,8 +13,8 @@
  *
  * @module http/routes/evolution
  */
+import Logger from '@alembic/core/logging';
 import express from 'express';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 const router = express.Router();
 const logger = Logger.getInstance();

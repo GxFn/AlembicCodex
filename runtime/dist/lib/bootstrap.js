@@ -1,19 +1,19 @@
 import path from 'node:path';
+import { DatabaseConnection } from '@alembic/core/database';
+import { pathGuard } from '@alembic/core/io';
+import Logger from '@alembic/core/logging';
+import { unwrapRawDb } from '@alembic/core/search';
+import { WorkspaceSettingsStore } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { WorkspaceResolver } from '@alembic/core/workspace';
 import Constitution from './core/constitution/Constitution.js';
 import ConstitutionValidator from './core/constitution/ConstitutionValidator.js';
 import Gateway from './core/gateway/Gateway.js';
 import PermissionManager from './core/permission/PermissionManager.js';
 import AuditLogger from './infrastructure/audit/AuditLogger.js';
 import AuditStore from './infrastructure/audit/AuditStore.js';
-import ConfigLoader from './infrastructure/config/ConfigLoader.js';
-import DatabaseConnection from './infrastructure/database/DatabaseConnection.js';
-import Logger from './infrastructure/logging/Logger.js';
-import { unwrapRawDb } from './repository/search/SearchRepoAdapter.js';
+import ConfigLoader from './infrastructure/config/AppConfigLoader.js';
 import { SkillHooks } from './service/skills/SkillHooks.js';
-import pathGuard from './shared/PathGuard.js';
-import { CONFIG_DIR, PACKAGE_ROOT } from './shared/package-root.js';
-import { WorkspaceResolver } from './shared/WorkspaceResolver.js';
-import { WorkspaceSettingsStore } from './shared/WorkspaceSettingsStore.js';
+import { CONFIG_DIR, PACKAGE_ROOT } from './shared/package-assets.js';
 export class Bootstrap {
     components;
     options;

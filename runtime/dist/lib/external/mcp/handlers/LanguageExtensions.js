@@ -1,1 +1,1 @@
-export * from '#workflows/capabilities/presentation/LanguageExtensionBuilder.js';
+export { buildLanguageExtension, detectPrimaryLanguage, inferLang, } from '@alembic/core/host-agent-workflows';

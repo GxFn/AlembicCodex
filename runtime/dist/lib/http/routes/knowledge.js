@@ -3,10 +3,10 @@
  * 统一知识条目的 CRUD + 生命周期操作
  * 替代 recipes.js + candidates.js （旧路由继续保留用于向后兼容）
  */
+import Logger from '@alembic/core/logging';
+import { ioLimit } from '@alembic/core/shared/concurrency';
 import express from 'express';
-import { ioLimit } from '#shared/concurrency.js';
 import { BatchDeleteBody, BatchDeprecateBody, BatchPublishBody, CreateKnowledgeBody, DeprecateKnowledgeBody, KnowledgeUsageBody, UpdateKnowledgeBody, } from '#shared/schemas/http-requests.js';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { validate } from '../middleware/validate.js';
 import { getContext, safeInt, sanitizeForAPI, sanitizePaginatedForAPI, } from '../utils/routeHelpers.js';

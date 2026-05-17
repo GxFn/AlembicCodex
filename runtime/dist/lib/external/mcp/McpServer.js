@@ -7,9 +7,8 @@
  * V3.3 整合：39 → 16 工具（14 agent + 2 admin）
  * 通过 ALEMBIC_MCP_TIER 环境变量控制可见工具集（agent/admin）
  *
- * 冷启动双路径:
- *   - 外部 Agent 路径: bootstrap (Mission Briefing) → dimension_complete × N
- *   - 内部 Agent 路径: bootstrap.js bootstrapKnowledge() → orchestrator.js AI pipeline (Phase 5)
+ * 冷启动路径:
+ *   - 外部宿主 Agent 路径: bootstrap (Mission Briefing) → dimension_complete × N
  *
  * Gateway 权限 gating: 写操作经过 Gateway 权限/宪法/审计检查（支持动态 resolver）
  *
@@ -18,20 +17,25 @@
  * Handler 实现 → handlers/*.js
  * 整合路由 → handlers/consolidated.js
  */
+import { CapabilityProbe } from '@alembic/core/core/capability/CapabilityProbe';
+import Logger from '@alembic/core/logging';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { CapabilityProbe } from '#core/capability/CapabilityProbe.js';
-import Logger from '#infra/logging/Logger.js';
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
-import { CapabilityCatalog } from '#tools/catalog/CapabilityCatalog.js';
-import { LightweightRouter } from '#tools/core/LightweightRouter.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { envelope } from './envelope.js';
 import { wrapHandler } from './errorHandler.js';
 import { createIdleIntent } from './handlers/types.js';
-import { buildMcpToolCapabilities } from './McpCapabilityProjection.js';
-import { McpToolAdapter } from './McpToolAdapter.js';
 import { TIER_ORDER, TOOL_GATEWAY_MAP, TOOLS, withMcpToolAnnotations } from './tools.js';
+function isMcpToolResponse(value) {
+    return (!!value && typeof value === 'object' && Array.isArray(value.content));
+}
+function isErrorResult(value) {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    const record = value;
+    return record.ok === false || record.success === false || Boolean(record.errorCode);
+}
 // ─── Handler 模块 ─────────────────────────────────────────────
 import * as candidateHandlers from './handlers/candidate.js';
 import * as consolidated from './handlers/consolidated.js';
@@ -54,7 +58,6 @@ export class McpServer {
     _defaultSource;
     _defaultSurface;
     _lastTaskOperation;
-    _toolRouter;
     _session;
     _startedAt;
     bootstrap;
@@ -71,7 +74,6 @@ export class McpServer {
         this._defaultSource = options.source || { kind: 'mcp', name: 'tools/call' };
         this._defaultSurface = options.surface || 'mcp';
         this._lastTaskOperation = '';
-        this._toolRouter = null;
         // ── Session 管理 (with intent lifecycle) ──
         this._session = {
             id: `ses-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
@@ -105,8 +107,8 @@ export class McpServer {
             }
             // ── 排除项目检查 — 防止误配置 ALEMBIC_PROJECT_DIR 到不该创建运行时数据的目录 ──
             // Ghost 模式下跳过排除检查（数据不写入项目目录）
-            const { isExcludedProject } = await import('../../shared/isOwnDevRepo.js');
-            const { ProjectRegistry } = await import('../../shared/ProjectRegistry.js');
+            const { isExcludedProject } = await import('@alembic/core/shared/isOwnDevRepo');
+            const { ProjectRegistry } = await import('@alembic/core/workspace');
             const isGhost = ProjectRegistry.isGhost(projectRoot);
             const exclusion = isExcludedProject(projectRoot);
             if (exclusion.excluded && !isGhost) {
@@ -170,16 +172,7 @@ export class McpServer {
             const { name, arguments: args } = request.params;
             const t0 = Date.now();
             try {
-                const result = await this._handleToolCall(name, args || {});
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: JSON.stringify(result, null, 2),
-                        },
-                    ],
-                    isError: result.ok ? undefined : true,
-                };
+                return await this._handleToolCall(name, args || {});
             }
             catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
@@ -195,51 +188,34 @@ export class McpServer {
         });
     }
     async _handleToolCall(name, args, options = {}) {
-        const router = this._getToolRouter();
-        const gatewayMapping = this._resolveMcpGatewayMapping(name, args);
         const actorRole = options.actor?.role || this._defaultActorRole || this._resolveMcpActorRole();
-        return router.execute({
-            toolId: name,
-            args,
-            surface: options.surface || this._defaultSurface,
+        const source = options.source || this._defaultSource;
+        const surface = options.surface || this._defaultSurface;
+        const result = await this._executeMcpHandler(name, args, {
             actor: {
                 role: actorRole,
                 user: options.actor?.user || process.env.USER || undefined,
                 sessionId: options.actor?.sessionId || this._session.id,
             },
-            source: options.source || this._defaultSource,
-            governance: gatewayMapping
-                ? {
-                    gatewayAction: gatewayMapping.action,
-                    gatewayResource: gatewayMapping.resource,
-                    gatewayData: args || {},
-                }
-                : undefined,
+            source,
+            surface,
         });
-    }
-    _getToolRouter() {
-        if (!this._toolRouter) {
-            const { manifests } = buildMcpToolCapabilities(TOOLS);
-            const catalog = new CapabilityCatalog(manifests);
-            this._toolRouter = new LightweightRouter({
-                catalog,
-                adapters: [new McpToolAdapter((toolName, args) => this._executeMcpHandler(toolName, args))],
-                projectRoot: resolveProjectRoot(this.container),
-                dataRoot: resolveDataRoot(this.container),
-                services: {
-                    get: (serviceName) => {
-                        if (!this.container) {
-                            throw new Error(`Service '${serviceName}' is not available before MCP initialize()`);
-                        }
-                        return this.container.get(serviceName);
-                    },
-                },
-            });
+        if (isMcpToolResponse(result)) {
+            return result;
         }
-        return this._toolRouter;
+        return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+            isError: isErrorResult(result) ? true : undefined,
+        };
     }
-    async _executeMcpHandler(name, args) {
+    async _executeMcpHandler(name, args, runtime = {}) {
         const ctx = this._ctx;
+        Object.assign(ctx, {
+            actor: runtime.actor,
+            source: runtime.source,
+            surface: runtime.surface,
+            gateway: this._resolveMcpGatewayMapping(name, args),
+        });
         // 查找 handler 并通过 wrapHandler 统一错误处理
         const handler = this._resolveHandler(name);
         if (!handler) {

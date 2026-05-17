@@ -5,7 +5,7 @@
  * 注意: submitSingle, submitBatch, submitDrafts 已移至 V3 knowledge handlers
  *       (alembic_submit_knowledge / submit_knowledge_batch / knowledge_lifecycle)
  */
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
+import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { envelope } from '../envelope.js';
 // ─── 校验 & 去重 ───────────────────────────────────────────
 export async function validateCandidate(ctx, args) {
@@ -90,7 +90,7 @@ export async function validateCandidate(ctx, args) {
 }
 export async function checkDuplicate(ctx, args) {
     // SimilarityService 直接读磁盘 .md 文件，不依赖 Repository
-    const { findSimilarRecipes } = await import('#service/candidate/SimilarityService.js');
+    const { findSimilarRecipes } = await import('@alembic/core/service/candidate/SimilarityService');
     const dataRoot = resolveDataRoot(ctx.container) || resolveProjectRoot(ctx.container);
     const candidate = (args.candidate ?? {});
     const similar = findSimilarRecipes(dataRoot, candidate, {

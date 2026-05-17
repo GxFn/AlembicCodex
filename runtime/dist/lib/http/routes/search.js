@@ -2,9 +2,9 @@
  * Search API 路由
  * 统一搜索接口 - 搜 Recipe（含所有知识类型）
  */
+import Logger from '@alembic/core/logging';
 import express from 'express';
 import { ContextAwareSearchBody, GraphImpactQuery, GraphQuery, SearchQuery, SimilarityBody, } from '#shared/schemas/http-requests.js';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { validate, validateQuery } from '../middleware/validate.js';
 import { safeInt } from '../utils/routeHelpers.js';
@@ -291,7 +291,7 @@ router.post('/similarity', validate(SimilarityBody), async (req, res) => {
     const { code, targetName, candidateId, candidate } = req.body;
     let dataRoot;
     try {
-        const { resolveDataRoot } = await import('#shared/resolveProjectRoot.js');
+        const { resolveDataRoot } = await import('@alembic/core/workspace');
         const container = getServiceContainer();
         dataRoot = resolveDataRoot(container) || process.env.ALEMBIC_PROJECT_DIR || process.cwd();
     }
@@ -337,7 +337,7 @@ router.post('/similarity', validate(SimilarityBody), async (req, res) => {
         return void res.json({ success: true, data: { similar: [] } });
     }
     try {
-        const { findSimilarRecipes } = await import('../../service/candidate/SimilarityService.js');
+        const { findSimilarRecipes } = await import('@alembic/core/service/candidate/SimilarityService');
         const similar = findSimilarRecipes(dataRoot, candidateObj, { threshold: 0.3, topK: 10 });
         // 映射为前端期望格式
         const mapped = similar.map((s) => ({

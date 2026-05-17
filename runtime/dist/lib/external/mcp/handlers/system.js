@@ -4,8 +4,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { PACKAGE_ROOT } from '#shared/package-root.js';
-import { resolveProjectRoot } from '#shared/resolveProjectRoot.js';
+import { resolveProjectRoot } from '@alembic/core/workspace';
+import { readHostAiConfigInfo } from '#codex/HostAiAdapter.js';
+import { PACKAGE_ROOT } from '#shared/package-assets.js';
 import { envelope } from '../envelope.js';
 export async function health(ctx) {
     const checks = { database: false, gateway: false, vectorStore: false };
@@ -14,8 +15,8 @@ export async function health(ctx) {
     // 1) AI 配置
     let aiInfo = { provider: 'unknown', hasKey: false };
     try {
-        const { getAiConfigInfo } = await import('#external/ai/AiFactory.js');
-        aiInfo = getAiConfigInfo();
+        const hostAiInfo = readHostAiConfigInfo(resolveProjectRoot(ctx.container));
+        aiInfo = { ...hostAiInfo, provider: hostAiInfo.provider || 'unknown' };
     }
     catch (e) {
         issues.push(`ai: ${e instanceof Error ? e.message : String(e)}`);

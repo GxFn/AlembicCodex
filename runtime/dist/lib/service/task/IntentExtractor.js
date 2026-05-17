@@ -6,7 +6,7 @@
  *
  * @module service/task/IntentExtractor
  */
-import { tokenize } from '#service/search/tokenizer.js';
+import { tokenize } from '@alembic/core/search';
 // ── Universal Patterns (language-agnostic) ──────────
 const UNIVERSAL_PATTERNS = [
     /\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b/g, // CamelCase

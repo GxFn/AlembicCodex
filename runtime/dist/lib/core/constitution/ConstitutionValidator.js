@@ -1,5 +1,5 @@
-import Logger from '../../infrastructure/logging/Logger.js';
-import { ConstitutionViolation } from '../../shared/errors/BaseError.js';
+import Logger from '@alembic/core/logging';
+import { ConstitutionViolation } from '@alembic/core/shared/errors/BaseError';
 /**
  * ConstitutionValidator — 数据守护验证器
  *

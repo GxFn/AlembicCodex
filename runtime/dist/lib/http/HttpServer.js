@@ -5,18 +5,18 @@
  */
 import { createServer } from 'node:http';
 import { join } from 'node:path';
+import { CapabilityProbe } from '@alembic/core/core/capability/CapabilityProbe';
+import Logger from '@alembic/core/logging';
+import { resolveDataRoot } from '@alembic/core/workspace';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import { CapabilityProbe } from '../core/capability/CapabilityProbe.js';
 import { registerGatewayActions } from '../core/gateway/GatewayActionRegistry.js';
 import { initCacheAdapter } from '../infrastructure/cache/UnifiedCacheAdapter.js';
-import Logger from '../infrastructure/logging/Logger.js';
 import { initErrorTracker } from '../infrastructure/monitoring/ErrorTracker.js';
 import { initPerformanceMonitor } from '../infrastructure/monitoring/PerformanceMonitor.js';
 import { initRealtimeService } from '../infrastructure/realtime/RealtimeService.js';
 import { getServiceContainer } from '../injection/ServiceContainer.js';
-import { resolveDataRoot } from '../shared/resolveProjectRoot.js';
 import apiSpec from './api-spec.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { gatewayMiddleware } from './middleware/gatewayMiddleware.js';
@@ -46,6 +46,7 @@ import searchRouter from './routes/search.js';
 import signalsRouter from './routes/signals.js';
 import skillsRouter from './routes/skills.js';
 import violationsRouter from './routes/violations.js';
+import wikiRouter from './routes/wiki.js';
 export class HttpServer {
     app;
     cacheAdapter;
@@ -257,6 +258,8 @@ export class HttpServer {
         this.app.use(`${apiPrefix}/commands`, commandsRouter);
         // Skills 路由
         this.app.use(`${apiPrefix}/skills`, skillsRouter);
+        // Wiki 路由（共享 Dashboard 插件模式兼容）
+        this.app.use(`${apiPrefix}/wiki`, wikiRouter);
         // Candidates 路由（AI 补齐/润色）
         this.app.use(`${apiPrefix}/candidates`, candidatesRouter);
         // Modules 路由（v3.2 统一多语言模块扫描）

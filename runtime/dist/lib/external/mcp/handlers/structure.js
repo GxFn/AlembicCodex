@@ -5,9 +5,9 @@
 import fs from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import * as Paths from '#infra/config/Paths.js';
-import { LanguageService } from '#shared/LanguageService.js';
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
+import * as Paths from '@alembic/core/infrastructure/config/Paths';
+import { LanguageService } from '@alembic/core/project-intelligence';
+import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { envelope } from '../envelope.js';
 // ─── Discoverer 缓存 ─────────────────────────────────────
 // 同一 projectRoot 在模块生命期内只初始化一次
@@ -18,7 +18,7 @@ async function _getLoadedDiscoverer(ctx) {
         return _discovererCache;
     }
     // 优先使用 DiscovererRegistry（多语言统一接口）
-    const { getDiscovererRegistry } = await import('#core/discovery/index.js');
+    const { getDiscovererRegistry } = await import('@alembic/core/project-intelligence');
     const registry = getDiscovererRegistry();
     const discoverer = await registry.detect(projectRoot);
     await discoverer.load(projectRoot);

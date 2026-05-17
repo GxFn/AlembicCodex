@@ -3,9 +3,9 @@
  * 执行 Module Map 刷新、Embed (重建索引) 等命令
  */
 import express from 'express';
-import { DASHBOARD_OPERATION_IDS } from '#tools/adapters/DashboardOperations.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { FileReadQuery, FileSaveBody } from '../../shared/schemas/http-requests.js';
+import { DASHBOARD_OPERATION_IDS } from '../dashboard/DashboardOperations.js';
 import { validate, validateQuery } from '../middleware/validate.js';
 import { executeDashboardOperation, sendDashboardOperationResponse, } from '../utils/dashboard-operation.js';
 const router = express.Router();

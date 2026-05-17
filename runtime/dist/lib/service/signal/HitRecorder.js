@@ -11,8 +11,8 @@
  *
  * @module service/signal/HitRecorder
  */
-import { unwrapRawDb } from '../../repository/search/SearchRepoAdapter.js';
-import { timerRegistry } from '../../shared/TimerRegistry.js';
+import { timerRegistry } from '@alembic/core/events';
+import { unwrapRawDb } from '@alembic/core/search';
 /** 事件类型 → Stats JSON 字段 映射 */
 const EVENT_TO_STATS_FIELD = {
     guardHit: 'guardHits',

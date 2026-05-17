@@ -6,7 +6,7 @@
  * - Gateway 执行权限/宪法/审计
  * - GatewayActionRegistry 将 action 路由到正确的 Service 方法
  */
-import Logger from '../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 const logger = Logger.getInstance();
 /** 注册所有 Gateway actions */
 export function registerGatewayActions(gateway, container) {

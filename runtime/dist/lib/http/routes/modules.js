@@ -6,13 +6,13 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import Logger from '@alembic/core/logging';
+import { resolveDataRoot } from '@alembic/core/workspace';
 import express from 'express';
 import { ModuleBootstrapBody, ModuleRescanBody, ScanFolderBody, ScanProjectBody, ScanTargetBody, } from '#shared/schemas/http-requests.js';
-import { DASHBOARD_OPERATION_IDS } from '#tools/adapters/DashboardOperations.js';
 import { getJobStore } from '../../daemon/DaemonJobRunner.js';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
-import { resolveDataRoot } from '../../shared/resolveProjectRoot.js';
+import { DASHBOARD_OPERATION_IDS } from '../dashboard/DashboardOperations.js';
 import { validate } from '../middleware/validate.js';
 import { executeDashboardOperation, sendDashboardOperationResponse, } from '../utils/dashboard-operation.js';
 import { createStreamSession, getStreamSession } from '../utils/sse-sessions.js';
@@ -493,7 +493,7 @@ router.get('/bootstrap/status', async (req, res) => {
             data: { status: 'idle', message: 'No bootstrap task manager initialized', activeJob, jobs },
         });
     }
-    const { getTestModeConfig } = await import('#shared/test-mode.js');
+    const { getTestModeConfig } = await import('@alembic/core/shared/test-mode');
     const sessionStatus = taskManager.getSessionStatus();
     const testMode = getTestModeConfig();
     const includeTestMode = testMode.enabled;
@@ -509,7 +509,7 @@ router.get('/bootstrap/status', async (req, res) => {
  * 返回当前测试模式配置（前端 Header 持久展示测试标识）
  */
 router.get('/test-mode', async (_req, res) => {
-    const { getTestModeConfig } = await import('#shared/test-mode.js');
+    const { getTestModeConfig } = await import('@alembic/core/shared/test-mode');
     const cfg = getTestModeConfig();
     res.json({ success: true, data: cfg });
 });

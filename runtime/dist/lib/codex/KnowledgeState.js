@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { WorkspaceResolver } from '@alembic/core/workspace';
 import Database from 'better-sqlite3';
-import { WorkspaceResolver } from '../shared/WorkspaceResolver.js';
 export const EMPTY_CODEX_KNOWLEDGE_STATE = {
     freshness: {
         checkedAt: new Date(0).toISOString(),

@@ -17,8 +17,8 @@
  *
  * @module infrastructure/cache/CacheCoordinator
  */
-import { timerRegistry } from '../../shared/TimerRegistry.js';
-import Logger from '../logging/Logger.js';
+import { timerRegistry } from '@alembic/core/events';
+import Logger from '@alembic/core/logging';
 export class CacheCoordinator {
     #db;
     #lastVersion;

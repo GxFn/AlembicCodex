@@ -8,12 +8,12 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { SignalAggregator } from '../../infrastructure/signal/SignalAggregator.js';
-import { SignalBridge } from '../../infrastructure/signal/SignalBridge.js';
-import { SignalBus } from '../../infrastructure/signal/SignalBus.js';
-import { SignalTraceWriter } from '../../infrastructure/signal/SignalTraceWriter.js';
+import { SignalBus } from '@alembic/core/events';
+import { SignalAggregator } from '@alembic/core/infrastructure/signal/SignalAggregator';
+import { SignalBridge } from '@alembic/core/infrastructure/signal/SignalBridge';
+import { SignalTraceWriter } from '@alembic/core/infrastructure/signal/SignalTraceWriter';
+import { resolveDataRoot } from '@alembic/core/workspace';
 import { HitRecorder } from '../../service/signal/HitRecorder.js';
-import { resolveDataRoot } from '../../shared/resolveProjectRoot.js';
 import { shutdown } from '../../shared/shutdown.js';
 /**
  * Register intent signal subscriber for JSONL persistence.

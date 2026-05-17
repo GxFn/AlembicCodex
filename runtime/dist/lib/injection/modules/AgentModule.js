@@ -1,102 +1,12 @@
 /**
- * AgentModule — Agent 架构服务注册
+ * AgentModule — plugin-mode compatibility registration.
  *
- * 负责注册:
- *   - agentService, toolRegistry, toolForge, skillHooks
+ * AlembicPlugin no longer registers local agent runtime or terminal execution
+ * services. Keep SkillHooks because Codex plugin delivery still needs skill
+ * lifecycle hooks.
  */
-import { AgentProfileCompiler, AgentProfileRegistry, AgentRunCoordinator, AgentRuntimeBuilder, AgentService, AgentStageFactoryRegistry, SystemRunContextFactory, } from '#agent/service/index.js';
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
-import { DashboardOperationAdapter } from '#tools/adapters/DashboardOperationAdapter.js';
-import { DASHBOARD_OPERATION_HANDLERS, DASHBOARD_OPERATION_MANIFESTS, } from '#tools/adapters/DashboardOperations.js';
-import { SkillAdapter } from '#tools/adapters/SkillAdapter.js';
-import { SKILL_CAPABILITY_MANIFESTS } from '#tools/adapters/SkillCapabilities.js';
-import { TerminalAdapter } from '#tools/adapters/TerminalAdapter.js';
-import { InMemoryTerminalSessionManager } from '#tools/adapters/TerminalSessionManager.js';
-import { TERMINAL_CAPABILITY_MANIFESTS } from '#tools/adapters/terminal-capabilities/index.js';
-import { WorkflowAdapter } from '#tools/adapters/WorkflowAdapter.js';
-import { UnifiedToolCatalog } from '#tools/catalog/UnifiedToolCatalog.js';
-import { LightweightRouter } from '#tools/core/LightweightRouter.js';
-import { ToolContextFactory } from '#tools/v2/adapter/ToolContextFactory.js';
-import { V2CapabilityCatalog } from '#tools/v2/adapter/V2CapabilityCatalog.js';
-import { V2ToolRouterAdapter } from '#tools/v2/adapter/V2ToolRouterAdapter.js';
-import { WorkflowRegistry } from '#tools/workflow/WorkflowRegistry.js';
-import { ToolForge } from '../../agent/forge/ToolForge.js';
 import { SkillHooks } from '../../service/skills/SkillHooks.js';
 export function register(c) {
-    // ── V2 Tool System ─────────────────────────────────────────────────
-    // capabilityCatalog: V2CapabilityCatalog 直接从 TOOL_REGISTRY 生成 schema
-    c.singleton('capabilityCatalog', () => new V2CapabilityCatalog());
-    // V2 ToolContextFactory: 长生命周期，持有 DeltaCache/SearchCache/Compressor
-    c.singleton('v2ToolContextFactory', (ct) => new ToolContextFactory({
-        container: ct,
-        projectRoot: resolveProjectRoot(ct),
-    }));
-    // toolRouter: V2ToolRouterAdapter 实现 ToolRouterContract
-    c.singleton('toolRouter', (ct) => new V2ToolRouterAdapter({
-        contextFactory: ct.get('v2ToolContextFactory'),
-    }));
-    // toolRegistry: 非 Agent 表面 (Dashboard/Terminal/Skill/Mac/MCP) 的工具注册
-    c.singleton('toolRegistry', (ct) => {
-        const catalog = new UnifiedToolCatalog();
-        for (const m of [
-            ...DASHBOARD_OPERATION_MANIFESTS,
-            ...TERMINAL_CAPABILITY_MANIFESTS,
-            ...SKILL_CAPABILITY_MANIFESTS,
-        ]) {
-            catalog.register(m);
-        }
-        catalog.setRouter(new LightweightRouter({
-            catalog,
-            adapters: [
-                new DashboardOperationAdapter(DASHBOARD_OPERATION_HANDLERS),
-                new TerminalAdapter({
-                    sessionManager: ct.get('terminalSessionManager'),
-                }),
-                new SkillAdapter(),
-                new WorkflowAdapter(ct.get('workflowRegistry')),
-            ],
-            projectRoot: resolveProjectRoot(ct),
-            dataRoot: resolveDataRoot(ct),
-            services: ct,
-        }));
-        return catalog;
-    });
-    c.singleton('workflowRegistry', () => new WorkflowRegistry());
-    c.singleton('terminalSessionManager', () => new InMemoryTerminalSessionManager());
-    c.singleton('toolForge', (ct) => {
-        const catalog = ct.get('toolRegistry');
-        const signalBus = ct.singletons.signalBus;
-        return new ToolForge(catalog, {
-            signalBus,
-            capabilityCatalog: ct.get('capabilityCatalog'),
-            workflowRegistry: ct.get('workflowRegistry'),
-        });
-    });
-    c.singleton('agentProfileRegistry', () => new AgentProfileRegistry(), { aiDependent: false });
-    c.singleton('agentStageFactoryRegistry', () => new AgentStageFactoryRegistry(), {
-        aiDependent: false,
-    });
-    c.singleton('agentProfileCompiler', (ct) => new AgentProfileCompiler({
-        profileRegistry: ct.get('agentProfileRegistry'),
-        stageFactoryRegistry: ct.get('agentStageFactoryRegistry'),
-    }), { aiDependent: false });
-    c.singleton('agentRunCoordinator', () => new AgentRunCoordinator(), { aiDependent: false });
-    c.singleton('systemRunContextFactory', (ct) => new SystemRunContextFactory({
-        aiProvider: (ct.singletons.aiProvider || null),
-    }), { aiDependent: true });
-    c.singleton('agentRuntimeBuilder', (ct) => new AgentRuntimeBuilder({
-        container: ct,
-        toolRegistry: ct.get('toolRegistry'),
-        toolRouter: ct.get('toolRouter'),
-        aiProvider: ct.singletons.aiProvider || null,
-        projectRoot: resolveProjectRoot(ct),
-        dataRoot: resolveDataRoot(ct),
-    }), { aiDependent: true });
-    c.singleton('agentService', (ct) => new AgentService({
-        runtimeBuilder: ct.get('agentRuntimeBuilder'),
-        profileCompiler: ct.get('agentProfileCompiler'),
-        runCoordinator: ct.get('agentRunCoordinator'),
-    }), { aiDependent: true });
     c.singleton('skillHooks', () => {
         const hooks = new SkillHooks();
         hooks.load().catch(() => {

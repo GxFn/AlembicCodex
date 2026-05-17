@@ -7,36 +7,29 @@
  *   - discovererRegistry, enhancementRegistry, languageService, dimensionCopy
  *   - constitution, aiProvider, projectGraph
  */
-import { DimensionCopy } from '#domain/dimension/DimensionCopy.js';
-import { resolveDataRoot, resolveKnowledgeScanDirs, resolveProjectRoot, } from '#shared/resolveProjectRoot.js';
-import { getDiscovererRegistry } from '../../core/discovery/index.js';
-import { getEnhancementRegistry } from '../../core/enhancement/index.js';
-import { HnswVectorAdapter } from '../../infrastructure/vector/HnswVectorAdapter.js';
-import { IndexingPipeline } from '../../infrastructure/vector/IndexingPipeline.js';
-import { JsonVectorAdapter } from '../../infrastructure/vector/JsonVectorAdapter.js';
-import { LifecycleEventRepository } from '../../repository/evolution/LifecycleEventRepository.js';
-import { WarningRepository } from '../../repository/evolution/WarningRepository.js';
-import { findSimilarRecipes } from '../../service/candidate/SimilarityService.js';
-import { ConsolidationAdvisor } from '../../service/evolution/ConsolidationAdvisor.js';
-import { ContentPatcher } from '../../service/evolution/ContentPatcher.js';
-import { DecayDetector } from '../../service/evolution/DecayDetector.js';
-import { EnhancementSuggester } from '../../service/evolution/EnhancementSuggester.js';
-import { EvolutionGateway } from '../../service/evolution/EvolutionGateway.js';
+import { getEnhancementRegistry } from '@alembic/core/core/enhancement';
+import { DimensionCopy } from '@alembic/core/dimensions';
+import { KnowledgeService, RecipeProductionGateway } from '@alembic/core/knowledge';
+import { getDiscovererRegistry, LanguageService } from '@alembic/core/project-intelligence';
+import { HybridRetriever, SearchEngine } from '@alembic/core/search';
+import { findSimilarRecipes } from '@alembic/core/service/candidate/SimilarityService';
+import { ConsolidationAdvisor } from '@alembic/core/service/evolution/ConsolidationAdvisor';
+import { ContentPatcher } from '@alembic/core/service/evolution/ContentPatcher';
+import { DecayDetector } from '@alembic/core/service/evolution/DecayDetector';
+import { EnhancementSuggester } from '@alembic/core/service/evolution/EnhancementSuggester';
+import { EvolutionGateway } from '@alembic/core/service/evolution/EvolutionGateway';
+import { LifecycleStateMachine } from '@alembic/core/service/evolution/LifecycleStateMachine';
+import { ProposalExecutor } from '@alembic/core/service/evolution/ProposalExecutor';
+import { RedundancyAnalyzer } from '@alembic/core/service/evolution/RedundancyAnalyzer';
+import { StagingManager } from '@alembic/core/service/evolution/StagingManager';
+import { CodeEntityGraph } from '@alembic/core/service/knowledge/CodeEntityGraph';
+import { ConfidenceRouter } from '@alembic/core/service/knowledge/ConfidenceRouter';
+import { KnowledgeGraphService } from '@alembic/core/service/knowledge/KnowledgeGraphService';
+import { SourceRefReconciler } from '@alembic/core/service/knowledge/SourceRefReconciler';
+import { HnswVectorAdapter, IndexingPipeline, JsonVectorAdapter } from '@alembic/core/vector';
+import { resolveDataRoot, resolveKnowledgeScanDirs, resolveProjectRoot, } from '@alembic/core/workspace';
 import { FileChangeHandler } from '../../service/evolution/FileChangeHandler.js';
-import { LifecycleStateMachine } from '../../service/evolution/LifecycleStateMachine.js';
-import { ProposalExecutor } from '../../service/evolution/ProposalExecutor.js';
-import { RedundancyAnalyzer } from '../../service/evolution/RedundancyAnalyzer.js';
-import { StagingManager } from '../../service/evolution/StagingManager.js';
 import { FileChangeDispatcher } from '../../service/FileChangeDispatcher.js';
-import { CodeEntityGraph } from '../../service/knowledge/CodeEntityGraph.js';
-import { ConfidenceRouter } from '../../service/knowledge/ConfidenceRouter.js';
-import { KnowledgeGraphService } from '../../service/knowledge/KnowledgeGraphService.js';
-import { KnowledgeService } from '../../service/knowledge/KnowledgeService.js';
-import { RecipeProductionGateway } from '../../service/knowledge/RecipeProductionGateway.js';
-import { SourceRefReconciler } from '../../service/knowledge/SourceRefReconciler.js';
-import { HybridRetriever } from '../../service/search/HybridRetriever.js';
-import { SearchEngine } from '../../service/search/SearchEngine.js';
-import { LanguageService } from '../../shared/LanguageService.js';
 export function register(c) {
     // ═══ Knowledge ═══
     c.singleton('confidenceRouter', (ct) => new ConfidenceRouter({}, ct.get('qualityScorer')));
@@ -149,19 +142,22 @@ export function register(c) {
         const sourceRefRepo = ct.get('recipeSourceRefRepository');
         const knowledgeRepo = ct.get('knowledgeRepository');
         return new SourceRefReconciler(projectRoot, sourceRefRepo, knowledgeRepo, {
-            signalBus: ct.singletons.signalBus || undefined,
+            signalBus: ct.singletons.signalBus ||
+                undefined,
         });
     });
     c.singleton('stagingManager', (ct) => {
         const knowledgeRepo = ct.get('knowledgeRepository');
         return new StagingManager(knowledgeRepo, {
-            signalBus: ct.singletons.signalBus || undefined,
+            signalBus: ct.singletons.signalBus ||
+                undefined,
         });
     });
     c.singleton('decayDetector', (ct) => {
         const knowledgeRepo = ct.get('knowledgeRepository');
         return new DecayDetector(knowledgeRepo, {
-            signalBus: ct.singletons.signalBus || undefined,
+            signalBus: ct.singletons.signalBus ||
+                undefined,
             knowledgeEdgeRepo: ct.services.knowledgeEdgeRepository
                 ? ct.get('knowledgeEdgeRepository')
                 : undefined,
@@ -173,29 +169,21 @@ export function register(c) {
     c.singleton('redundancyAnalyzer', (ct) => {
         const knowledgeRepo = ct.get('knowledgeRepository');
         return new RedundancyAnalyzer(knowledgeRepo, {
-            signalBus: ct.singletons.signalBus || undefined,
+            signalBus: ct.singletons.signalBus ||
+                undefined,
         });
     });
     c.singleton('enhancementSuggester', (ct) => {
         const knowledgeRepo = ct.get('knowledgeRepository');
         return new EnhancementSuggester(knowledgeRepo, {
-            signalBus: ct.singletons.signalBus || undefined,
+            signalBus: ct.singletons.signalBus ||
+                undefined,
         });
-    });
-    c.singleton('warningRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new WarningRepository(drizzle);
     });
     c.singleton('contentPatcher', (ct) => {
         const knowledgeRepo = ct.get('knowledgeRepository');
         const sourceRefRepo = ct.get('recipeSourceRefRepository');
         return new ContentPatcher(knowledgeRepo, sourceRefRepo);
-    });
-    c.singleton('lifecycleEventRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new LifecycleEventRepository(drizzle);
     });
     c.singleton('lifecycleStateMachine', (ct) => {
         const knowledgeRepo = ct.get('knowledgeRepository');
@@ -263,7 +251,8 @@ export function register(c) {
         const dataRoot = resolveDataRoot(ct);
         const projectRoot = resolveProjectRoot(ct);
         return new FileChangeHandler(sourceRefRepo, knowledgeRepo, contentPatcher, {
-            signalBus: ct.singletons.signalBus || undefined,
+            signalBus: ct.singletons.signalBus ||
+                undefined,
             evolutionGateway: gateway,
             dataRoot,
             projectRoot,

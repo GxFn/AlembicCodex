@@ -44,11 +44,9 @@
 import { execSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, renameSync, rmdirSync, rmSync, writeFileSync, } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { isExcludedProject } from '../shared/isOwnDevRepo.js';
-import { DEFAULT_KNOWLEDGE_BASE_DIR, DEFAULT_SUB_REPO_DIR, isGitRepo, } from '../shared/ProjectMarkers.js';
-import { ProjectRegistry } from '../shared/ProjectRegistry.js';
-import { PACKAGE_ROOT } from '../shared/package-root.js';
-import { WorkspaceResolver } from '../shared/WorkspaceResolver.js';
+import { isExcludedProject } from '@alembic/core/shared/isOwnDevRepo';
+import { DEFAULT_KNOWLEDGE_BASE_DIR, DEFAULT_SUB_REPO_DIR, isGitRepo, ProjectRegistry, WorkspaceResolver, } from '@alembic/core/workspace';
+import { PACKAGE_ROOT } from '../shared/package-assets.js';
 /** Alembic 源码仓库根目录（定位 templates/ 等资源） */
 const REPO_ROOT = PACKAGE_ROOT;
 export class SetupService {
@@ -355,9 +353,6 @@ export class SetupService {
                 '  - id: "external_agent"',
                 '    name: "External Agent"',
                 '    permissions: ["read:recipes", "read:guard_rules", "create:candidates", "submit:knowledge"]',
-                '  - id: "chat_agent"',
-                '    name: "AgentRuntime"',
-                '    permissions: ["read:recipes", "read:candidates", "create:candidates", "read:guard_rules"]',
                 '',
             ].join('\n'));
         }
@@ -505,7 +500,7 @@ export class SetupService {
     }
     /* ═══ Step 3: 数据库初始化 ═══════════════════════════ */
     async stepDatabase() {
-        const ConfigLoader = (await import('../infrastructure/config/ConfigLoader.js')).default;
+        const ConfigLoader = (await import('#infra/config/AppConfigLoader.js')).default;
         const Bootstrap = (await import('../bootstrap.js')).default;
         const previousCwd = process.cwd();
         const previousProjectDir = process.env.ALEMBIC_PROJECT_DIR;
@@ -559,7 +554,7 @@ export class SetupService {
      * 委托 KnowledgeSyncService 执行全字段同步（setup 场景跳过违规记录）
      */
     async _syncRecipesToDB(db) {
-        const { KnowledgeSyncService } = await import('./KnowledgeSyncService.js');
+        const { KnowledgeSyncService } = await import('@alembic/core/service/knowledge/KnowledgeSyncService');
         const syncRoot = this.resolver?.dataRoot ?? this.projectRoot;
         const syncService = new KnowledgeSyncService(syncRoot);
         const report = syncService.sync(db, {

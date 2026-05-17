@@ -7,7 +7,7 @@
  * 订阅者可选返回 {@link ReactiveEvolutionReport}，Dispatcher 将所有 report 合并后
  * 返回给调用方；当前主要由 git diff checkpoint 在明确触发时使用。
  */
-import Logger from '../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 const logger = Logger.getInstance();
 /** 空 report 常量（无订阅者 / 无事件时返回） */
 function emptyReport(eventSource) {

@@ -1,7 +1,6 @@
 import { isAbsolute, join, resolve } from 'node:path';
-import { getPackageVersion } from '../daemon/DaemonState.js';
 import { ALEMBIC_CHANNEL_ID_ENV, ALEMBIC_CHANNEL_ID_FALLBACK_ENV, CODEX_CHANNEL_ID, } from '../shared/channel.js';
-import { PACKAGE_ROOT } from '../shared/package-root.js';
+import { getPackageVersion, PACKAGE_ROOT } from '../shared/package-assets.js';
 export const CODEX_PLUGIN_NAME = 'alembic-codex';
 export const CODEX_RUNTIME_PACKAGE = 'alembic-ai';
 export const CODEX_RUNTIME_BIN = 'alembic-codex-mcp';

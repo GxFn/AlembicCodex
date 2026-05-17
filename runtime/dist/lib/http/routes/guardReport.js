@@ -5,9 +5,9 @@
  *   GET /api/v1/guard/report           — 项目合规性报告（ComplianceReporter + Uncertainty）
  *   GET /api/v1/guard/report/coverage  — CoverageAnalyzer 覆盖率矩阵
  */
+import { resolveProjectRoot } from '@alembic/core/workspace';
 import express from 'express';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
-import { resolveProjectRoot } from '../../shared/resolveProjectRoot.js';
 const router = express.Router();
 /**
  * GET /api/v1/guard/report
@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 router.get('/coverage', async (_req, res) => {
     try {
         const container = getServiceContainer();
-        const { CoverageAnalyzer } = await import('../../service/guard/CoverageAnalyzer.js');
+        const { CoverageAnalyzer } = await import('@alembic/core/guard');
         let analyzer;
         try {
             analyzer = container.get('coverageAnalyzer');

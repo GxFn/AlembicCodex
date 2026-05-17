@@ -1,0 +1,53 @@
+/**
+ * package-assets.ts — Plugin package asset path adapter.
+ *
+ * Core owns workspace/config primitives; this file only locates assets shipped
+ * by the AlembicPlugin package itself.
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { DEFAULT_FOLDER_NAMES } from '@alembic/core/workspace';
+const __dirname = import.meta.dirname;
+function findPackageRoot() {
+    let dir = __dirname;
+    for (let i = 0; i < 10; i++) {
+        const candidate = path.join(dir, 'package.json');
+        if (existsSync(candidate)) {
+            try {
+                const pkg = JSON.parse(readFileSync(candidate, 'utf-8'));
+                if (pkg.name === 'alembic-ai') {
+                    return dir;
+                }
+            }
+            catch {
+                /* continue */
+            }
+        }
+        const parent = path.dirname(dir);
+        if (parent === dir) {
+            break;
+        }
+        dir = parent;
+    }
+    throw new Error('[Alembic] Could not locate Plugin package root. ' +
+        'No ancestor directory contains a package.json with name "alembic-ai".');
+}
+export const PACKAGE_ROOT = findPackageRoot();
+export function getPackageVersion() {
+    try {
+        const raw = readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf-8');
+        const pkg = JSON.parse(raw);
+        return pkg.version || '0.0.0';
+    }
+    catch {
+        return '0.0.0';
+    }
+}
+export const CONFIG_DIR = path.join(PACKAGE_ROOT, DEFAULT_FOLDER_NAMES.package.config);
+export const INTERNAL_SKILLS_DIR = path.join(PACKAGE_ROOT, DEFAULT_FOLDER_NAMES.package.internalSkills);
+export const INJECTABLE_SKILLS_DIR = path.join(PACKAGE_ROOT, DEFAULT_FOLDER_NAMES.package.injectableSkills);
+/** @deprecated Use INJECTABLE_SKILLS_DIR for product builtin skills. */
+export const SKILLS_DIR = INJECTABLE_SKILLS_DIR;
+export const TEMPLATES_DIR = path.join(PACKAGE_ROOT, DEFAULT_FOLDER_NAMES.package.templates);
+export const RESOURCES_DIR = path.join(PACKAGE_ROOT, DEFAULT_FOLDER_NAMES.package.resources);
+export const DASHBOARD_DIR = path.join(PACKAGE_ROOT, DEFAULT_FOLDER_NAMES.package.dashboard);

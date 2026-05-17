@@ -1,8 +1,7 @@
+import { resolveProjectRoot, WorkspaceResolver } from '@alembic/core/workspace';
 import express from 'express';
-import { getPackageVersion } from '../../daemon/DaemonState.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
-import { resolveProjectRoot } from '../../shared/resolveProjectRoot.js';
-import { WorkspaceResolver } from '../../shared/WorkspaceResolver.js';
+import { getPackageVersion } from '../../shared/package-assets.js';
 const router = express.Router();
 router.get('/health', (_req, res) => {
     const container = getServiceContainer();

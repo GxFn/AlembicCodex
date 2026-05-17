@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import Logger from '../../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 import { isSafeProjectRelativePath, normalizeProjectRelativePath, shouldIgnoreProjectPath, } from './ProjectDiffIgnore.js';
 const GIT_TIMEOUT_MS = 5000;
 export class GitDiffScanner {

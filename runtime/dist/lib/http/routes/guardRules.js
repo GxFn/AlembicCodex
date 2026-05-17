@@ -2,12 +2,12 @@
  * 防护规则 API 路由
  * 管理代码质量防护规则的 CRUD 和生命周期操作
  */
+import { LanguageService } from '@alembic/core/project-intelligence';
+import { ioLimit } from '@alembic/core/shared/concurrency';
+import { NotFoundError } from '@alembic/core/shared/errors/index';
 import express from 'express';
-import { ioLimit } from '#shared/concurrency.js';
 import { BatchDisableBody, BatchEnableBody, CheckCodeBody, CreateGuardRuleBody, ImportFromRecipeBody, } from '#shared/schemas/http-requests.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
-import { NotFoundError } from '../../shared/errors/index.js';
-import { LanguageService } from '../../shared/LanguageService.js';
 import { validate } from '../middleware/validate.js';
 import { getContext, safeInt } from '../utils/routeHelpers.js';
 const router = express.Router();

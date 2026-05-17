@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { WorkspaceSettingsStore } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { DEFAULT_FOLDER_NAMES, WorkspaceResolver } from '@alembic/core/workspace';
 import { DaemonSupervisor } from '../daemon/DaemonSupervisor.js';
-import { DEFAULT_FOLDER_NAMES } from '../shared/folder-names.js';
-import { WorkspaceResolver } from '../shared/WorkspaceResolver.js';
-import { WorkspaceSettingsStore } from '../shared/WorkspaceSettingsStore.js';
+import { inspectCodexAiConfig } from './AiConfigState.js';
 import { buildCodexRuntimeDiagnostics } from './Diagnostics.js';
 import { inspectCodexKnowledge } from './KnowledgeState.js';
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, getCodexInitMarkerPath, readCodexInitMarker, resolveCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
@@ -13,6 +13,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const projectRoot = resolve(projectRootInput);
     const resolver = WorkspaceResolver.fromProject(projectRoot);
     const settingsStore = new WorkspaceSettingsStore(resolver);
+    const aiConfig = inspectCodexAiConfig(projectRoot);
     const facts = resolver.toFacts();
     const supervisor = options.supervisor || new DaemonSupervisor();
     const daemonStatus = await supervisor.status(projectRoot);
@@ -44,6 +45,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const gitDiffCheckpoint = readGitDiffCheckpointStatus(daemonStatus.health);
     return {
         ok: knowledge.initialized,
+        aiConfig,
         packageVersion: runtime.packageVersion,
         profile: CODEX_SETUP_PROFILE,
         channel: {

@@ -10,7 +10,7 @@
  * 2. 统一 responseTime、byKind 分组、kind 过滤
  * 3. 投影使用 SearchTypes.slimSearchResult()（消除 3 处重复投影）
  */
-import { groupByKind, slimSearchResult, } from '#service/search/SearchTypes.js';
+import { groupByKind, slimSearchResult } from '@alembic/core/search';
 import { envelope } from '../envelope.js';
 // ─── 工具函数 ────────────────────────────────────────────────
 /**
@@ -28,7 +28,7 @@ function getSearchEngine(ctx) {
 }
 /** 降级创建 SearchEngine（仅在 container 无法提供时） */
 async function getFallbackEngine(ctx) {
-    const { SearchEngine } = await import('#service/search/SearchEngine.js');
+    const { SearchEngine } = await import('@alembic/core/search');
     const db = ctx.container.get('database');
     const knowledgeRepo = ctx.container.get('knowledgeRepository');
     const sourceRefRepo = ctx.container.get('recipeSourceRefRepository');

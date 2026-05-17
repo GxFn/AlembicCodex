@@ -2,8 +2,8 @@
  * 路由共用工具函数
  * 提取自各路由文件中的重复实现
  */
-import { KnowledgeEntry } from '../../domain/knowledge/KnowledgeEntry.js';
-import { getDeveloperIdentity } from '../../shared/developer-identity.js';
+import { KnowledgeEntry } from '@alembic/core/knowledge';
+import { getDeveloperIdentity } from '@alembic/core/shared/developer-identity';
 /**
  * 从请求中提取操作上下文（用户身份、IP、UA）
  * @returns }

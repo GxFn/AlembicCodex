@@ -7,9 +7,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import Logger from '../../infrastructure/logging/Logger.js';
-import { LanguageService } from '../../shared/LanguageService.js';
-import { DEFAULT_KNOWLEDGE_BASE_DIR } from '../../shared/ProjectMarkers.js';
+import Logger from '@alembic/core/logging';
+import { LanguageService } from '@alembic/core/project-intelligence';
+import { DEFAULT_KNOWLEDGE_BASE_DIR } from '@alembic/core/workspace';
 const logger = Logger.getInstance();
 // ─── 工具函数 ────────────────────────────────────────────────
 /** 文本 slug 化 */

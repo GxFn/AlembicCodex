@@ -9,7 +9,7 @@
  * @module WikiRenderers
  */
 import path from 'node:path';
-import { LanguageService } from '../../shared/LanguageService.js';
+import { LanguageService } from '@alembic/core/project-intelligence';
 import { getInheritanceRoots, getLangTerms, getModuleSourceFiles, inferModulePurpose, mermaidId, slug, } from './WikiUtils.js';
 // ═══ AI Prompt 构建 ════════════════════════════════════════
 /**

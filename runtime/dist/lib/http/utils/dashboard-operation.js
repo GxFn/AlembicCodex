@@ -19,14 +19,14 @@ const DEFAULT_TRUST = {
 };
 /**
  * Dashboard Operations 直接分派到 DASHBOARD_OPERATION_HANDLERS，
- * 不经过 V2 ToolRouter（dashboard 操作不是 LLM 工具）。
+ * 不经过本地 LLM 工具路由。
  */
 export async function executeDashboardOperation(container, req, toolId, args) {
     const callId = randomUUID();
     const startedAt = new Date().toISOString();
     const t0 = Date.now();
     try {
-        const { DASHBOARD_OPERATION_HANDLERS, DASHBOARD_OPERATION_MANIFESTS } = await import('#tools/adapters/DashboardOperations.js');
+        const { DASHBOARD_OPERATION_HANDLERS, DASHBOARD_OPERATION_MANIFESTS } = await import('../dashboard/DashboardOperations.js');
         const handler = DASHBOARD_OPERATION_HANDLERS[toolId];
         if (!handler) {
             return errorEnvelope(toolId, callId, startedAt, `Unknown dashboard operation: ${toolId}`);

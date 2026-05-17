@@ -7,9 +7,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { resolveDataRoot } from '@alembic/core/workspace';
 import { Router } from 'express';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
-import { resolveDataRoot } from '../../shared/resolveProjectRoot.js';
 const router = Router();
 /**
  * 从文件末尾读取最后 N 行（逐行反向读取）

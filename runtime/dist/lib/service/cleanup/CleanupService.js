@@ -22,10 +22,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { recipeDimensionIdOrUnknown } from '#domain/dimension/index.js';
-import { CANDIDATES_DIR } from '#infra/config/Defaults.js';
-import { getContextIndexPath, getProjectKnowledgePath, getProjectRecipesPath, getProjectSkillsPath, } from '#infra/config/Paths.js';
-import { CONSUMABLE_LIFECYCLES, lifecycleInSql } from '../../domain/knowledge/Lifecycle.js';
+import { recipeDimensionIdOrUnknown } from '@alembic/core/domain/dimension';
+import { CANDIDATES_DIR } from '@alembic/core/infrastructure/config/Defaults';
+import { getContextIndexPath, getProjectKnowledgePath, getProjectRecipesPath, getProjectSkillsPath, } from '@alembic/core/infrastructure/config/Paths';
+import { CONSUMABLE_LIFECYCLES, lifecycleInSql } from '@alembic/core/knowledge';
 // ── 常量 ────────────────────────────────────────────────────
 /** 垃圾桶根目录（相对于 .asd/） */
 const TRASH_DIR = '.trash';

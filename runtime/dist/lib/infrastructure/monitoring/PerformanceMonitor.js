@@ -2,8 +2,8 @@
  * 性能监控中间件
  * 记录 API 请求的响应时间、吞吐量和错误率
  */
-import { timerRegistry } from '../../shared/TimerRegistry.js';
-import Logger from '../logging/Logger.js';
+import { timerRegistry } from '@alembic/core/events';
+import Logger from '@alembic/core/logging';
 export class PerformanceMonitor {
     config;
     metrics;

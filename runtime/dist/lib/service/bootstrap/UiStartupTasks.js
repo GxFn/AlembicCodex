@@ -9,7 +9,7 @@
  *   5. proposalCheck:         启动时兜底清理（过期 Pending + Observing 兜底评估）
  *   6. signalSubscription:    订阅 SignalBus（信号驱动提案评估）
  */
-import Logger from '../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 const logger = Logger.getInstance();
 /**
  * 异步执行所有启动后台任务。
@@ -26,8 +26,8 @@ export async function runUiStartupTasks(ctx) {
             ? ctx.container.get('knowledgeSyncService')
             : null;
         if (!syncService) {
-            const { KnowledgeSyncService } = await import('../../cli/KnowledgeSyncService.js');
-            const { resolveDataRoot } = await import('../../shared/resolveProjectRoot.js');
+            const { KnowledgeSyncService } = await import('@alembic/core/service/knowledge/KnowledgeSyncService');
+            const { resolveDataRoot } = await import('@alembic/core/workspace');
             const dataRoot = resolveDataRoot(ctx.container) || ctx.projectRoot;
             const sourceRefReconciler = ctx.container.singletons.sourceRefReconciler;
             syncService = new KnowledgeSyncService(dataRoot, {

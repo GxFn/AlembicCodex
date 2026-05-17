@@ -2,8 +2,8 @@
  * WebSocket/Socket.io 实时通知服务
  * 提供候选人、食谱、规则的实时更新通知
  */
+import Logger from '@alembic/core/logging';
 import { Server as SocketIOServer } from 'socket.io';
-import Logger from '../logging/Logger.js';
 export class RealtimeService {
     io;
     constructor(httpServer) {

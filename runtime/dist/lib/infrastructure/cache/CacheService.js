@@ -3,7 +3,7 @@
  * 提供分布式缓存支持，提升 API 响应速度
  * 生产环境建议通过 UnifiedCacheAdapter 接入 Redis
  */
-import Logger from '../logging/Logger.js';
+import Logger from '@alembic/core/logging';
 /** 本地缓存实现（无 Redis 依赖） */
 export class CacheService {
     cache;

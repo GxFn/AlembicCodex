@@ -1,9 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync, } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
-import { getPackageVersion } from '../daemon/DaemonState.js';
-import { PACKAGE_ROOT } from '../shared/package-root.js';
-import { WorkspaceResolver } from '../shared/WorkspaceResolver.js';
+import { WorkspaceResolver } from '@alembic/core/workspace';
+import { getPackageVersion, PACKAGE_ROOT } from '../shared/package-assets.js';
 import { CODEX_PLUGIN_ROOT_ENV, CODEX_SETUP_PROFILE } from './RuntimeContext.js';
 const PROJECT_ROOT_REQUIRED_ACTIONS = [
     'Provide the target project root as an absolute path.',

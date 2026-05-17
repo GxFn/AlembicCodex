@@ -1,7 +1,7 @@
 import EventEmitter from 'node:events';
+import Logger from '@alembic/core/logging';
+import { InternalError } from '@alembic/core/shared/errors/BaseError';
 import { v4 as uuidv4 } from 'uuid';
-import Logger from '../../infrastructure/logging/Logger.js';
-import { InternalError } from '../../shared/errors/BaseError.js';
 /**
  * Gateway - 统一网关
  * 所有操作的唯一入口。

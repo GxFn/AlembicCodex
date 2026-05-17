@@ -8,16 +8,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveDataRoot } from '#shared/resolveProjectRoot.js';
-import { unwrapRawDb } from '../../repository/search/SearchRepoAdapter.js';
-import { ComplianceReporter } from '../../service/guard/ComplianceReporter.js';
-import { CoverageAnalyzer } from '../../service/guard/CoverageAnalyzer.js';
-import { ExclusionManager } from '../../service/guard/ExclusionManager.js';
-import { GuardCheckEngine } from '../../service/guard/GuardCheckEngine.js';
-import { GuardFeedbackLoop } from '../../service/guard/GuardFeedbackLoop.js';
-import { GuardService } from '../../service/guard/GuardService.js';
-import { RuleLearner } from '../../service/guard/RuleLearner.js';
-import { ViolationsStore } from '../../service/guard/ViolationsStore.js';
+import { ComplianceReporter, CoverageAnalyzer, ExclusionManager, GuardCheckEngine, GuardFeedbackLoop, GuardService, RuleLearner, ViolationsStore, } from '@alembic/core/guard';
+import { unwrapRawDb } from '@alembic/core/search';
+import { resolveDataRoot } from '@alembic/core/workspace';
 export function register(c) {
     c.singleton('guardService', (ct) => {
         let guardCheckEngine = null;

@@ -23,84 +23,21 @@ export async function refreshPanorama({ getServiceContainer, log, }) {
     }
 }
 export async function consolidateSemanticMemory({ ctx, session, dataRoot, log, dependencies = {}, }) {
-    try {
-        const db = ctx.container.get?.('database') ?? ctx.container.get?.('db');
-        if (!isPersistentMemoryDb(db) || !isCompletionSessionStore(session.sessionStore)) {
-            return null;
-        }
-        const semanticMemory = dependencies.createPersistentMemory
-            ? await dependencies.createPersistentMemory(db, dataRoot, log)
-            : await createDefaultPersistentMemory(db, dataRoot, log);
-        const consolidator = dependencies.createConsolidator
-            ? await dependencies.createConsolidator(semanticMemory, log)
-            : await createDefaultConsolidator(semanticMemory, log);
-        const result = await consolidator.consolidate(session.sessionStore, {
-            bootstrapSession: session.id,
-            clearPrevious: true,
-        });
-        const total = isWorkflowSemanticMemoryConsolidationResult(result) ? result.total : null;
-        log.info(`[DimensionComplete] Semantic Memory consolidation: +${total?.added || 0} ADD, ~${total?.updated || 0} UPDATE`);
-        if (isWorkflowSemanticMemoryConsolidationResult(result)) {
-            return result;
-        }
+    if (!dependencies.createPersistentMemory || !dependencies.createConsolidator) {
+        log.info(`[DimensionComplete] Semantic Memory consolidation skipped for ${session.id}: local agent memory has been removed from AlembicPlugin.`);
         return null;
     }
-    catch (err) {
-        log.warn(`[DimensionComplete] SemanticMemory consolidation failed (non-blocking): ${err instanceof Error ? err.message : String(err)}`);
+    const db = ctx.container.get?.('database') ?? ctx.container.get?.('db');
+    if (!db || !session.sessionStore) {
         return null;
     }
-}
-async function createDefaultPersistentMemory(db, dataRoot, log) {
-    const { PersistentMemory } = await import('#agent/memory/PersistentMemory.js');
-    const { MemoryEmbeddingStore } = await import('#agent/memory/MemoryEmbeddingStore.js');
-    return new PersistentMemory(db, {
-        logger: {
-            info: (msg) => log.info(msg),
-            warn: (msg) => log.warn(msg),
-        },
-        embeddingStore: new MemoryEmbeddingStore(dataRoot),
+    const semanticMemory = await dependencies.createPersistentMemory(db, dataRoot, log);
+    const consolidator = await dependencies.createConsolidator(semanticMemory, log);
+    const result = await consolidator.consolidate(session.sessionStore, {
+        bootstrapSession: session.id,
+        clearPrevious: true,
     });
-}
-async function createDefaultConsolidator(semanticMemory, log) {
-    const { EpisodicConsolidator } = await import('#agent/domain/EpisodicConsolidator.js');
-    const { PersistentMemory } = await import('#agent/memory/PersistentMemory.js');
-    return new EpisodicConsolidator(semanticMemory, {
-        logger: {
-            info: (msg) => log.info(msg),
-        },
-    });
-}
-function isPersistentMemoryDb(value) {
-    if (!value || typeof value !== 'object') {
-        return false;
-    }
-    const candidate = value;
-    return (typeof candidate.getDb === 'function' ||
-        (typeof candidate.prepare === 'function' &&
-            typeof candidate.exec === 'function' &&
-            typeof candidate.transaction === 'function'));
-}
-function isCompletionSessionStore(value) {
-    if (!value || typeof value !== 'object') {
-        return false;
-    }
-    const candidate = value;
-    return (typeof candidate.getCompletedDimensions === 'function' &&
-        typeof candidate.getDimensionReport === 'function' &&
-        typeof candidate.toJSON === 'function');
-}
-function isWorkflowSemanticMemoryConsolidationResult(value) {
-    if (!value || typeof value !== 'object') {
-        return false;
-    }
-    const candidate = value;
-    if (!candidate.total || typeof candidate.total !== 'object') {
-        return false;
-    }
-    const total = candidate.total;
-    return (typeof total.added === 'number' &&
-        typeof total.updated === 'number' &&
-        typeof total.merged === 'number' &&
-        typeof total.skipped === 'number' &&
-        typeof candidate.durationMs === 'number');
+    return result && typeof result === 'object'
+        ? result
+        : null;
 }

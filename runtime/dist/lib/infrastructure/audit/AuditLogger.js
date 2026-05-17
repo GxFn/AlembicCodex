@@ -1,4 +1,4 @@
-import Logger from '../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 /** AuditLogger - 审计日志记录器 */
 export class AuditLogger {
     auditStore;

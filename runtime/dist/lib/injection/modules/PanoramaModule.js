@@ -12,14 +12,7 @@
  *
  * @module PanoramaModule
  */
-import { CouplingAnalyzer } from '../../service/panorama/CouplingAnalyzer.js';
-import { DimensionAnalyzer } from '../../service/panorama/DimensionAnalyzer.js';
-import { LayerInferrer } from '../../service/panorama/LayerInferrer.js';
-import { ModuleDiscoverer } from '../../service/panorama/ModuleDiscoverer.js';
-import { PanoramaAggregator } from '../../service/panorama/PanoramaAggregator.js';
-import { PanoramaScanner } from '../../service/panorama/PanoramaScanner.js';
-import { PanoramaService } from '../../service/panorama/PanoramaService.js';
-import { RoleRefiner } from '../../service/panorama/RoleRefiner.js';
+import { CouplingAnalyzer, DimensionAnalyzer, LayerInferrer, ModuleDiscoverer, PanoramaAggregator, PanoramaScanner, PanoramaService, RoleRefiner, } from '@alembic/core/project-intelligence';
 export const PanoramaModule = {
     register(container) {
         const ct = container;

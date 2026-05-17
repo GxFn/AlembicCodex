@@ -7,15 +7,15 @@
  *   - moduleService
  *   - primeSearchPipeline (for prime multi-query search — no DB dependency)
  */
-import { resolveDataRoot, resolveProjectRoot } from '#shared/resolveProjectRoot.js';
-import { unwrapRawDb } from '../../repository/search/SearchRepoAdapter.js';
-import { TokenUsageStore } from '../../repository/token/TokenUsageStore.js';
-import { RecipeExtractor } from '../../service/knowledge/RecipeExtractor.js';
+import { TokenUsageStore } from '@alembic/core/repository/token/TokenUsageStore';
+import { unwrapRawDb } from '@alembic/core/search';
+import { RecipeExtractor } from '@alembic/core/service/knowledge/RecipeExtractor';
+import { FeedbackCollector } from '@alembic/core/service/quality/FeedbackCollector';
+import { QualityScorer } from '@alembic/core/service/quality/QualityScorer';
+import { RecipeCandidateValidator } from '@alembic/core/service/recipe/RecipeCandidateValidator';
+import { RecipeParser } from '@alembic/core/service/recipe/RecipeParser';
+import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { ModuleService } from '../../service/module/ModuleService.js';
-import { FeedbackCollector } from '../../service/quality/FeedbackCollector.js';
-import { QualityScorer } from '../../service/quality/QualityScorer.js';
-import { RecipeCandidateValidator } from '../../service/recipe/RecipeCandidateValidator.js';
-import { RecipeParser } from '../../service/recipe/RecipeParser.js';
 import { PrimeSearchPipeline } from '../../service/task/PrimeSearchPipeline.js';
 export function register(c) {
     // ═══ Quality + Recipe ═══
@@ -38,8 +38,6 @@ export function register(c) {
     c.singleton('moduleService', (ct) => {
         const projectRoot = resolveProjectRoot(ct);
         return new ModuleService(projectRoot, {
-            agentService: ct.get('agentService'),
-            systemRunContextFactory: ct.get('systemRunContextFactory'),
             container: ct,
             qualityScorer: ct.get('qualityScorer'),
             recipeExtractor: ct.singletons._recipeExtractor || null,

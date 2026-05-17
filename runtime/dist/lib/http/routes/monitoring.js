@@ -2,9 +2,9 @@
  * 监控 API 路由
  * 提供性能指标、错误统计和缓存状态的查询接口
  */
+import Logger from '@alembic/core/logging';
 import express from 'express';
 import { getCacheAdapter } from '../../infrastructure/cache/UnifiedCacheAdapter.js';
-import Logger from '../../infrastructure/logging/Logger.js';
 import { getErrorTracker } from '../../infrastructure/monitoring/ErrorTracker.js';
 import { getPerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor.js';
 import { getRealtimeService } from '../../infrastructure/realtime/RealtimeService.js';

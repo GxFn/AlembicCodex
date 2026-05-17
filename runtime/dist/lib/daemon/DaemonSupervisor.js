@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, rmSync, statSync, writeFileSync, } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { PACKAGE_ROOT } from '../shared/package-root.js';
-import { ensureDaemonDirs, getPackageVersion, readDaemonState, removeDaemonState, resolveDaemonPaths, } from './DaemonState.js';
+import { ensureDaemonDirs, readDaemonState, removeDaemonState, resolveDaemonPaths, } from '@alembic/core/daemon';
+import { getPackageVersion, PACKAGE_ROOT } from '../shared/package-assets.js';
 export class DaemonSupervisor {
     async status(projectRootInput) {
         const projectRoot = resolve(projectRootInput);

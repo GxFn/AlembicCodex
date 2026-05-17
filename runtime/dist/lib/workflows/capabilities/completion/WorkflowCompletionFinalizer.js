@@ -1,4 +1,4 @@
-import Logger from '#infra/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 import { consolidateSemanticMemory, refreshPanorama, } from '#workflows/capabilities/completion/CompletionSteps.js';
 const logger = Logger.getInstance();
 export async function runWorkflowCompletionFinalizer({ ctx, session, dataRoot, log = logger, dependencies = {}, semanticMemory = {}, steps = {}, shouldAbort, }) {

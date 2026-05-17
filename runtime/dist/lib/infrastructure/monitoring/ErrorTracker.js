@@ -4,9 +4,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveDataRoot } from '../../shared/resolveProjectRoot.js';
-import { timerRegistry } from '../../shared/TimerRegistry.js';
-import Logger from '../logging/Logger.js';
+import { timerRegistry } from '@alembic/core/events';
+import Logger from '@alembic/core/logging';
+import { resolveDataRoot } from '@alembic/core/workspace';
 export class ErrorTracker {
     criticalErrors;
     recentErrors;

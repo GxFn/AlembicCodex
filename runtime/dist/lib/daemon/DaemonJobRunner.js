@@ -1,5 +1,5 @@
-import { resolveProjectRoot } from '../shared/resolveProjectRoot.js';
-import { JobStore, } from './JobStore.js';
+import { JobStore, } from '@alembic/core/daemon';
+import { resolveProjectRoot } from '@alembic/core/workspace';
 export function createDaemonJob(options) {
     const store = getJobStore(options.container);
     return store.create({
@@ -34,7 +34,7 @@ export async function runDaemonJob(options) {
         source: options.source,
     });
     try {
-        const result = await executeInternalWorkflow(options);
+        const result = await executeHostDrivenWorkflow(options);
         const bootstrapSessionId = extractBootstrapSessionId(result);
         if (bootstrapSessionId && isBootstrapSessionRunning(result, options.container)) {
             const job = store.update(options.jobId, {
@@ -99,27 +99,18 @@ export function getJobStore(container) {
         return new JobStore({ projectRoot: resolveProjectRoot(container) });
     }
 }
-async function executeInternalWorkflow(options) {
+async function executeHostDrivenWorkflow(options) {
     if (options.kind === 'bootstrap') {
-        const { bootstrapKnowledge } = await import('../external/mcp/handlers/bootstrap-internal.js');
-        const raw = await bootstrapKnowledge({ container: options.container, logger: options.logger }, {
-            maxFiles: numberArg(options.args?.maxFiles, 500),
-            skipGuard: Boolean(options.args?.skipGuard || false),
-            contentMaxLines: numberArg(options.args?.contentMaxLines, 120),
-            loadSkills: true,
-        });
-        const result = unwrapEnvelope(raw);
-        return { ...asRecord(result), asyncFill: true };
+        const { bootstrapExternal } = await import('../external/mcp/handlers/bootstrap-external.js');
+        return unwrapEnvelope(await bootstrapExternal({ container: options.container, logger: options.logger }));
     }
-    const { rescanInternal } = await import('../external/mcp/handlers/rescan-internal.js');
-    const raw = await rescanInternal({ container: options.container, logger: options.logger }, {
+    const { rescanExternal } = await import('../external/mcp/handlers/rescan-external.js');
+    return unwrapEnvelope(await rescanExternal({ container: options.container, logger: options.logger }, {
         reason: options.args?.reason || `${options.source || 'daemon'}-rescan`,
         dimensions: Array.isArray(options.args?.dimensions)
             ? options.args.dimensions.filter((dimension) => typeof dimension === 'string')
             : undefined,
-    });
-    const result = unwrapEnvelope(raw);
-    return { ...asRecord(result), asyncFill: true };
+    }));
 }
 function linkBootstrapSessionCompletion(options) {
     const completeFromSession = (session) => {
@@ -157,14 +148,17 @@ function linkBootstrapSessionCompletion(options) {
     eventBus.on('bootstrap:all-completed', listener);
 }
 function extractBootstrapSessionId(result) {
-    const session = asRecord(result).bootstrapSession;
-    return typeof session === 'object' &&
-        session &&
-        typeof session.id === 'string'
-        ? session.id
-        : undefined;
+    const record = asRecord(result);
+    const session = asRecordOrNull(record.bootstrapSession) ||
+        asRecordOrNull(record.session) ||
+        asRecordOrNull(asRecordOrNull(record.briefing)?.session);
+    const id = stringField(session, 'id') || stringField(record, 'sessionId');
+    return id || undefined;
 }
 function isBootstrapSessionRunning(result, container) {
+    if (asRecord(result).asyncFill !== true) {
+        return false;
+    }
     const bootstrapSessionId = extractBootstrapSessionId(result);
     if (!bootstrapSessionId) {
         return false;
@@ -197,6 +191,10 @@ function unwrapEnvelope(raw) {
 function asRecord(value) {
     return value && typeof value === 'object' ? value : { value };
 }
-function numberArg(value, fallback) {
-    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+function asRecordOrNull(value) {
+    return value && typeof value === 'object' ? value : null;
+}
+function stringField(value, key) {
+    const field = value?.[key];
+    return typeof field === 'string' && field.length > 0 ? field : undefined;
 }

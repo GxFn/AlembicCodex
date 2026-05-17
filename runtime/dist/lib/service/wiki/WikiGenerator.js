@@ -5,12 +5,12 @@
  * 结合 Alembic 的 AST 深度分析能力（ProjectGraph、CodeEntityGraph、SPM 依赖图）
  * 做到深层代码洞察。
  *
- * V3 核心设计: "内容驱动 + AI 优先"
+ * V3 核心设计: 内容驱动 + 宿主可扩展
  *   1. 数据收集 (Scan → AST → SPM → KB)
  *   2. 主题发现 — 分析数据丰富度，动态决定生成哪些文章
- *   3. AI 优先撰写 — 直接由 AI 写完整文章，非骨架+润色
+ *   3. 模板撰写 — 插件模式不执行本地 AI compose
  *   4. 质量关卡 — 内容不足 MIN_ARTICLE_CHARS 则跳过该文章
- *   5. 降级保底 — AI 不可用时使用丰富模板内容
+ *   5. 宿主扩展 — 如需 AI compose，由宿主 agent 产出文档内容
  *
  * Wiki 文档结构 (动态生成，按项目特征而异):
  *   Alembic/wiki/
@@ -31,10 +31,10 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import Logger from '../../infrastructure/logging/Logger.js';
-import { LanguageService } from '../../shared/LanguageService.js';
-import { DEFAULT_KNOWLEDGE_BASE_DIR } from '../../shared/ProjectMarkers.js';
-import { buildAiSystemPrompt, buildArticlePrompt, buildFallbackArticle, } from './WikiRenderers.js';
+import Logger from '@alembic/core/logging';
+import { LanguageService } from '@alembic/core/project-intelligence';
+import { DEFAULT_KNOWLEDGE_BASE_DIR } from '@alembic/core/workspace';
+import { buildFallbackArticle } from './WikiRenderers.js';
 import { dedup, detectBuildSystems, getLangTerms, getModuleSourceFiles, inferModuleFromPath, profileFolders, slug, walkDir, } from './WikiUtils.js';
 const logger = Logger.getInstance();
 // ─── Wiki 生成阶段 ──────────────────────────────────────────
@@ -45,7 +45,7 @@ export const WikiPhase = Object.freeze({
     SPM_PARSE: 'spm-parse', // SPM 依赖解析
     KNOWLEDGE: 'knowledge', // 整合已有 Recipes
     GENERATE: 'generate', // 生成 Markdown 骨架
-    AI_COMPOSE: 'ai-compose', // AI 合成写作增强
+    AI_COMPOSE: 'compose', // 文档撰写
     DEDUP: 'dedup', // 去重
     FINALIZE: 'finalize', // 写入 meta.json
 });
@@ -63,7 +63,6 @@ export class WikiGenerator {
     projectRoot;
     wikiDir;
     _aborted;
-    aiProvider;
     codeEntityGraph;
     knowledgeService;
     metaPath;
@@ -83,7 +82,6 @@ export class WikiGenerator {
         this.knowledgeService = deps.knowledgeService || null;
         this.projectGraph = deps.projectGraph || null;
         this.codeEntityGraph = deps.codeEntityGraph || null;
-        this.aiProvider = deps.aiProvider || null;
         this.onProgress = deps.onProgress || (() => { });
         this.options = { ...DEFAULTS, ...deps.options };
         this.#wz = deps.writeZone || null;
@@ -635,16 +633,9 @@ export class WikiGenerator {
         return topics;
     }
     /**
-     * V3 AI-first 文章撰写
+     * V3 文章撰写。
      *
-     * 对每个发现的主题:
-     *   1. 优先使用 AI 撰写完整文章 (非骨架增强！)
-     *   2. AI 不可用时使用丰富的模板内容
-     *   3. 质量关卡: 最终内容不足 MIN_ARTICLE_CHARS 则跳过
-     *
-     * @param topics _discoverTopics() 的输出
-     * @param structuredData { projectInfo, astInfo, moduleInfo, knowledgeInfo }
-     * @returns >>}
+     * 插件模式不再本地调用 AI compose；这里始终使用结构化数据渲染模板内容。
      */
     async _composeArticles(topics, structuredData) {
         const files = [];
@@ -664,8 +655,6 @@ export class WikiGenerator {
         if (needsFoldersDir) {
             this._ensureDir(path.join(this.wikiDir, 'folders'));
         }
-        let composed = 0;
-        const systemPrompt = buildAiSystemPrompt(isZh);
         // 跟踪实际写入的主题 (用于 overview 导航)
         const writtenTopics = [];
         let overviewTopicIdx = -1;
@@ -681,39 +670,14 @@ export class WikiGenerator {
             }
             const progress = 58 + Math.round((i / topics.length) * 22);
             this._emit(WikiPhase.AI_COMPOSE, progress, `撰写: ${topic.title}`);
-            let content = null;
-            // === 1. 尝试 AI 撰写完整文章 ===
-            if (this.aiProvider) {
-                try {
-                    const prompt = buildArticlePrompt(topic, structuredData, isZh, this.codeEntityGraph);
-                    const aiResult = await Promise.race([
-                        this.aiProvider.chat(prompt, { systemPrompt, temperature: 0.3, maxTokens: 4096 }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('AI compose timeout')), 45_000)),
-                    ]);
-                    if (aiResult && typeof aiResult === 'string' && aiResult.length >= MIN_ARTICLE_CHARS) {
-                        content = aiResult;
-                        composed++;
-                    }
-                }
-                catch (err) {
-                    logger.warn(`[WikiGenerator] AI compose failed for ${topic.id}: ${err.message}`);
-                }
-            }
-            // === 2. 降级: 丰富的模板内容 ===
-            if (!content) {
-                content = buildFallbackArticle(topic, structuredData, isZh, this.codeEntityGraph);
-            }
-            // === 3. 质量关卡 ===
+            const content = buildFallbackArticle(topic, structuredData, isZh, this.codeEntityGraph);
+            // 质量关卡
             if (!content || content.length < MIN_ARTICLE_CHARS) {
                 logger.info(`[WikiGenerator] Skipping thin topic: ${topic.id} (${content?.length || 0} chars)`);
                 continue;
             }
             // 写入文件
             const fileInfo = this._writeFile(topic.path, content);
-            if (composed > 0 &&
-                content !== buildFallbackArticle(topic, structuredData, isZh, this.codeEntityGraph)) {
-                fileInfo.polished = true;
-            }
             files.push(fileInfo);
             writtenTopics.push(topic);
         }
@@ -725,14 +689,13 @@ export class WikiGenerator {
             // overview 始终存在于 files 中（因为 priority 最高且始终生成）
             // 重新用实际 writtenTopics 渲染
             overviewContent = buildFallbackArticle(overviewTopic, structuredData, isZh, this.codeEntityGraph);
-            // 如果之前 AI compose 过 overview，保留 AI 版本（AI 版本已在初次写入时处理导航）
             const overviewFile = files.find((f) => f.path === overviewTopic.path);
             if (overviewFile && !overviewFile.polished && overviewContent) {
                 this._writeFile(overviewTopic.path, overviewContent);
             }
         }
-        logger.info(`[WikiGenerator] Composed ${files.length} articles (${composed} AI-enhanced)`);
-        this._emit(WikiPhase.AI_COMPOSE, 80, `撰写完成: ${files.length} 篇文档 (${composed} 篇 AI 增强)`);
+        logger.info(`[WikiGenerator] Composed ${files.length} articles (host-managed AI disabled)`);
+        this._emit(WikiPhase.AI_COMPOSE, 80, `撰写完成: ${files.length} 篇文档`);
         return files;
     }
     _emit(phase, progress, message) {

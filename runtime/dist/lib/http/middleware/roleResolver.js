@@ -8,7 +8,7 @@
  *
  * 中间件注入 req.resolvedRole 供 gatewayMiddleware 使用。
  */
-import Logger from '../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 const logger = Logger.getInstance();
 const AUTH_ENABLED = process.env.VITE_AUTH_ENABLED === 'true' || process.env.ALEMBIC_AUTH_ENABLED === 'true';
 const TRUST_X_USER_ID = process.env.ALEMBIC_TRUST_X_USER_ID === 'true';

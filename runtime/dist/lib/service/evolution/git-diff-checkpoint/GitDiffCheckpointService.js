@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import Logger from '../../../infrastructure/logging/Logger.js';
+import Logger from '@alembic/core/logging';
 import { GitDiffScanner } from './GitDiffScanner.js';
 const DEFAULT_MAX_BATCH_SIZE = 500;
 const MAX_ERRORS = 10;

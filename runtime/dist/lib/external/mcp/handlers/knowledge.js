@@ -2,10 +2,10 @@
  * MCP Handlers — V3 知识条目提交 & 生命周期
  * submitKnowledge, submitKnowledgeBatch, knowledgeLifecycle
  */
-import { dimensionTags } from '#domain/dimension/RecipeDimension.js';
-import { UnifiedValidator } from '#domain/knowledge/UnifiedValidator.js';
-import { getDeveloperIdentity } from '#shared/developer-identity.js';
-import { resolveProjectRoot } from '#shared/resolveProjectRoot.js';
+import { dimensionTags } from '@alembic/core/dimensions';
+import { UnifiedValidator } from '@alembic/core/domain/knowledge/UnifiedValidator';
+import { getDeveloperIdentity } from '@alembic/core/shared/developer-identity';
+import { resolveProjectRoot } from '@alembic/core/workspace';
 import { envelope } from '../envelope.js';
 // ─── 限流 ──────────────────────────────────────────────────
 async function _checkRateLimit(toolName, clientId, container) {
@@ -121,7 +121,7 @@ export async function submitKnowledgeBatch(ctx, args) {
     let items = args.items;
     if (args.deduplicate !== false) {
         try {
-            const { aggregateCandidates } = await import('#service/candidate/CandidateAggregator.js');
+            const { aggregateCandidates } = await import('@alembic/core/service/candidate/CandidateAggregator');
             // 对 title 字段做去重
             const readinessItems = items.map((it) => ({
                 ...it,
@@ -136,7 +136,7 @@ export async function submitKnowledgeBatch(ctx, args) {
         }
         catch (err) {
             // CandidateAggregator 加载失败时降级：不去重，但记录日志
-            const { default: Logger } = await import('#infra/logging/Logger.js');
+            const { default: Logger } = await import('@alembic/core/logging');
             Logger.getInstance().warn(`[submitKnowledgeBatch] CandidateAggregator 加载失败，跳过去重: ${err instanceof Error ? err.message : String(err)}`);
         }
     }

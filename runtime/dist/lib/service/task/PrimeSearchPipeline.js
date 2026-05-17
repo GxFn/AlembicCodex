@@ -6,7 +6,7 @@
  *
  * @module service/task/PrimeSearchPipeline
  */
-import { slimSearchResult } from '#service/search/SearchTypes.js';
+import { slimSearchResult } from '@alembic/core/search';
 // ── Constants ───────────────────────────────────────
 /** Absolute minimum score — items below this are definitely noise */
 const MIN_SCORE_THRESHOLD = 0.3;

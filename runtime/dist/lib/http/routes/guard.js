@@ -48,7 +48,7 @@ router.post('/file', validate(GuardFileBody), async (req, res) => {
         }
     }
     const container = getServiceContainer();
-    const { GuardCheckEngine, detectLanguage } = await import('../../service/guard/GuardCheckEngine.js');
+    const { GuardCheckEngine, detectLanguage } = await import('@alembic/core/guard');
     // 获取 Engine（含 EP 注入）
     const engine = await _getEngine(container, GuardCheckEngine);
     // 检测语言
@@ -110,7 +110,7 @@ router.post('/file', validate(GuardFileBody), async (req, res) => {
 router.post('/batch', validate(GuardBatchBody), async (req, res) => {
     const { files } = req.body;
     const container = getServiceContainer();
-    const { GuardCheckEngine, detectLanguage } = await import('../../service/guard/GuardCheckEngine.js');
+    const { GuardCheckEngine, detectLanguage } = await import('@alembic/core/guard');
     const engine = await _getEngine(container, GuardCheckEngine);
     const results = [];
     let totalErrors = 0;
@@ -187,7 +187,7 @@ async function _getEngine(container, GuardCheckEngineCtor) {
     // 注入 Enhancement Pack Guard 规则
     if (!engine.isEpInjected()) {
         try {
-            const { getEnhancementRegistry } = await import('../../core/enhancement/index.js');
+            const { getEnhancementRegistry } = await import('@alembic/core/core/enhancement');
             const registry = getEnhancementRegistry();
             if (registry) {
                 const packs = registry.all();

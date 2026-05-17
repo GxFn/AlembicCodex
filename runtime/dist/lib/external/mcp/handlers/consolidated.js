@@ -8,9 +8,9 @@
  *
  * alembic_bootstrap 已迁移到 bootstrap-external.js（外部 Agent 路径）。
  */
-import { dimensionTags } from '#domain/dimension/RecipeDimension.js';
-import { getRequiredFieldsDescription } from '#domain/knowledge/FieldSpec.js';
-import { getDeveloperIdentity } from '#shared/developer-identity.js';
+import { dimensionTags } from '@alembic/core/dimensions';
+import { getRequiredFieldsDescription } from '@alembic/core/domain/knowledge/FieldSpec';
+import { getDeveloperIdentity } from '@alembic/core/shared/developer-identity';
 import { envelope } from '../envelope.js';
 import * as browseHandlers from './browse.js';
 import * as guardHandlers from './guard.js';
@@ -198,8 +198,8 @@ export async function consolidatedSkill(ctx, args) {
  *   - 单条/批量完全一致的校验与融合逻辑
  */
 export async function enhancedSubmitKnowledge(ctx, args) {
-    const { RecipeProductionGateway } = await import('#service/knowledge/RecipeProductionGateway.js');
-    const { findSimilarRecipes } = await import('#service/candidate/SimilarityService.js');
+    const { RecipeProductionGateway } = await import('@alembic/core/knowledge');
+    const { findSimilarRecipes } = await import('@alembic/core/service/candidate/SimilarityService');
     const items = args.items;
     if (!items || !Array.isArray(items) || items.length === 0) {
         return envelope({
@@ -216,7 +216,7 @@ export async function enhancedSubmitKnowledge(ctx, args) {
     const supersedes = args.supersedes;
     // ── Step 1: 限流 ──
     const { checkRecipeSave } = await import('#http/middleware/RateLimiter.js');
-    const { resolveDataRoot, resolveProjectRoot } = await import('#shared/resolveProjectRoot.js');
+    const { resolveDataRoot, resolveProjectRoot } = await import('@alembic/core/workspace');
     const projectRoot = resolveProjectRoot(ctx.container);
     const dataRoot = resolveDataRoot(ctx.container) || projectRoot;
     const limitCheck = checkRecipeSave(projectRoot, clientId || process.env.USER || 'mcp-client');
