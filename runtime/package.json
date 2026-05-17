@@ -78,6 +78,27 @@
     "diff": "^8.0.3",
     "glob": "^11.0.0"
   },
+  "bundledDependencies": [
+    "@alembic/core",
+    "@modelcontextprotocol/sdk",
+    "ajv",
+    "better-sqlite3",
+    "commander",
+    "cors",
+    "drizzle-orm",
+    "express",
+    "helmet",
+    "js-yaml",
+    "minimist",
+    "ora",
+    "p-limit",
+    "socket.io",
+    "undici",
+    "uuid",
+    "web-tree-sitter",
+    "winston",
+    "zod"
+  ],
   "files": [
     ".agents",
     "channels",
@@ -89,6 +110,7 @@
     "resources",
     "templates",
     "template.json",
+    "vendor/AlembicCore",
     "README.md",
     "README_CN.md"
   ]

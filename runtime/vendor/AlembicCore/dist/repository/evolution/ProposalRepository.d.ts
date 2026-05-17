@@ -1,0 +1,105 @@
+/**
+ * ProposalRepository — evolution_proposals 表 CRUD (Drizzle ORM)
+ *
+ * 操作 evolution_proposals 表，存储进化提案（update/deprecate）。
+ *
+ * 设计要求：
+ *   - 去重：同 target + 同 type 不允许多个 observing 状态的 Proposal
+ *   - Rate Limit：同一 target 不允许同时存在多个相同类型的 observing Proposal
+ *   - JSON 字段（evidence/related_recipe_ids）序列化/反序列化
+ *   - 观察窗口按风险等级分 tier（low 24h / medium 72h / high 7d）
+ *
+ * Drizzle 迁移策略 (Phase 5a)：
+ *   - 全部 raw SQL → Drizzle 类型安全 API
+ *   - 构造器接收 DrizzleDB（不再需要 raw Database）
+ */
+import type { DrizzleDB } from '../../infrastructure/database/drizzle/index.js';
+/**
+ * Proposal 类型 — 统一为两种进化方向
+ *
+ * 旧类型映射：
+ *   enhance/correction → update
+ *   supersede → deprecate + replacedByRecipeId
+ *   merge/contradiction/reorganize → 移出 Proposal 系统（RecipeWarning）
+ */
+export type ProposalType = 'update' | 'deprecate';
+/** @deprecated 旧 ProposalType，仅用于 DB 迁移兼容 */
+export type LegacyProposalType = 'merge' | 'supersede' | 'enhance' | 'deprecate' | 'reorganize' | 'contradiction' | 'correction';
+/** Proposal 来源 */
+export type ProposalSource = 'ide-agent' | 'metabolism' | 'decay-scan' | 'consolidation' | 'relevance-audit' | 'file-change' | 'rescan-evolution';
+/** Proposal 状态 */
+export type ProposalStatus = 'pending' | 'observing' | 'executed' | 'rejected' | 'expired';
+/** evolution_proposals 行对象 */
+export interface ProposalRecord {
+    id: string;
+    type: ProposalType;
+    targetRecipeId: string;
+    relatedRecipeIds: string[];
+    confidence: number;
+    source: ProposalSource;
+    description: string;
+    evidence: Record<string, unknown>[];
+    status: ProposalStatus;
+    proposedAt: number;
+    expiresAt: number;
+    resolvedAt: number | null;
+    resolvedBy: string | null;
+    resolution: string | null;
+}
+/** 创建 Proposal 输入 */
+export interface CreateProposalInput {
+    type: ProposalType;
+    targetRecipeId: string;
+    relatedRecipeIds?: string[];
+    confidence: number;
+    source: ProposalSource;
+    description: string;
+    evidence?: Record<string, unknown>[];
+    status?: ProposalStatus;
+    expiresAt?: number;
+}
+/** 查询过滤器 */
+export interface ProposalFilter {
+    status?: ProposalStatus | ProposalStatus[];
+    type?: ProposalType;
+    targetRecipeId?: string;
+    source?: ProposalSource;
+    expiredBefore?: number;
+}
+export declare class ProposalRepository {
+    #private;
+    constructor(drizzle: DrizzleDB);
+    /**
+     * 创建 Proposal 并写入 DB。
+     *
+     * - 自动生成 ID（ep-{timestamp}-{random}）
+     * - 自动设定 expiresAt（按 type 默认窗口）
+     * - 自动判断 status（低风险 + 高置信度 → observing，否则 pending）
+     * - 去重：同 target + 同 type 已有 pending/observing 时拒绝创建
+     */
+    create(input: CreateProposalInput): ProposalRecord | null;
+    /** 按 ID 查询 */
+    findById(id: string): ProposalRecord | null;
+    /** 按条件查询 */
+    find(filter?: ProposalFilter): ProposalRecord[];
+    /** 查询已到期的 observing 状态 Proposal */
+    findExpiredObserving(): ProposalRecord[];
+    /** 查询所有未完成的 Proposal（pending + observing） */
+    findActive(): ProposalRecord[];
+    /** 按 target Recipe ID 查询活跃 Proposal */
+    findByTarget(targetRecipeId: string): ProposalRecord[];
+    /** 将 Proposal 状态转为 observing */
+    startObserving(id: string): boolean;
+    /** 标记 Proposal 为已执行 */
+    markExecuted(id: string, resolution: string, resolvedBy?: string): boolean;
+    /** 标记 Proposal 为已拒绝 */
+    markRejected(id: string, resolution: string, resolvedBy?: string): boolean;
+    /** 标记 Proposal 为过期 */
+    markExpired(id: string): boolean;
+    /** 更新 evidence（用于追加观察期指标快照） */
+    updateEvidence(id: string, evidence: Record<string, unknown>[]): boolean;
+    /** 按 target Recipe ID 删除所有 Proposal（用于知识删除时清理关联提案） */
+    deleteByTargetRecipeId(targetRecipeId: string): number;
+    /** 统计各状态的 Proposal 数量 */
+    stats(): Record<ProposalStatus, number>;
+}

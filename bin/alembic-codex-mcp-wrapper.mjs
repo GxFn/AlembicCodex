@@ -11,11 +11,14 @@ let lockHeld = false;
 
 await acquireStartupLock();
 
-const child = spawn('npx', ['-y', '--package', './runtime.tgz', 'alembic-codex-mcp'], {
+const child = spawn('npx', ['-y', '--offline', '--package', './runtime.tgz', 'alembic-codex-mcp'], {
   cwd: process.cwd(),
   env: {
     ...process.env,
     npm_config_cache: npmCache,
+    npm_config_fund: 'false',
+    npm_config_audit: 'false',
+    npm_config_offline: 'true',
   },
   stdio: ['inherit', 'pipe', 'pipe'],
 });
