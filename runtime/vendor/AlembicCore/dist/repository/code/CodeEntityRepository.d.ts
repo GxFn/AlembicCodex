@@ -85,7 +85,7 @@ export declare class CodeEntityRepositoryImpl extends RepositoryBase<typeof code
     /** 批量 INSERT OR IGNORE (不更新已存在的行) */
     batchInsertIgnore(entities: CodeEntityInsert[]): Promise<number>;
     /**
-     * 符号名是否存在 (ReverseGuard.#symbolExists)
+     * 符号名是否存在。
      */
     existsByName(name: string): boolean;
 }

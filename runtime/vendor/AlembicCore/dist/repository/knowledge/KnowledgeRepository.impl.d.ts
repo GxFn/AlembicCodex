@@ -264,7 +264,7 @@ export declare class KnowledgeRepositoryImpl {
     incrementGuardHitsSync(id: string, hits: number): void;
     /**
      * 活跃规则 + content 中的 coreCode / pattern 字段 + stats
-     * (ReverseGuard.#loadActiveRules)
+     * 用于规则治理和迁移期审计查询。
      */
     findActiveRulesWithContentSync(): Array<{
         id: string;
@@ -275,7 +275,7 @@ export declare class KnowledgeRepositoryImpl {
     }>;
     /**
      * 获取单条记录的 guardHits 数
-     * (ReverseGuard.#historicalGuardHits)
+     * 用于 Guard 覆盖、衰退和治理统计。
      */
     getGuardHitsSync(id: string): number;
     /**
@@ -287,7 +287,7 @@ export declare class KnowledgeRepositoryImpl {
     }>;
     /**
      * 活跃条目按 category 分布
-     * (SkillAdvisor.#getKBDistribution)
+     * 用于知识库分布统计。
      */
     countGroupByCategory(): Promise<Array<{
         category: string;
@@ -295,7 +295,7 @@ export declare class KnowledgeRepositoryImpl {
     }>>;
     /**
      * 活跃条目按 language 分布
-     * (SkillAdvisor.#getKBDistribution)
+     * 用于知识库分布统计。
      */
     countGroupByLanguage(): Promise<Array<{
         language: string;
@@ -303,7 +303,7 @@ export declare class KnowledgeRepositoryImpl {
     }>>;
     /**
      * 高使用率活跃 Recipe (adoptions + applications >= minUsage)
-     * (SkillAdvisor.#getKBDistribution)
+     * 用于知识库热度和治理统计。
      */
     findHotRecipesByUsage(minUsage: number, limit: number): Promise<Array<{
         title: string;
@@ -312,7 +312,7 @@ export declare class KnowledgeRepositoryImpl {
     }>>;
     /**
      * 全库生命周期统计 (total / pending / deprecated)
-     * (SkillAdvisor.#getKBDistribution)
+     * 用于知识库生命周期统计。
      */
     getLifecycleCounts(): Promise<{
         total: number;
@@ -320,7 +320,7 @@ export declare class KnowledgeRepositoryImpl {
         deprecated: number;
     }>;
     /**
-     * 活跃 Recipe 信号 (SignalCollector.#collectRecipeSignals)
+     * 活跃 Recipe 摘要信号。
      */
     findActiveRecipeSignals(limit: number): Promise<Array<{
         id: string;
@@ -334,7 +334,7 @@ export declare class KnowledgeRepositoryImpl {
         updatedAt: number;
     }>>;
     /**
-     * 待审核 Candidate (SignalCollector.#collectCandidateSignals)
+     * 待审核 Candidate 摘要。
      */
     findPendingCandidates(limit: number): Promise<Array<{
         id: string;
