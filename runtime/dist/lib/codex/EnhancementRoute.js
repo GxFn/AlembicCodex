@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { summarizeAlembicRuntimeCapabilities, } from '@alembic/core/daemon';
+import { normalizeAlembicFileMonitorMode, summarizeAlembicRuntimeCapabilities, } from '@alembic/core/daemon';
 import { HOST_AGENT_SOURCE } from '@alembic/core/shared';
 import { CODEX_RUNTIME_PACKAGE, resolveCodexRuntimeContext, } from './RuntimeContext.js';
 export const CODEX_HOST_AGENT_ROUTE_TOOLS = [
@@ -86,8 +86,10 @@ export function summarizeEnhancementDaemon(status) {
     const data = asRecord(status.health?.data);
     const enhancement = asRecord(data?.enhancement);
     const capabilities = asRecord(data?.capabilities);
-    const capabilitySummary = summarizeAlembicRuntimeCapabilities(capabilities);
-    const dashboardUrl = firstString(capabilitySummary.dashboardUrl, data?.dashboardUrl, status.state?.dashboardUrl);
+    const runtimeBoundary = summarizeDaemonRuntimeBoundary(capabilities, data);
+    const capabilitySummary = mergeCapabilitySummaryWithRuntimeBoundary(summarizeAlembicRuntimeCapabilities(capabilities), runtimeBoundary);
+    const dashboardUrl = firstString(capabilitySummary.dashboardUrl, runtimeBoundary.dashboard.url, data?.dashboardUrl, status.state?.dashboardUrl);
+    const route = firstString(enhancement?.route, runtimeBoundary.route);
     return {
         available: status.ready === true && Boolean(status.state),
         capabilities: {
@@ -98,14 +100,18 @@ export function summarizeEnhancementDaemon(status) {
         healthVersion: firstString(data?.version),
         packageName: firstString(enhancement?.packageName),
         ready: status.ready,
-        route: firstString(enhancement?.route) || inferRouteFromReadyDaemon(status),
+        route: route || inferRouteFromReadyDaemon(status),
+        runtimeBoundary,
         status: status.status,
         version: firstString(enhancement?.version, data?.version, status.state?.version),
     };
 }
 function selectEnhancementRoute(input) {
-    if (input.daemon.ready && input.daemon.route === 'local-alembic') {
+    if (input.daemon.ready && isLocalAlembicDaemonRoute(input.daemon.route)) {
         return 'local-alembic-daemon';
+    }
+    if (input.daemon.ready && input.daemon.route === 'embedded-plugin-runtime') {
+        return 'embedded-plugin-runtime';
     }
     if (input.daemon.ready) {
         return 'embedded-plugin-runtime';
@@ -120,7 +126,10 @@ function buildEnhancementRouteReason(input) {
         const suffix = input.missingCapabilities.length > 0
             ? ` Missing capabilities: ${input.missingCapabilities.join(', ')}.`
             : '';
-        return `Local Alembic daemon is ready and owns enhancement route.${suffix}`;
+        const boundary = input.daemon.runtimeBoundary.available
+            ? ` Runtime boundary source: ${input.daemon.runtimeBoundary.source}.`
+            : '';
+        return `Local Alembic daemon is ready and owns enhancement route.${boundary}${suffix}`;
     }
     if (input.selected === 'embedded-plugin-runtime') {
         if (input.daemon.ready) {
@@ -135,6 +144,79 @@ function buildEnhancementRouteReason(input) {
         return 'Local Alembic CLI install was detected, but no daemon API is ready yet.';
     }
     return 'No usable Alembic enhancement route is available.';
+}
+function summarizeDaemonRuntimeBoundary(capabilities, data) {
+    const source = asRecord(capabilities?.runtimeBoundary) || asRecord(data?.runtimeBoundary);
+    const sourceName = asRecord(capabilities?.runtimeBoundary)
+        ? 'capabilities.runtimeBoundary'
+        : asRecord(data?.runtimeBoundary)
+            ? 'data.runtimeBoundary'
+            : null;
+    const workspace = asRecord(source?.workspace);
+    const daemon = asRecord(source?.daemon);
+    const dashboard = asRecord(source?.dashboard);
+    const fileMonitor = asRecord(source?.fileMonitor);
+    const internalAi = asRecord(source?.internalAi);
+    const jobs = asRecord(source?.jobs);
+    return {
+        available: Boolean(source),
+        owner: firstString(source?.owner),
+        route: firstString(source?.route),
+        source: sourceName,
+        workspace: {
+            contract: firstString(workspace?.contract),
+            databasePath: firstString(workspace?.databasePath),
+            dataRoot: firstString(workspace?.dataRoot),
+            dataRootSource: firstString(workspace?.dataRootSource),
+            mode: firstString(workspace?.mode),
+            projectId: firstString(workspace?.projectId),
+            projectRoot: firstString(workspace?.projectRoot),
+            runtimeDir: firstString(workspace?.runtimeDir),
+        },
+        daemon: {
+            apiBaseUrl: firstString(daemon?.apiBaseUrl),
+            mode: firstString(daemon?.mode),
+            owner: firstString(daemon?.owner),
+            stateContract: firstString(daemon?.stateContract),
+        },
+        dashboard: {
+            frontendOwner: firstString(dashboard?.frontendOwner),
+            handoff: firstString(dashboard?.handoff),
+            serverOwner: firstString(dashboard?.serverOwner),
+            url: firstString(dashboard?.url),
+        },
+        fileMonitor: {
+            available: booleanOrNull(fileMonitor?.available),
+            longLivedOwner: firstString(fileMonitor?.longLivedOwner),
+            mode: normalizeAlembicFileMonitorMode(fileMonitor?.mode) ||
+                normalizeAlembicFileMonitorMode(fileMonitor?.source),
+        },
+        internalAi: {
+            available: booleanOrNull(internalAi?.available),
+            owner: firstString(internalAi?.owner),
+            runtimeOwner: firstString(internalAi?.runtimeOwner),
+        },
+        jobs: {
+            kinds: stringArray(jobs?.kinds),
+            owner: firstString(jobs?.owner),
+            store: firstString(jobs?.store),
+        },
+    };
+}
+function mergeCapabilitySummaryWithRuntimeBoundary(summary, runtimeBoundary) {
+    return {
+        apiAvailable: summary.apiAvailable,
+        dashboardAvailable: summary.dashboardAvailable ?? (runtimeBoundary.dashboard.url ? true : null),
+        dashboardUrl: summary.dashboardUrl ?? runtimeBoundary.dashboard.url,
+        fileMonitorAvailable: summary.fileMonitorAvailable ?? runtimeBoundary.fileMonitor.available,
+        fileMonitorMode: summary.fileMonitorMode ?? runtimeBoundary.fileMonitor.mode,
+        internalAiAvailable: summary.internalAiAvailable ?? runtimeBoundary.internalAi.available,
+        jobsAvailable: summary.jobsAvailable ?? (runtimeBoundary.jobs.kinds.length > 0 ? true : null),
+        jobKinds: summary.jobKinds.length > 0 ? summary.jobKinds : runtimeBoundary.jobs.kinds,
+    };
+}
+function isLocalAlembicDaemonRoute(route) {
+    return route === 'local-alembic' || route === 'local-alembic-daemon';
 }
 function findMissingCapabilities(requirement, daemon) {
     if (!daemon.ready) {
@@ -205,4 +287,12 @@ function firstString(...values) {
         }
     }
     return null;
+}
+function booleanOrNull(value) {
+    return typeof value === 'boolean' ? value : null;
+}
+function stringArray(value) {
+    return Array.isArray(value)
+        ? value.filter((entry) => typeof entry === 'string')
+        : [];
 }
