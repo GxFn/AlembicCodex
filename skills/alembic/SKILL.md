@@ -43,7 +43,7 @@ Default Codex mode is agent tier. It may search knowledge, prime tasks, run Guar
 
 Do not publish, deprecate, delete, or directly edit Recipes from the default tier. Admin tools only appear when both `ALEMBIC_MCP_TIER=admin` and `ALEMBIC_CODEX_ENABLE_ADMIN=1` are set.
 
-Do not edit `.cursor`, `.vscode/mcp.json`, `AGENTS.md`, or project Alembic data unless the user explicitly asks for a standard, project-written setup.
+Do not edit host configuration files, `AGENTS.md`, or project Alembic data unless the user explicitly asks for a standard, project-written setup.
 
 ## Cleanup
 

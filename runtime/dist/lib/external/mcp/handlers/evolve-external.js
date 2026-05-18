@@ -88,7 +88,7 @@ export async function evolveExternal(ctx, args) {
                     break;
                 }
                 case 'confirm_deprecation': {
-                    const reason = decision.reason || 'IDE Agent confirmed deprecation';
+                    const reason = decision.reason || 'Host agent confirmed deprecation';
                     const gResult = await gateway.submit({
                         recipeId: decision.recipeId,
                         action: 'deprecate',
