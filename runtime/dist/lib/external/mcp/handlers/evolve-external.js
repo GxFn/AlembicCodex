@@ -8,6 +8,7 @@
  *
  * @module handlers/evolve-external
  */
+import { CODEX_HOST_AGENT_SOURCE } from '#codex/SourceBoundary.js';
 import { envelope } from '../envelope.js';
 // ── 主入口 ─────────────────────────────────────────────────
 export async function evolveExternal(ctx, args) {
@@ -61,7 +62,7 @@ export async function evolveExternal(ctx, args) {
                     const gResult = await gateway.submit({
                         recipeId: decision.recipeId,
                         action: 'update',
-                        source: 'ide-agent',
+                        source: CODEX_HOST_AGENT_SOURCE,
                         confidence: 0.8,
                         description: decision.evidence.suggestedChanges,
                         evidence: [
@@ -70,7 +71,7 @@ export async function evolveExternal(ctx, args) {
                                 currentCode: decision.evidence.codeSnippet,
                                 filePath: decision.evidence.filePath,
                                 suggestedChanges: decision.evidence.suggestedChanges,
-                                verifiedBy: 'ide-agent',
+                                verifiedBy: CODEX_HOST_AGENT_SOURCE,
                                 verifiedAt: Date.now(),
                             },
                         ],
@@ -92,7 +93,7 @@ export async function evolveExternal(ctx, args) {
                     const gResult = await gateway.submit({
                         recipeId: decision.recipeId,
                         action: 'deprecate',
-                        source: 'ide-agent',
+                        source: CODEX_HOST_AGENT_SOURCE,
                         confidence: 0.9,
                         reason,
                     });
@@ -115,7 +116,7 @@ export async function evolveExternal(ctx, args) {
                         const gResult = await gateway.submit({
                             recipeId: decision.recipeId,
                             action: 'valid',
-                            source: 'ide-agent',
+                            source: CODEX_HOST_AGENT_SOURCE,
                             confidence: 0.5,
                             reason: decision.skipReason,
                         });

@@ -2,7 +2,7 @@ import type { AlembicDatabaseHandle, DrizzleDB, SqliteDatabase } from './databas
 import { BootstrapRepositoryImpl, type BootstrapSnapshotEntity, type BootstrapSnapshotInsert, type DimensionStatMeta, type DimFileEntry, type DimFileInsert } from './repository/bootstrap/BootstrapRepository.js';
 import { type CodeEntity, type CodeEntityInsert, CodeEntityRepositoryImpl } from './repository/code/CodeEntityRepository.js';
 import { LifecycleEventRepository, type RecordEventInput, type TransitionEventRow } from './repository/evolution/LifecycleEventRepository.js';
-import { type CreateProposalInput, type LegacyProposalType, type ProposalFilter, type ProposalRecord, ProposalRepository, type ProposalSource, type ProposalStatus, type ProposalType } from './repository/evolution/ProposalRepository.js';
+import { type CreateProposalInput, getProposalSourceLabel, type LegacyProposalType, normalizeProposalSource, type ProposalFilter, type ProposalRecord, ProposalRepository, type ProposalSource, type ProposalStatus, type ProposalType, proposalSourceStorageValues } from './repository/evolution/ProposalRepository.js';
 import { type CreateWarningInput, type WarningFilter, type WarningRecord, WarningRepository, type WarningStatus, type WarningType } from './repository/evolution/WarningRepository.js';
 import { type GuardViolationEntity, type GuardViolationInsert, GuardViolationRepositoryImpl, type PaginatedViolations, type ViolationRecord, type ViolationStatByRule, type ViolationStats } from './repository/guard/GuardViolationRepository.js';
 import { type EdgeInsert, type EdgeStats, type KnowledgeEdge, KnowledgeEdgeRepositoryImpl } from './repository/knowledge/KnowledgeEdgeRepository.js';
@@ -22,6 +22,7 @@ export type SourceRefRepository = RecipeSourceRefRepositoryImpl;
 export type EvolutionProposalRepository = ProposalRepository;
 export type EvolutionWarningRepository = WarningRepository;
 export type EvolutionLifecycleEventRepository = LifecycleEventRepository;
+export { getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues };
 export interface AlembicRepositoryDatabase extends AlembicDatabaseHandle {
     getDb(): SqliteDatabase;
     getDrizzle(): DrizzleDB;

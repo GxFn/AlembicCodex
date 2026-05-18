@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
 import { asString, CODEX_REQUIRED_SKILLS, loadCodexPluginRegistry } from './PluginRegistry.js';
 import { buildCodexProjectRootRequiredMessage, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
 import { ALEMBIC_PLUGIN_HOST_ENV, ALEMBIC_RUNTIME_MODE_ENV, ALEMBIC_RUNTIME_MODE_PLUGIN, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_MODE_ENV, CODEX_MCP_SHIM_ENV, CODEX_PLUGIN_HOST, CODEX_PLUGIN_NAME, resolveCodexRuntimeContext, } from './RuntimeContext.js';
@@ -11,6 +12,13 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
     const npmAvailable = npm.available === true;
     const npxAvailable = npx.available === true;
     const plugin = buildCodexPluginDiagnostics(context);
+    const enhancementRoute = options.enhancementRoute ||
+        buildCodexEnhancementRouteChoice({
+            aiConfig: options.aiConfig,
+            daemonStatus,
+            runtime: context,
+            requirement: 'status',
+        });
     const checks = {
         adminGate: context.requestedTier !== 'admin' || context.adminEnabled,
         node: nodeMajor >= 22,
@@ -83,6 +91,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             ? summarizeCodexProjectRootResolution(options.projectRootResolution)
             : null,
         autoInit: options.autoInit || null,
+        enhancementRoute,
         gitDiffCheckpoint: readHealthGitDiffCheckpoint(daemonStatus.health),
         plugin,
         daemon: {

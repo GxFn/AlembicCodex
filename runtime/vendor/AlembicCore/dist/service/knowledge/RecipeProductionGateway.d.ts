@@ -1,7 +1,7 @@
 /**
  * RecipeProductionGateway — 统一 Recipe 生产入口
  *
- * 所有 Recipe 创建（Agent Tool / MCP / IDE Agent / Batch Import）
+ * 所有 Recipe 创建（Agent Tool / MCP / Host Agent / Batch Import）
  * 通过此 Gateway 的统一管道，保证前置校验一致：
  *
  *   1. Schema Validation (UnifiedValidator)
@@ -12,13 +12,15 @@
  *   6. Supersede Proposal — 创建替代提案
  *   7. Audit — 统一审计
  */
+import { type GatewaySource } from '../../shared/source-contracts.js';
 import type { BootstrapDedup } from '../bootstrap/BootstrapDedup.js';
 /** Lightweight log interface — avoids importing static-only Logger class. */
 interface GatewayLogger {
     info(msg: string): void;
     warn(msg: string): void;
 }
-export type GatewaySource = 'agent-tool' | 'mcp-external' | 'ide-agent' | 'batch-import';
+export type { GatewaySource } from '../../shared/source-contracts.js';
+export { getGatewaySourceLabel, getGatewaySourceUserId, normalizeGatewaySource, } from '../../shared/source-contracts.js';
 export interface CreateRecipeItem {
     title?: string;
     description?: string;
@@ -263,4 +265,3 @@ export declare class RecipeProductionGateway {
      */
     create(request: CreateRecipeRequest): Promise<CreateRecipeResult>;
 }
-export {};

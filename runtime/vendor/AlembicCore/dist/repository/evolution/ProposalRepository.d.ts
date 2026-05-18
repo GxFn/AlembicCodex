@@ -14,6 +14,8 @@
  *   - 构造器接收 DrizzleDB（不再需要 raw Database）
  */
 import type { DrizzleDB } from '../../infrastructure/database/drizzle/index.js';
+import { type ProposalSource } from '../../shared/source-contracts.js';
+export { getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, } from '../../shared/source-contracts.js';
 /**
  * Proposal 类型 — 统一为两种进化方向
  *
@@ -25,8 +27,8 @@ import type { DrizzleDB } from '../../infrastructure/database/drizzle/index.js';
 export type ProposalType = 'update' | 'deprecate';
 /** @deprecated 旧 ProposalType，仅用于 DB 迁移兼容 */
 export type LegacyProposalType = 'merge' | 'supersede' | 'enhance' | 'deprecate' | 'reorganize' | 'contradiction' | 'correction';
-/** Proposal 来源 */
-export type ProposalSource = 'ide-agent' | 'metabolism' | 'decay-scan' | 'consolidation' | 'relevance-audit' | 'file-change' | 'rescan-evolution';
+/** Proposal 来源；`ide-agent` 仅作为旧数据/旧调用方兼容值保留。 */
+export type { ProposalSource } from '../../shared/source-contracts.js';
 /** Proposal 状态 */
 export type ProposalStatus = 'pending' | 'observing' | 'executed' | 'rejected' | 'expired';
 /** evolution_proposals 行对象 */

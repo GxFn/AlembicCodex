@@ -11,6 +11,7 @@
 import { dimensionTags } from '@alembic/core/dimensions';
 import { getRequiredFieldsDescription } from '@alembic/core/knowledge';
 import { getDeveloperIdentity } from '@alembic/core/shared';
+import { CODEX_HOST_AGENT_SOURCE, normalizeCodexHostAgentWriteSource, } from '#codex/SourceBoundary.js';
 import { envelope } from '../envelope.js';
 import * as browseHandlers from './browse.js';
 import * as guardHandlers from './guard.js';
@@ -210,7 +211,7 @@ export async function enhancedSubmitKnowledge(ctx, args) {
         });
     }
     const skipConsolidation = args.skipConsolidation === true;
-    const source = args.source || 'mcp';
+    const source = normalizeCodexHostAgentWriteSource(args.source);
     const dimensionId = args.dimensionId;
     const clientId = args.client_id;
     const supersedes = args.supersedes;
@@ -231,9 +232,7 @@ export async function enhancedSubmitKnowledge(ctx, args) {
     // ── Step 2: MCP 特有预处理 ──
     // 注入批次级选项到各条目
     for (const item of items) {
-        if (!item.source) {
-            item.source = source;
-        }
+        item.source = normalizeCodexHostAgentWriteSource(item.source || source);
         if (dimensionId && !item.dimensionId) {
             item.dimensionId = dimensionId;
         }
@@ -292,7 +291,7 @@ export async function enhancedSubmitKnowledge(ctx, args) {
         findSimilarRecipes,
     });
     const gatewayResult = await gateway.create({
-        source: 'mcp-external',
+        source: CODEX_HOST_AGENT_SOURCE,
         items: items,
         options: {
             skipConsolidation,

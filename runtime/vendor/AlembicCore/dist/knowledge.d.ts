@@ -6,4 +6,4 @@ export { createStatelessValidator, UnifiedValidator, } from './domain/knowledge/
 export { Constraints, Content, Quality, RELATION_BUCKETS, Reasoning, Relations, Stats, } from './domain/knowledge/values/index.js';
 export type { KnowledgeFileScanner, KnowledgeFileStore, } from './repository/knowledge/KnowledgeFileStore.js';
 export type { RecipeSourceRefEntity, RecipeSourceRefInsert, } from './repository/sourceref/RecipeSourceRefRepository.js';
-export { type CreateRecipeItem, type CreateRecipeRequest, type CreateRecipeResult, type GatewayDeps, type GatewaySource, KnowledgeService, RecipeProductionGateway, } from './service/knowledge/index.js';
+export { type CreateRecipeItem, type CreateRecipeRequest, type CreateRecipeResult, type GatewayDeps, type GatewaySource, getGatewaySourceLabel, getGatewaySourceUserId, KnowledgeService, normalizeGatewaySource, RecipeProductionGateway, } from './service/knowledge/index.js';

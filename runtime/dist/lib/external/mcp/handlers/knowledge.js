@@ -6,6 +6,7 @@ import { dimensionTags } from '@alembic/core/dimensions';
 import { UnifiedValidator } from '@alembic/core/knowledge';
 import { getDeveloperIdentity } from '@alembic/core/shared';
 import { resolveProjectRoot } from '@alembic/core/workspace';
+import { normalizeCodexHostAgentWriteSource } from '#codex/SourceBoundary.js';
 import { envelope } from '../envelope.js';
 // ─── 限流 ──────────────────────────────────────────────────
 async function _checkRateLimit(toolName, clientId, container) {
@@ -25,9 +26,7 @@ async function _checkRateLimit(toolName, clientId, container) {
 function _enrichToV3(args, container) {
     const data = { ...args };
     // 来源标记（非调用方职责）
-    if (!data.source) {
-        data.source = 'mcp';
-    }
+    data.source = normalizeCodexHostAgentWriteSource(data.source);
     // RecipeExtractor 语义标签（程序化）
     try {
         const recipeExtractor = container?.get?.('recipeExtractor');
@@ -59,7 +58,7 @@ function _enrichToV3(args, container) {
  * 单条知识提交 (alembic_submit_knowledge)
  *
  * MCP wire format → V3 增强 → KnowledgeService.create()
- * 增强包括：source='mcp'、reasoning 默认值、插件适配字段补齐、QualityScorer、语义标签。
+ * 增强包括：source='host-agent'、reasoning 默认值、插件适配字段补齐、QualityScorer、语义标签。
  */
 export async function submitKnowledge(ctx, args) {
     // 限流
@@ -141,7 +140,7 @@ export async function submitKnowledgeBatch(ctx, args) {
         }
     }
     const service = ctx.container.get('knowledgeService');
-    const source = typeof args.source === 'string' ? args.source : 'cursor-scan';
+    const source = normalizeCodexHostAgentWriteSource(args.source);
     let count = 0;
     const itemErrors = [];
     const rejectedItems = [];

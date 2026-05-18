@@ -221,7 +221,7 @@ function isMatchingHealth(state, health) {
         data.projectRoot === state.projectRoot &&
         data.dataRoot === state.dataRoot &&
         data.projectId === state.projectId &&
-        data.version === getPackageVersion() &&
+        (data.version === state.version || data.version === getPackageVersion()) &&
         data.databasePath === state.databasePath &&
         data.schemaMigrationVersion === state.schemaMigrationVersion &&
         data.mode === 'daemon');

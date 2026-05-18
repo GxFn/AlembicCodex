@@ -1,7 +1,7 @@
 import { BootstrapRepositoryImpl, } from './repository/bootstrap/BootstrapRepository.js';
 import { CodeEntityRepositoryImpl, } from './repository/code/CodeEntityRepository.js';
 import { LifecycleEventRepository, } from './repository/evolution/LifecycleEventRepository.js';
-import { ProposalRepository, } from './repository/evolution/ProposalRepository.js';
+import { getProposalSourceLabel, normalizeProposalSource, ProposalRepository, proposalSourceStorageValues, } from './repository/evolution/ProposalRepository.js';
 import { WarningRepository, } from './repository/evolution/WarningRepository.js';
 import { GuardViolationRepositoryImpl, } from './repository/guard/GuardViolationRepository.js';
 import { KnowledgeEdgeRepositoryImpl, } from './repository/knowledge/KnowledgeEdgeRepository.js';
@@ -9,6 +9,7 @@ import { KnowledgeRepositoryImpl } from './repository/knowledge/KnowledgeReposit
 import { MemoryRepositoryImpl, } from './repository/memory/MemoryRepository.js';
 import { SessionRepositoryImpl, } from './repository/session/SessionRepository.js';
 import { RecipeSourceRefRepositoryImpl, } from './repository/sourceref/RecipeSourceRefRepository.js';
+export { getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues };
 export const ALEMBIC_REPOSITORY_KEYS = [
     'knowledgeRepository',
     'knowledgeEdgeRepository',

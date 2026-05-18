@@ -7,7 +7,7 @@ import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SetupService } from '../../cli/SetupService.js';
-import { buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
+import { buildCodexEnhancementRouteChoice, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
 import { TIER_ORDER, TOOLS, withMcpToolAnnotations } from './tools.js';
 export class CodexMcpServer {
@@ -172,10 +172,19 @@ export class CodexMcpServer {
     async buildDiagnostics() {
         const daemonStatus = await this.supervisor.status(this.projectRoot);
         const runtime = resolveCodexRuntimeContext();
+        const aiConfig = inspectCodexAiConfig(this.projectRoot);
+        const enhancementRoute = buildCodexEnhancementRouteChoice({
+            aiConfig,
+            daemonStatus,
+            runtime,
+            requirement: 'status',
+        });
         return {
             success: true,
             data: buildCodexRuntimeDiagnostics(daemonStatus, runtime, {
+                aiConfig,
                 autoInit: this.#initRuntimeState,
+                enhancementRoute,
                 projectRootResolution: this.projectRootResolution,
             }),
         };
@@ -436,16 +445,14 @@ export class CodexMcpServer {
         }
     }
     async openDashboard() {
-        const daemon = await this.supervisor.ensure({
-            projectRoot: this.projectRoot,
-            waitUntilReadyMs: this.waitUntilReadyMs,
-        });
+        const { daemon, enhancementRoute } = await this.ensureEnhancementDaemon('dashboard');
         if (!daemon.ready || !daemon.state) {
             return {
                 success: false,
                 message: daemon.message || 'Alembic daemon is not ready yet.',
                 data: {
                     daemon: summarizeCodexDaemonStatus(daemon),
+                    enhancementRoute,
                     nextActions: [
                         buildCodexRecommendedAction({
                             label: 'Run diagnostics',
@@ -474,8 +481,11 @@ export class CodexMcpServer {
         return {
             success: true,
             data: {
-                dashboardUrl: daemon.state.dashboardUrl || daemon.state.url,
+                dashboardUrl: enhancementRoute.localAlembic.daemon.dashboardUrl ||
+                    daemon.state.dashboardUrl ||
+                    daemon.state.url,
                 daemon: summarizeCodexDaemonStatus(daemon),
+                enhancementRoute,
                 nextActions: [
                     hostAgentAction,
                     buildCodexRecommendedAction({
@@ -537,13 +547,11 @@ export class CodexMcpServer {
         };
     }
     async enqueueJob(kind, args) {
-        const daemon = await this.supervisor.ensure({
-            projectRoot: this.projectRoot,
-            waitUntilReadyMs: this.waitUntilReadyMs,
-        });
+        const { daemon, enhancementRoute } = await this.ensureEnhancementDaemon('jobs');
         if (!daemon.ready || !daemon.state) {
             return failureResult(`alembic_codex_${kind}`, daemon.message || 'Alembic daemon is not ready yet.', {
                 daemon: summarizeCodexDaemonStatus(daemon),
+                enhancementRoute,
                 nextActions: [
                     buildCodexRecommendedAction({
                         label: 'Run diagnostics',
@@ -555,9 +563,9 @@ export class CodexMcpServer {
             });
         }
         if (!daemon.state.token) {
-            return failureResult(`alembic_codex_${kind}`, 'Alembic daemon token is missing. Restart the daemon and retry.', { daemon: summarizeCodexDaemonStatus(daemon) });
+            return failureResult(`alembic_codex_${kind}`, 'Alembic daemon token is missing. Restart the daemon and retry.', { daemon: summarizeCodexDaemonStatus(daemon), enhancementRoute });
         }
-        return callDaemonHttpEndpoint(daemon.state, `/api/v1/jobs/${kind}`, {
+        return attachEnhancementRoute(await callDaemonHttpEndpoint(daemon.state, `/api/v1/jobs/${kind}`, {
             method: 'POST',
             body: {
                 ...args,
@@ -567,7 +575,7 @@ export class CodexMcpServer {
                     user: process.env.USER || undefined,
                 }),
             },
-        }, `alembic_codex_${kind}`);
+        }, `alembic_codex_${kind}`), enhancementRoute);
     }
     async readJob(args) {
         const daemonResult = await this.tryReadJobFromDaemon(args);
@@ -625,25 +633,37 @@ export class CodexMcpServer {
         if (!TOOLS.some((tool) => tool.name === name)) {
             return failureResult(name, `Unknown Alembic tool: ${name}`);
         }
-        const daemon = await this.supervisor.ensure({
-            projectRoot: this.projectRoot,
-            waitUntilReadyMs: this.waitUntilReadyMs,
-        });
+        const { daemon, enhancementRoute } = await this.ensureEnhancementDaemon('mcp');
         if (!daemon.ready || !daemon.state) {
             return failureResult(name, daemon.message || 'Alembic daemon is not ready yet.', {
                 daemon: summarizeCodexDaemonStatus(daemon),
+                enhancementRoute,
             });
         }
         if (!daemon.state.token) {
             return failureResult(name, 'Alembic daemon token is missing. Restart the daemon and retry.', {
                 daemon: summarizeCodexDaemonStatus(daemon),
+                enhancementRoute,
             });
         }
-        return callDaemonBridge(daemon.state, name, args, {
+        return attachEnhancementRoute(await callDaemonBridge(daemon.state, name, args, {
             role: 'external_agent',
             user: process.env.USER || undefined,
             sessionId: this.sessionId,
+        }), enhancementRoute);
+    }
+    async ensureEnhancementDaemon(requirement) {
+        const daemon = await this.supervisor.ensure({
+            projectRoot: this.projectRoot,
+            waitUntilReadyMs: this.waitUntilReadyMs,
         });
+        const enhancementRoute = buildCodexEnhancementRouteChoice({
+            aiConfig: inspectCodexAiConfig(this.projectRoot),
+            daemonStatus: daemon,
+            runtime: resolveCodexRuntimeContext(),
+            requirement,
+        });
+        return { daemon, enhancementRoute };
     }
 }
 export function getVisibleCodexTools(tierName = process.env[CODEX_MCP_TIER_ENV] || CODEX_DEFAULT_MCP_TIER, projectRoot = resolveCodexProjectRoot().path || safeProjectRootFallback()) {
@@ -771,6 +791,22 @@ function extractResponseError(payload) {
         : typeof obj.error?.message === 'string'
             ? obj.error.message
             : null;
+}
+function attachEnhancementRoute(result, enhancementRoute) {
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+        return result;
+    }
+    const record = result;
+    const data = record.data && typeof record.data === 'object' && !Array.isArray(record.data)
+        ? record.data
+        : {};
+    return {
+        ...record,
+        data: {
+            ...data,
+            enhancementRoute,
+        },
+    };
 }
 function buildJobQuery(args) {
     const params = new URLSearchParams();

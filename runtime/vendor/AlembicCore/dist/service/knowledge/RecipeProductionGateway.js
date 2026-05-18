@@ -1,7 +1,7 @@
 /**
  * RecipeProductionGateway — 统一 Recipe 生产入口
  *
- * 所有 Recipe 创建（Agent Tool / MCP / IDE Agent / Batch Import）
+ * 所有 Recipe 创建（Agent Tool / MCP / Host Agent / Batch Import）
  * 通过此 Gateway 的统一管道，保证前置校验一致：
  *
  *   1. Schema Validation (UnifiedValidator)
@@ -13,6 +13,8 @@
  *   7. Audit — 统一审计
  */
 import { UnifiedValidator } from '../../domain/knowledge/UnifiedValidator.js';
+import { getGatewaySourceLabel, getGatewaySourceUserId, } from '../../shared/source-contracts.js';
+export { getGatewaySourceLabel, getGatewaySourceUserId, normalizeGatewaySource, } from '../../shared/source-contracts.js';
 /* ═══════════════════ Gateway ═══════════════════ */
 export class RecipeProductionGateway {
     #knowledgeService;
@@ -343,16 +345,7 @@ export class RecipeProductionGateway {
     }
     /* ═══════════════════ Private ═══════════════════ */
     #sourceToUserId(source) {
-        switch (source) {
-            case 'agent-tool':
-                return 'agent';
-            case 'mcp-external':
-                return 'mcp';
-            case 'ide-agent':
-                return 'ide-agent';
-            case 'batch-import':
-                return 'batch-import';
-        }
+        return getGatewaySourceUserId(source);
     }
     #prepareCreateData(item, source, _userId) {
         const contentObj = item.content && typeof item.content === 'object'
@@ -395,16 +388,7 @@ export class RecipeProductionGateway {
         };
     }
     #sourceLabel(source) {
-        switch (source) {
-            case 'agent-tool':
-                return 'agent';
-            case 'mcp-external':
-                return 'mcp';
-            case 'ide-agent':
-                return 'ide-agent';
-            case 'batch-import':
-                return 'batch-import';
-        }
+        return getGatewaySourceLabel(source);
     }
     async #createProposalFromAdvice(advice, item) {
         if (!this.#evolutionGateway && !this.#proposalRepo) {

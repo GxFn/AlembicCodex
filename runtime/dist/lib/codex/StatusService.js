@@ -5,6 +5,7 @@ import { DEFAULT_FOLDER_NAMES, WorkspaceResolver } from '@alembic/core/workspace
 import { DaemonSupervisor } from '../daemon/DaemonSupervisor.js';
 import { inspectCodexAiConfig } from './AiConfigState.js';
 import { buildCodexRuntimeDiagnostics } from './Diagnostics.js';
+import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
 import { inspectCodexKnowledge } from './KnowledgeState.js';
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, getCodexInitMarkerPath, readCodexInitMarker, resolveCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
 import { CODEX_SETUP_PROFILE, resolveCodexRuntimeContext, } from './RuntimeContext.js';
@@ -19,12 +20,20 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const daemonStatus = await supervisor.status(projectRoot);
     const knowledge = inspectCodexKnowledge(projectRoot);
     const runtime = options.runtime || resolveCodexRuntimeContext();
+    const enhancementRoute = buildCodexEnhancementRouteChoice({
+        aiConfig,
+        daemonStatus,
+        runtime,
+        requirement: 'status',
+    });
     const projectRootResolution = options.projectRootResolution || resolveCodexProjectRoot({ projectRoot: projectRootInput });
     const autoInit = buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, {
         runtimeState: options.autoInit,
     });
     const diagnostics = buildCodexRuntimeDiagnostics(daemonStatus, runtime, {
+        aiConfig,
         autoInit,
+        enhancementRoute,
         projectRootResolution,
     });
     const policyInput = {
@@ -37,6 +46,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const onboarding = buildCodexStatusOnboarding({
         daemonStatus,
         diagnostics,
+        enhancementRoute,
         knowledge,
         projectRootResolution,
     });
@@ -102,6 +112,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             requiresProjectEnv: null,
         },
         gitDiffCheckpoint,
+        enhancementRoute,
         daemon: {
             ...summarizeCodexDaemonStatus(daemonStatus),
             implemented: true,
@@ -249,6 +260,7 @@ export function buildCodexKnowledgeGateActions(knowledge) {
     return actions;
 }
 export function buildCodexStatusOnboarding(input) {
+    const boundaryNotes = buildCodexRouteBoundaryNotes(input.enhancementRoute);
     if (input.projectRootResolution && input.projectRootResolution.trust !== 'trusted') {
         return {
             state: 'project_root_unresolved',
@@ -271,6 +283,7 @@ export function buildCodexStatusOnboarding(input) {
                 buildCodexProjectRootRequiredMessage(input.projectRootResolution),
                 ...buildCodexProjectRootRequiredActions(),
                 'Initialization and init-on-demand tools fail closed until the project root is trusted.',
+                ...boundaryNotes,
             ],
         };
     }
@@ -293,7 +306,7 @@ export function buildCodexStatusOnboarding(input) {
                     tool: 'alembic_codex_diagnostics',
                 }),
             ],
-            notes: ['Status checks do not start the daemon.'],
+            notes: ['Status checks do not start the daemon.', ...boundaryNotes],
         };
     }
     if (!input.knowledge.initialized) {
@@ -323,6 +336,7 @@ export function buildCodexStatusOnboarding(input) {
                     ? 'Only cold-start initialization tools are exposed until setup completes.'
                     : 'Only cold-start initialization tools are exposed until Alembic knowledge exists.',
                 'Ghost mode keeps Alembic data outside the repository by default.',
+                ...boundaryNotes,
             ],
         };
     }
@@ -343,6 +357,7 @@ export function buildCodexStatusOnboarding(input) {
             notes: [
                 'Codex host-agent bootstrap does not require an Alembic AI Provider.',
                 'Prime, Guard, search, and lifecycle tools are available after the knowledge base is usable.',
+                ...boundaryNotes,
             ],
         };
     }
@@ -379,9 +394,27 @@ export function buildCodexStatusOnboarding(input) {
             }),
         ],
         notes: daemonReady
-            ? ['Dashboard and job APIs are available now.']
-            : ['Status checks stay light; project-knowledge tools wake the daemon only when needed.'],
+            ? ['Dashboard and job APIs are available now.', ...boundaryNotes]
+            : [
+                'Status checks stay light; project-knowledge tools wake the daemon only when needed.',
+                ...boundaryNotes,
+            ],
     };
+}
+function buildCodexRouteBoundaryNotes(enhancementRoute) {
+    if (!enhancementRoute) {
+        return [
+            'Codex host-agent workflows write source=host-agent and remain separate from Alembic internal AI provider configuration.',
+        ];
+    }
+    const internalAi = enhancementRoute.internalAiProvider.available
+        ? `${enhancementRoute.internalAiProvider.provider || 'configured'} via ${enhancementRoute.internalAiProvider.configSource || 'unknown'}`
+        : `not configured (${enhancementRoute.internalAiProvider.configSource || 'empty'})`;
+    return [
+        `Host-agent route uses source=${enhancementRoute.hostAgentRoute.source} for Codex-submitted knowledge, proposals, and dimension completion.`,
+        `Local Alembic enhancement route: ${enhancementRoute.selected}. ${enhancementRoute.reason}`,
+        `Internal AI provider config: ${internalAi}; this is provider/model state, not a knowledge source.`,
+    ];
 }
 export function buildCodexRecommendedAction(input) {
     return {

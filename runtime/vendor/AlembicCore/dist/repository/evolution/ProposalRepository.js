@@ -17,6 +17,8 @@ import { randomBytes } from 'node:crypto';
 import { and, count, desc, eq, inArray, lte } from 'drizzle-orm';
 import { EvolutionPolicy } from '../../domain/evolution/EvolutionPolicy.js';
 import { evolutionProposals } from '../../infrastructure/database/drizzle/schema.js';
+import { normalizeProposalSource, proposalSourceStorageValues, } from '../../shared/source-contracts.js';
+export { getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, } from '../../shared/source-contracts.js';
 /* ────────────────────── Constants ────────────────────── */
 /** 默认观察窗口：72h（medium tier） */
 const DEFAULT_OBSERVATION_WINDOW = 72 * 60 * 60 * 1000;
@@ -55,7 +57,8 @@ export class ProposalRepository {
             targetRecipeId: input.targetRecipeId,
             relatedRecipeIds: input.relatedRecipeIds ?? [],
             confidence: input.confidence,
-            source: input.source,
+            // 新写入统一使用 host-neutral source；旧 DB 行仍可按原值读取。
+            source: normalizeProposalSource(input.source),
             description: input.description,
             evidence: input.evidence ?? [],
             status,
@@ -112,7 +115,10 @@ export class ProposalRepository {
             conditions.push(eq(evolutionProposals.targetRecipeId, filter.targetRecipeId));
         }
         if (filter.source) {
-            conditions.push(eq(evolutionProposals.source, filter.source));
+            const sourceValues = proposalSourceStorageValues(filter.source);
+            conditions.push(sourceValues.length === 1
+                ? eq(evolutionProposals.source, sourceValues[0])
+                : inArray(evolutionProposals.source, sourceValues));
         }
         if (filter.expiredBefore) {
             conditions.push(lte(evolutionProposals.expiresAt, filter.expiredBefore));

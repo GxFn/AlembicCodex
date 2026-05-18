@@ -3,6 +3,7 @@ import { saveDimensionCheckpoint } from '@alembic/core/host-agent-workflows';
 import Logger from '@alembic/core/logging';
 import { getDeveloperIdentity } from '@alembic/core/shared';
 import { resolveDataRoot } from '@alembic/core/workspace';
+import { CODEX_HOST_AGENT_SOURCE } from '#codex/SourceBoundary.js';
 import { BootstrapEventEmitter } from '#service/bootstrap/BootstrapEventEmitter.js';
 import { runWorkflowCompletionFinalizer, } from '#workflows/capabilities/completion/WorkflowCompletionFinalizer.js';
 import { generateSkill as generateWorkflowSkill } from '#workflows/capabilities/execution/WorkflowSkillCompletionCapability.js';
@@ -302,7 +303,7 @@ async function createExternalDimensionSkill({ ctx, dimension, dimensionId, analy
         submittedRecipeIds,
     });
     const generateSkill = dependencies.generateSkill ?? generateWorkflowSkill;
-    const skillResult = await generateSkill(ctx, dimension, effectiveAnalysis, referencedFiles, keyFindings, 'external-agent-bootstrap');
+    const skillResult = await generateSkill(ctx, dimension, effectiveAnalysis, referencedFiles, keyFindings, CODEX_HOST_AGENT_SOURCE);
     if (!skillResult.success) {
         logger.warn(`[DimensionComplete] Skill skipped for "${dimensionId}": ${skillResult.error}`);
     }
@@ -386,7 +387,7 @@ async function persistKeyFindings({ ctx, session, dimensionId, keyFindings, }) {
             return;
         }
         for (const finding of keyFindings) {
-            await knowledgeGraphService.addEdge(dimensionId, 'dimension', finding.substring(0, 80), 'finding', 'discovered_in', { source: 'external-agent-bootstrap', sessionId: session.id });
+            await knowledgeGraphService.addEdge(dimensionId, 'dimension', finding.substring(0, 80), 'finding', 'discovered_in', { source: CODEX_HOST_AGENT_SOURCE, sessionId: session.id });
         }
     }
     catch (err) {
@@ -404,10 +405,10 @@ function emitExternalCompletionProgress({ ctx, session, dimension, dimensionId, 
         recipesBound,
         progress: `${progress.completed}/${progress.total}`,
         isBootstrapComplete: isComplete,
-        source: 'external-agent',
+        source: CODEX_HOST_AGENT_SOURCE,
     });
     if (isComplete) {
-        emitter.emitAllComplete(session.id, progress.total, 'external-agent');
+        emitter.emitAllComplete(session.id, progress.total, CODEX_HOST_AGENT_SOURCE);
     }
 }
 function buildQualityFeedback({ dimensionId, qualityReport, }) {

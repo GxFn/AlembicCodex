@@ -3,4 +3,4 @@ export { CANDIDATE_LIFECYCLES, CANDIDATE_STATES, CONSUMABLE_LIFECYCLES, CONSUMAB
 export { checkReadinessFromCandidate, checkRecipeReadiness, STANDARD_CATEGORIES as READINESS_STANDARD_CATEGORIES, WHITELISTED_CATEGORIES as READINESS_WHITELISTED_CATEGORIES, } from './domain/knowledge/RecipeReadinessChecker.js';
 export { createStatelessValidator, UnifiedValidator, } from './domain/knowledge/UnifiedValidator.js';
 export { Constraints, Content, Quality, RELATION_BUCKETS, Reasoning, Relations, Stats, } from './domain/knowledge/values/index.js';
-export { KnowledgeService, RecipeProductionGateway, } from './service/knowledge/index.js';
+export { getGatewaySourceLabel, getGatewaySourceUserId, KnowledgeService, normalizeGatewaySource, RecipeProductionGateway, } from './service/knowledge/index.js';
