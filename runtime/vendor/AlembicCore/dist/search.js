@@ -9,6 +9,7 @@ export { SearchEngine };
 export { queryNonDeprecatedEntries, RawDbGuardAdapter, RawDbKnowledgeAdapter, RawDbSourceRefAdapter, unwrapRawDb, unwrapSearchDb, } from './repository/search/SearchRepoAdapter.js';
 export { groupByKind, slimSearchResult, } from './service/search/SearchTypes.js';
 export { tokenize } from './service/search/tokenizer.js';
+export { cosineSimilarity, jaccardSimilarity, textSimilarity, tokenizeForSimilarity, } from './shared/similarity.js';
 /**
  * 创建完整搜索引擎。
  *

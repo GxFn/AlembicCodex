@@ -52,10 +52,14 @@ export interface MemoryStats {
     bySource: Record<string, number>;
     avgImportance: number;
 }
+export interface SemanticMemorySimilarityResult extends SemanticMemoryEntity {
+    similarity: number;
+}
 export declare class MemoryRepositoryImpl extends RepositoryBase<typeof semanticMemories, SemanticMemoryEntity> {
     #private;
     constructor(drizzle: ConstructorParameters<typeof RepositoryBase<typeof semanticMemories, SemanticMemoryEntity>>[0]);
     findById(id: string): Promise<SemanticMemoryEntity | null>;
+    get(id: string): Promise<SemanticMemoryEntity | null>;
     create(data: SemanticMemoryInsert): Promise<SemanticMemoryEntity>;
     delete(id: string): Promise<boolean>;
     /** 动态字段更新 */
@@ -69,6 +73,7 @@ export declare class MemoryRepositoryImpl extends RepositoryBase<typeof semantic
     }): Promise<SemanticMemoryEntity[]>;
     /** 获取候选记忆 (用于相似度搜索) */
     getCandidates(type: string | null, limit?: number): Promise<SemanticMemoryEntity[]>;
+    findSimilar(content: string, type?: string | null, limit?: number): Promise<SemanticMemorySimilarityResult[]>;
     /** 记忆总数 */
     size(filters?: {
         source?: string;
@@ -87,4 +92,5 @@ export declare class MemoryRepositoryImpl extends RepositoryBase<typeof semantic
     getStats(): Promise<MemoryStats>;
     /** 清除所有 bootstrap 来源的记忆 */
     clearBootstrapMemories(): Promise<number>;
+    static computeSimilarity(tokensA: Set<string>, lowerA: string, contentB: string): number;
 }

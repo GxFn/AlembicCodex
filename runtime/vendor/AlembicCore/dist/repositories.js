@@ -6,6 +6,7 @@ import { WarningRepository, } from './repository/evolution/WarningRepository.js'
 import { GuardViolationRepositoryImpl, } from './repository/guard/GuardViolationRepository.js';
 import { KnowledgeEdgeRepositoryImpl, } from './repository/knowledge/KnowledgeEdgeRepository.js';
 import { KnowledgeRepositoryImpl } from './repository/knowledge/KnowledgeRepository.impl.js';
+import { MemoryRepositoryImpl, } from './repository/memory/MemoryRepository.js';
 import { SessionRepositoryImpl, } from './repository/session/SessionRepository.js';
 import { RecipeSourceRefRepositoryImpl, } from './repository/sourceref/RecipeSourceRefRepository.js';
 export const ALEMBIC_REPOSITORY_KEYS = [
@@ -14,6 +15,7 @@ export const ALEMBIC_REPOSITORY_KEYS = [
     'codeEntityRepository',
     'bootstrapRepository',
     'guardViolationRepository',
+    'memoryRepository',
     'sessionRepository',
     'proposalRepository',
     'warningRepository',
@@ -28,6 +30,7 @@ export function createAlembicRepositories(database) {
         codeEntityRepository: new CodeEntityRepositoryImpl(drizzle),
         bootstrapRepository: new BootstrapRepositoryImpl(drizzle),
         guardViolationRepository: new GuardViolationRepositoryImpl(drizzle),
+        memoryRepository: new MemoryRepositoryImpl(drizzle),
         sessionRepository: new SessionRepositoryImpl(drizzle),
         proposalRepository: new ProposalRepository(drizzle),
         warningRepository: new WarningRepository(drizzle),

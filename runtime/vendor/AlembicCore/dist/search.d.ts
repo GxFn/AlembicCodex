@@ -13,6 +13,7 @@ export { queryNonDeprecatedEntries, RawDbGuardAdapter, RawDbKnowledgeAdapter, Ra
 export type { BM25DocMeta, DbRow, DocMeta, RankingContext, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResultItem, SearchVectorService, SearchVectorStore, SlimSearchResult, VectorHit, } from './service/search/SearchTypes.js';
 export { groupByKind, slimSearchResult, } from './service/search/SearchTypes.js';
 export { tokenize } from './service/search/tokenizer.js';
+export { cosineSimilarity, jaccardSimilarity, textSimilarity, tokenizeForSimilarity, } from './shared/similarity.js';
 /**
  * 创建完整搜索引擎。
  *
