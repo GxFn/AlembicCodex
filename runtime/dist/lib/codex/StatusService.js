@@ -7,6 +7,7 @@ import { inspectCodexAiConfig } from './AiConfigState.js';
 import { buildCodexRuntimeDiagnostics } from './Diagnostics.js';
 import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
 import { inspectCodexKnowledge } from './KnowledgeState.js';
+import { buildCodexModuleBoundaryStatus, } from './ModuleBoundary.js';
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, getCodexInitMarkerPath, readCodexInitMarker, resolveCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
 import { CODEX_SETUP_PROFILE, resolveCodexRuntimeContext, } from './RuntimeContext.js';
 import { buildCodexToolPolicySignals, resolveCodexToolPolicyState, } from './ToolPolicy.js';
@@ -26,6 +27,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         runtime,
         requirement: 'status',
     });
+    const moduleBoundary = buildCodexModuleBoundaryStatus({ enhancementRoute });
     const projectRootResolution = options.projectRootResolution || resolveCodexProjectRoot({ projectRoot: projectRootInput });
     const autoInit = buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, {
         runtimeState: options.autoInit,
@@ -34,6 +36,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         aiConfig,
         autoInit,
         enhancementRoute,
+        moduleBoundary,
         projectRootResolution,
     });
     const policyInput = {
@@ -113,6 +116,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         },
         gitDiffCheckpoint,
         enhancementRoute,
+        moduleBoundary,
         daemon: {
             ...summarizeCodexDaemonStatus(daemonStatus),
             implemented: true,

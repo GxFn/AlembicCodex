@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { summarizeAlembicRuntimeCapabilities, } from '@alembic/core/daemon';
 import { HOST_AGENT_SOURCE } from '@alembic/core/shared';
 import { CODEX_RUNTIME_PACKAGE, resolveCodexRuntimeContext, } from './RuntimeContext.js';
 export const CODEX_HOST_AGENT_ROUTE_TOOLS = [
@@ -85,23 +86,13 @@ export function summarizeEnhancementDaemon(status) {
     const data = asRecord(status.health?.data);
     const enhancement = asRecord(data?.enhancement);
     const capabilities = asRecord(data?.capabilities);
-    const dashboard = asRecord(capabilities?.dashboard);
-    const jobs = asRecord(capabilities?.jobs);
-    const api = asRecord(capabilities?.api);
-    const internalAi = asRecord(capabilities?.internalAi);
-    const jobKinds = Array.isArray(jobs?.kinds)
-        ? jobs.kinds.filter((kind) => typeof kind === 'string')
-        : [];
-    const dashboardUrl = firstString(dashboard?.url, data?.dashboardUrl, status.state?.dashboardUrl);
+    const capabilitySummary = summarizeAlembicRuntimeCapabilities(capabilities);
+    const dashboardUrl = firstString(capabilitySummary.dashboardUrl, data?.dashboardUrl, status.state?.dashboardUrl);
     return {
         available: status.ready === true && Boolean(status.state),
         capabilities: {
-            apiAvailable: booleanOrNull(api?.available),
-            dashboardAvailable: booleanOrNull(dashboard?.available),
+            ...capabilitySummary,
             dashboardUrl,
-            internalAiAvailable: booleanOrNull(internalAi?.available),
-            jobsAvailable: booleanOrNull(jobs?.available),
-            jobKinds,
         },
         dashboardUrl,
         healthVersion: firstString(data?.version),
@@ -214,7 +205,4 @@ function firstString(...values) {
         }
     }
     return null;
-}
-function booleanOrNull(value) {
-    return typeof value === 'boolean' ? value : null;
 }
