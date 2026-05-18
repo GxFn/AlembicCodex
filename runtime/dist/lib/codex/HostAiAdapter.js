@@ -1,5 +1,5 @@
 import Logger from '@alembic/core/logging';
-import { PROVIDER_KEY_ENV } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { PROVIDER_KEY_ENV } from '@alembic/core/shared';
 import { inspectCodexAiConfig } from './AiConfigState.js';
 const HOST_PROVIDER_CONFIGS = [
     {

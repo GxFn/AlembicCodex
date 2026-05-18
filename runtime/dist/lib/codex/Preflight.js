@@ -1,13 +1,7 @@
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, isTrustedCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
 import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, } from './RuntimeContext.js';
 import { buildCodexKnowledgeGateActions, buildCodexRecommendedAction } from './StatusService.js';
-import { allowedCodexToolNames, CODEX_LOCAL_TOOLS, resolveCodexToolPolicy, } from './ToolPolicy.js';
-const INIT_ON_DEMAND_TOOL_NAMES = new Set([
-    'alembic_codex_dashboard',
-    'alembic_codex_bootstrap',
-    'alembic_codex_rescan',
-    'alembic_codex_job',
-]);
+import { allowedCodexToolNames, CODEX_INIT_ON_DEMAND_TOOL_NAMES, CODEX_LOCAL_TOOLS, resolveCodexToolPolicy, } from './ToolPolicy.js';
 const PROJECT_ROOT_DISCOVERY_TOOL_NAMES = new Set([
     'alembic_codex_status',
     'alembic_codex_diagnostics',
@@ -61,15 +55,19 @@ export function preflightCodexTool(input) {
     }
     const autoInit = input.stage === 'before-auto-init' &&
         !input.knowledge.initialized &&
-        INIT_ON_DEMAND_TOOL_NAMES.has(input.toolName);
+        CODEX_INIT_ON_DEMAND_TOOL_NAMES.has(input.toolName);
     if (input.stage === 'execute' &&
         INTERNAL_AI_TOOL_NAMES.has(input.toolName) &&
         input.aiConfig?.allowsInternalBootstrap !== true) {
         const provider = input.aiConfig?.provider || null;
         const missingKeyEnv = input.aiConfig?.missingKeyEnv || input.aiConfig?.requiredKeyEnv || null;
+        const hostAgentFallbackTool = input.toolName === 'alembic_codex_rescan' ? 'alembic_rescan' : 'alembic_bootstrap';
+        const hostAgentFallbackLabel = input.toolName === 'alembic_codex_rescan'
+            ? 'Run Codex host-agent rescan'
+            : 'Start Codex host-agent bootstrap';
         return {
             ok: false,
-            failure: codexFailure(input.toolName, 'Alembic internal bootstrap/rescan requires a real AI Provider. Configure an AI API key or choose the external-agent route.', {
+            failure: codexFailure(input.toolName, 'Alembic internal bootstrap/rescan requires a real AI Provider. Configure an AI API key only for the internal AI job route, or use the Codex host-agent workflow instead.', {
                 aiConfig: input.aiConfig || null,
                 errorCode: 'AI_PROVIDER_REQUIRED',
                 needsUserInput: true,
@@ -79,8 +77,14 @@ export function preflightCodexTool(input) {
                 },
                 nextActions: [
                     buildCodexRecommendedAction({
+                        label: hostAgentFallbackLabel,
+                        reason: 'Codex can read the Mission Briefing, analyze the project, submit knowledge, and complete dimensions without an Alembic AI Provider.',
+                        startsDaemon: true,
+                        tool: hostAgentFallbackTool,
+                    }),
+                    buildCodexRecommendedAction({
                         label: 'Configure AI Provider',
-                        reason: 'Internal Alembic knowledge mining cannot run with mock or missing provider credentials.',
+                        reason: 'Only the explicit internal Alembic AI daemon job route needs provider credentials.',
                         startsDaemon: false,
                         tool: 'alembic_codex_ai_config',
                     }),
@@ -105,7 +109,7 @@ export function preflightCodexTool(input) {
     };
 }
 export function isCodexInitOnDemandTool(name) {
-    return INIT_ON_DEMAND_TOOL_NAMES.has(name);
+    return CODEX_INIT_ON_DEMAND_TOOL_NAMES.has(name);
 }
 export function isCodexProjectRootDiscoveryTool(name) {
     return PROJECT_ROOT_DISCOVERY_TOOL_NAMES.has(name);

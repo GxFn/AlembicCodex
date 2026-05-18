@@ -90,7 +90,7 @@ export async function validateCandidate(ctx, args) {
 }
 export async function checkDuplicate(ctx, args) {
     // SimilarityService 直接读磁盘 .md 文件，不依赖 Repository
-    const { findSimilarRecipes } = await import('@alembic/core/service/candidate/SimilarityService');
+    const { findSimilarRecipes } = await import('@alembic/core/service/candidate');
     const dataRoot = resolveDataRoot(ctx.container) || resolveProjectRoot(ctx.container);
     const candidate = (args.candidate ?? {});
     const similar = findSimilarRecipes(dataRoot, candidate, {

@@ -10,9 +10,46 @@ const requiredRootExports = [
   'createExternalWorkflowSession',
 ];
 const requiredSubpathExports = {
+  '@alembic/core/config': [
+    'CANDIDATES_DIR',
+    'ConfigDefaults',
+    'ConfigLoader',
+    'ConfigPaths',
+    'RECIPES_DIR',
+    'getProjectSkillsPath',
+  ],
   '@alembic/core/evolution': ['toRescanImpactDecision'],
   '@alembic/core/memory': ['MemoryRepositoryImpl', 'createSemanticMemoryRepository'],
-  '@alembic/core/search': ['cosineSimilarity', 'jaccardSimilarity', 'tokenizeForSimilarity'],
+  '@alembic/core/service/candidate': ['aggregateCandidates', 'findSimilarRecipes'],
+  '@alembic/core/search': [
+    'AuthoritySignal',
+    'ContextMatchSignal',
+    'MultiSignalRanker',
+    'RelevanceSignal',
+    'cosineSimilarity',
+    'jaccardSimilarity',
+    'tokenizeForSimilarity',
+  ],
+  '@alembic/core/shared': [
+    'AppConfigSchema',
+    'ConstitutionViolation',
+    'DEFAULT_FOLDER_NAMES',
+    'NotFoundError',
+    'WorkspaceSettingsStore',
+    'applyTestDimensionFilter',
+    'computeContentHash',
+    'getDeveloperIdentity',
+    'ioLimit',
+  ],
+  '@alembic/core/types': [],
+};
+const requiredTypeDeclarations = {
+  '@alembic/core/types': [
+    'IncrementalPlan',
+    'McpContext',
+    'WorkflowDatabaseLike',
+    'WorkflowSkillHooks',
+  ],
 };
 
 const imported = [];
@@ -35,6 +72,24 @@ for (const [specifier, exportNames] of Object.entries(requiredSubpathExports)) {
   for (const exportName of exportNames) {
     if (!(exportName in mod)) {
       throw new Error(`Missing ${specifier} export: ${exportName}`);
+    }
+  }
+}
+
+for (const [specifier, exportNames] of Object.entries(requiredTypeDeclarations)) {
+  const subpath = specifier === pkg.name ? '.' : `./${specifier.slice(`${pkg.name}/`.length)}`;
+  const declarationPath = pkg.exports[subpath]?.types;
+  if (!declarationPath) {
+    throw new Error(`Missing ${specifier} declaration path`);
+  }
+
+  const declaration = readFileSync(
+    new URL(`../${declarationPath.replace(/^\.\//, '')}`, import.meta.url),
+    'utf8'
+  );
+  for (const exportName of exportNames) {
+    if (!new RegExp(`\\b${exportName}\\b`).test(declaration)) {
+      throw new Error(`Missing ${specifier} type declaration: ${exportName}`);
     }
   }
 }

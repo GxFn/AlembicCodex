@@ -1,6 +1,6 @@
 # Alembic Codex Plugin
 
-Alembic for Codex gives Codex local project memory without turning every chat into a setup session. It starts with a lightweight MCP shim, reports diagnostics and workspace status without initializing the database, initializes in Ghost mode by default, then starts or connects to the per-workspace daemon only when project knowledge, Guard, Dashboard, bootstrap, or rescan work is requested.
+Alembic for Codex gives Codex local project memory without turning every chat into a setup session. It starts with a lightweight MCP shim, reports diagnostics and workspace status without initializing the database, initializes in Ghost mode by default, then starts or connects to the per-workspace daemon only when project knowledge, Guard, Dashboard, Codex host-agent bootstrap/rescan, or explicit internal AI jobs are requested.
 
 Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
@@ -8,7 +8,7 @@ Use it when you want Codex to:
 
 - Prime itself with project Recipes before coding.
 - Run Guard checks against the current change.
-- Build or refresh project knowledge through recoverable daemon jobs.
+- Build or refresh project knowledge through Codex host-agent workflows.
 - Open the local Dashboard only when a visual handoff is useful.
 
 ## Install
@@ -76,13 +76,15 @@ The normal first minute is:
 1. `alembic_codex_diagnostics`
 2. `alembic_codex_status`
 3. `alembic_codex_init` when status reports `needs_init`
-4. `alembic_codex_bootstrap` for first project knowledge, or `alembic_task` with `operation=prime` before coding work
+4. `alembic_bootstrap` for first project knowledge, `alembic_rescan` to refresh existing knowledge, or `alembic_task` with `operation=prime` before coding work
 
 ## Long-Running Jobs
 
-`alembic_codex_bootstrap` and `alembic_codex_rescan` return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the Dashboard refreshes.
+`alembic_bootstrap` and `alembic_rescan` are the default Codex host-agent workflows. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions. These workflows do not require an Alembic AI Provider.
 
-If the Alembic daemon shuts down or restarts before an active job completes, the next daemon lifecycle marks that job as `failed` with an interruption reason instead of leaving it stuck in `queued` or `running`. Start a new bootstrap or rescan job to retry.
+`alembic_codex_bootstrap` and `alembic_codex_rescan` are explicit Alembic internal AI daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the Dashboard refreshes.
+
+If the Alembic daemon shuts down or restarts before an active internal AI job completes, the next daemon lifecycle marks that job as `failed` with an interruption reason instead of leaving it stuck in `queued` or `running`. Start a new internal job or use the host-agent workflow to retry.
 
 ## Release Verification
 

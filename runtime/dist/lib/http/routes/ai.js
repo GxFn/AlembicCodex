@@ -6,7 +6,7 @@
  * while AI/Agent execution endpoints fail closed with an explicit boundary.
  */
 import Logger from '@alembic/core/logging';
-import { collectAiEnvOverrides, isAiEnvReady, maskAiEnvConfig, PROVIDER_KEY_ENV, WorkspaceSettingsStore, } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { collectAiEnvOverrides, isAiEnvReady, maskAiEnvConfig, PROVIDER_KEY_ENV, WorkspaceSettingsStore, } from '@alembic/core/shared';
 import { resolveProjectRoot } from '@alembic/core/workspace';
 import express from 'express';
 import { createHostManagedProvider, listHostAiProviders, readHostAiConfigInfo, } from '../../codex/HostAiAdapter.js';

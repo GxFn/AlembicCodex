@@ -148,10 +148,11 @@ Run this against a fresh test repository and one real project before public prom
 6. Confirm Ghost mode did not create project-local `.asd/`, `Alembic/`, `.cursor/`, `.vscode/mcp.json`, or `.env`.
 7. Run `alembic_codex_status` again and confirm the primary action is `alembic_task` with `operation=prime`.
 8. Run `alembic_codex_dashboard` and confirm a localhost Dashboard URL is returned.
-9. Run `alembic_codex_bootstrap` and capture the job id.
-10. Run `alembic_codex_job` with the job id.
-11. Restart Codex or stop the daemon, then confirm `alembic_codex_job` returns a recoverable status instead of leaving the job stuck.
-12. Run `alembic_codex_cleanup` without `confirm` and verify it is a dry run.
+9. Run `alembic_bootstrap` and confirm Codex receives a Mission Briefing for the host-agent workflow without requiring an AI Provider.
+10. Optional internal AI line: with provider credentials configured, run `alembic_codex_bootstrap` and capture the job id.
+11. Run `alembic_codex_job` with the job id from the optional internal AI line.
+12. Restart Codex or stop the daemon, then confirm `alembic_codex_job` returns a recoverable status instead of leaving the internal job stuck.
+13. Run `alembic_codex_cleanup` without `confirm` and verify it is a dry run.
 
 ## Failure Triage
 

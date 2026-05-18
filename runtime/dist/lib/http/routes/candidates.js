@@ -3,7 +3,7 @@
  * 候选条目的 AI 补齐、润色预览/应用
  */
 import Logger from '@alembic/core/logging';
-import { ValidationError } from '@alembic/core/shared/errors/index';
+import { ValidationError } from '@alembic/core/shared';
 import express from 'express';
 import { BootstrapRefineBody, EnrichBody, RefineApplyBody, RefinePreviewBody, } from '#shared/schemas/http-requests.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';

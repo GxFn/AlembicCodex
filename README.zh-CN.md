@@ -1,6 +1,6 @@
 # Alembic Codex 插件
 
-Alembic for Codex 让 Codex 获得本地项目记忆，而不是把每一次对话都变成初始化流程。它先启动轻量 MCP shim，在不初始化数据库的情况下报告诊断和工作区状态，默认以 Ghost mode 初始化；只有在请求项目知识、Guard、Dashboard、bootstrap 或 rescan 时，才启动或连接当前工作区的 daemon。
+Alembic for Codex 让 Codex 获得本地项目记忆，而不是把每一次对话都变成初始化流程。它先启动轻量 MCP shim，在不初始化数据库的情况下报告诊断和工作区状态，默认以 Ghost mode 初始化；只有在请求项目知识、Guard、Dashboard、Codex 宿主 Agent bootstrap/rescan 或显式 internal AI job 时，才启动或连接当前工作区的 daemon。
 
 English version: [README.md](README.md)
 
@@ -8,7 +8,7 @@ English version: [README.md](README.md)
 
 - 编码前用项目 Recipes prime Codex。
 - 对当前改动运行 Guard 检查。
-- 通过可恢复 daemon job 构建或刷新项目知识。
+- 通过 Codex 宿主 Agent workflow 构建或刷新项目知识。
 - 只在需要视觉交接时打开本地 Dashboard。
 
 ## 安装
@@ -76,13 +76,15 @@ alembic codex status --json
 1. `alembic_codex_diagnostics`
 2. `alembic_codex_status`
 3. 状态为 `needs_init` 时调用 `alembic_codex_init`
-4. 用 `alembic_codex_bootstrap` 构建第一轮项目知识，或在编码前调用 `alembic_task` 并设置 `operation=prime`
+4. 用 `alembic_bootstrap` 构建第一轮项目知识，用 `alembic_rescan` 刷新已有知识，或在编码前调用 `alembic_task` 并设置 `operation=prime`
 
 ## 长任务
 
-`alembic_codex_bootstrap` 和 `alembic_codex_rescan` 会立即返回持久 job id。Codex 重连或 Dashboard 刷新后，用 `alembic_codex_job` 携带该 id 继续检查状态。
+`alembic_bootstrap` 和 `alembic_rescan` 是默认 Codex 宿主 Agent workflow。Codex 读取 Mission Briefing、分析项目、提交知识并完成维度；这条路径不要求配置 Alembic AI Provider。
 
-如果 Alembic daemon 在活跃 job 完成前关闭或重启，下一次 daemon 生命周期会把该 job 标记为 `failed`，并记录中断原因，避免 job 永远停在 `queued` 或 `running`。需要重试时，重新启动 bootstrap 或 rescan job。
+`alembic_codex_bootstrap` 和 `alembic_codex_rescan` 是显式 Alembic internal AI daemon job。它们需要已配置 AI Provider 凭据，并会立即返回持久 job id。Codex 重连或 Dashboard 刷新后，用 `alembic_codex_job` 携带该 id 继续检查状态。
+
+如果 Alembic daemon 在活跃 internal AI job 完成前关闭或重启，下一次 daemon 生命周期会把该 job 标记为 `failed`，并记录中断原因，避免 job 永远停在 `queued` 或 `running`。需要重试时，重新启动 internal job，或改走宿主 Agent workflow。
 
 ## 发布验证
 

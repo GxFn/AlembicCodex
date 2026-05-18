@@ -1,6 +1,6 @@
 import EventEmitter from 'node:events';
 import Logger from '@alembic/core/logging';
-import { InternalError } from '@alembic/core/shared/errors/BaseError';
+import { InternalError } from '@alembic/core/shared';
 import { v4 as uuidv4 } from 'uuid';
 /**
  * Gateway - 统一网关

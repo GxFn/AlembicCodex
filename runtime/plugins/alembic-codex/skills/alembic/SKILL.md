@@ -1,11 +1,11 @@
 ---
 name: alembic
-description: Use Alembic from Codex. Start here for status, initialization, project priming, Guard checks, bootstrap/rescan jobs, Dashboard handoff, and permission boundaries.
+description: Use Alembic from Codex. Start here for status, initialization, project priming, Guard checks, Codex host-agent bootstrap/rescan workflows, explicit internal AI jobs, Dashboard handoff, and permission boundaries.
 ---
 
 # Alembic Codex Workflow
 
-Use this skill when the user asks Codex to work with project conventions, local knowledge, Guard checks, bootstrap/rescan workflows, or Alembic itself.
+Use this skill when the user asks Codex to work with project conventions, local knowledge, Guard checks, Codex host-agent bootstrap/rescan workflows, explicit internal AI jobs, or Alembic itself.
 
 ## First Move
 
@@ -29,15 +29,17 @@ For non-trivial coding tasks:
 
 ## Long-Running Work
 
-Use `alembic_codex_bootstrap` for internal bootstrap jobs and `alembic_codex_rescan` for internal rescan jobs. These tools start or connect to the daemon, enqueue work, and return a recoverable job id.
+Use `alembic_bootstrap` for default Codex host-agent cold start and `alembic_rescan` for host-agent refresh. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
 
-Use `alembic_codex_job` to check job status later. Job lookup is local and should not start the daemon.
+Use `alembic_codex_bootstrap` and `alembic_codex_rescan` only when the user explicitly wants Alembic internal AI daemon jobs and the AI Provider is configured. These tools start or connect to the daemon, enqueue work, and return a recoverable job id.
+
+Use `alembic_codex_job` to check explicit internal AI job status later. Job lookup is local and should not start the daemon.
 
 Use `alembic_codex_dashboard` when the user needs review, candidates, or progress visualization. Return the Dashboard URL instead of opening a browser yourself.
 
 ## Permission Boundary
 
-Default Codex mode is agent tier. It may search knowledge, prime tasks, run Guard, start daemon jobs, and submit candidates.
+Default Codex mode is agent tier. It may search knowledge, prime tasks, run Guard, use host-agent bootstrap/rescan, and submit candidates. Explicit internal AI daemon jobs require a configured AI Provider.
 
 Do not publish, deprecate, delete, or directly edit Recipes from the default tier. Admin tools only appear when both `ALEMBIC_MCP_TIER=admin` and `ALEMBIC_CODEX_ENABLE_ADMIN=1` are set.
 

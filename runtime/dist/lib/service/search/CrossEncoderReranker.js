@@ -5,7 +5,7 @@
  * the SearchCrossEncoder contract and ranks with token overlap only.
  */
 import { tokenize } from '@alembic/core/search';
-import { jaccardSimilarity } from '@alembic/core/shared/similarity';
+import { jaccardSimilarity } from '@alembic/core/search';
 export class CrossEncoderReranker {
     constructor(_opts = {}) { }
     async rerank(query, candidates) {

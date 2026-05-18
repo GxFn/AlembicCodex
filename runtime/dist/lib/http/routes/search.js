@@ -337,7 +337,7 @@ router.post('/similarity', validate(SimilarityBody), async (req, res) => {
         return void res.json({ success: true, data: { similar: [] } });
     }
     try {
-        const { findSimilarRecipes } = await import('@alembic/core/service/candidate/SimilarityService');
+        const { findSimilarRecipes } = await import('@alembic/core/service/candidate');
         const similar = findSimilarRecipes(dataRoot, candidateObj, { threshold: 0.3, topK: 10 });
         // 映射为前端期望格式
         const mapped = similar.map((s) => ({

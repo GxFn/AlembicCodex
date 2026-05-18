@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { WorkspaceSettingsStore } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { WorkspaceSettingsStore } from '@alembic/core/shared';
 import { DEFAULT_FOLDER_NAMES, WorkspaceResolver } from '@alembic/core/workspace';
 import { DaemonSupervisor } from '../daemon/DaemonSupervisor.js';
 import { inspectCodexAiConfig } from './AiConfigState.js';
@@ -177,6 +177,24 @@ export function summarizeCodexDaemonStatus(status) {
         message: status.message,
     };
 }
+function buildCodexHostAgentBootstrapAction(input) {
+    return buildCodexRecommendedAction({
+        label: input.label || 'Start Codex host-agent bootstrap',
+        reason: input.reason ||
+            'Have Codex read the Mission Briefing, analyze the project, submit knowledge, and complete dimensions without requiring an Alembic AI Provider.',
+        startsDaemon: input.startsDaemon,
+        tool: 'alembic_bootstrap',
+    });
+}
+function buildCodexHostAgentRescanAction(input) {
+    return buildCodexRecommendedAction({
+        label: input.label || 'Run Codex host-agent rescan',
+        reason: input.reason ||
+            'Have Codex refresh Alembic project knowledge through the host-agent workflow without requiring an Alembic AI Provider.',
+        startsDaemon: input.startsDaemon,
+        tool: 'alembic_rescan',
+    });
+}
 export function buildCodexPostInitActions(knowledge) {
     if (knowledge.usable) {
         return [
@@ -187,34 +205,23 @@ export function buildCodexPostInitActions(knowledge) {
                 startsDaemon: true,
                 tool: 'alembic_task',
             }),
-            buildCodexRecommendedAction({
-                label: 'Start bootstrap',
-                reason: 'Refresh Alembic project knowledge in a recoverable background job.',
+            buildCodexHostAgentRescanAction({
+                reason: 'Refresh Alembic project knowledge through the Codex host-agent workflow.',
                 startsDaemon: true,
-                tool: 'alembic_codex_bootstrap',
             }),
         ];
     }
     return [
-        buildCodexRecommendedAction({
-            label: 'Start bootstrap',
-            reason: 'Build the first Alembic project knowledge in a recoverable background job.',
+        buildCodexHostAgentBootstrapAction({
+            reason: 'Build the first Alembic project knowledge through Codex host-agent analysis; no Alembic AI Provider is required.',
             startsDaemon: true,
-            tool: 'alembic_codex_bootstrap',
-        }),
-        buildCodexRecommendedAction({
-            arguments: { limit: 10 },
-            label: 'List jobs',
-            reason: 'Recover bootstrap job status after Codex reconnects.',
-            startsDaemon: false,
-            tool: 'alembic_codex_job',
         }),
     ];
 }
 export function buildCodexPostInitMessage(knowledge) {
     return knowledge.usable
-        ? 'Alembic Codex workspace initialized with usable project knowledge. Next: prime Codex or refresh bootstrap.'
-        : 'Alembic Codex workspace initialized. Next: start bootstrap to build the first usable project knowledge.';
+        ? 'Alembic Codex workspace initialized with usable project knowledge. Next: prime Codex or run host-agent rescan.'
+        : 'Alembic Codex workspace initialized. Next: run Codex host-agent bootstrap to build the first usable project knowledge.';
 }
 export function buildCodexKnowledgeGateActions(knowledge) {
     const actions = [
@@ -234,17 +241,9 @@ export function buildCodexKnowledgeGateActions(knowledge) {
         }));
     }
     else {
-        actions.push(buildCodexRecommendedAction({
-            label: 'Start bootstrap',
-            reason: 'Build the first Alembic project knowledge in a recoverable background job.',
+        actions.push(buildCodexHostAgentBootstrapAction({
+            reason: 'Build the first Alembic project knowledge through Codex host-agent analysis; no Alembic AI Provider is required.',
             startsDaemon: true,
-            tool: 'alembic_codex_bootstrap',
-        }), buildCodexRecommendedAction({
-            arguments: { limit: 10 },
-            label: 'List jobs',
-            reason: 'Recover bootstrap job status after Codex reconnects.',
-            startsDaemon: false,
-            tool: 'alembic_codex_job',
         }));
     }
     return actions;
@@ -331,30 +330,19 @@ export function buildCodexStatusOnboarding(input) {
         return {
             state: 'needs_bootstrap',
             summary: 'Alembic Codex is initialized, but this project does not have usable Alembic Recipes or Project Skills yet.',
-            primaryAction: buildCodexRecommendedAction({
-                label: 'Start bootstrap',
-                reason: 'Build the first Alembic project knowledge in a recoverable background job.',
+            primaryAction: buildCodexHostAgentBootstrapAction({
+                reason: 'Build the first Alembic project knowledge through Codex host-agent analysis; no Alembic AI Provider is required.',
                 startsDaemon: true,
-                tool: 'alembic_codex_bootstrap',
             }),
             nextActions: [
-                buildCodexRecommendedAction({
-                    label: 'Start bootstrap',
-                    reason: 'Create the initial Alembic knowledge base for this project.',
+                buildCodexHostAgentBootstrapAction({
+                    reason: 'Create the initial Alembic knowledge base by following the Mission Briefing from Codex.',
                     startsDaemon: true,
-                    tool: 'alembic_codex_bootstrap',
-                }),
-                buildCodexRecommendedAction({
-                    arguments: { limit: 10 },
-                    label: 'List jobs',
-                    reason: 'Recover bootstrap job status after Codex reconnects.',
-                    startsDaemon: false,
-                    tool: 'alembic_codex_job',
                 }),
             ],
             notes: [
-                'Project-knowledge tools stay hidden until Recipes or Project Skills exist.',
-                'Prime, Guard, search, rescan, and lifecycle tools are available after the knowledge base is usable.',
+                'Codex host-agent bootstrap does not require an Alembic AI Provider.',
+                'Prime, Guard, search, and lifecycle tools are available after the knowledge base is usable.',
             ],
         };
     }
@@ -379,11 +367,9 @@ export function buildCodexStatusOnboarding(input) {
                 startsDaemon: !daemonReady,
                 tool: 'alembic_task',
             }),
-            buildCodexRecommendedAction({
-                label: 'Start bootstrap',
-                reason: 'Build or refresh project knowledge in a recoverable background job.',
+            buildCodexHostAgentRescanAction({
+                reason: 'Refresh project knowledge through the Codex host-agent workflow.',
                 startsDaemon: !daemonReady,
-                tool: 'alembic_codex_bootstrap',
             }),
             buildCodexRecommendedAction({
                 label: 'Open Dashboard',

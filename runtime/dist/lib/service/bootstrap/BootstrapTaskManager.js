@@ -18,7 +18,7 @@
  *   bootstrap:all-completed — 全部任务完成
  */
 import Logger from '@alembic/core/logging';
-import { getTestModeConfig } from '@alembic/core/shared/test-mode';
+import { getTestModeConfig } from '@alembic/core/shared';
 /** 任务状态枚举 */
 export const TaskStatus = Object.freeze({
     SKELETON: 'skeleton', // 骨架已创建，等待填充

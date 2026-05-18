@@ -2,7 +2,7 @@ import { rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute } from 'node:path';
 import { JobStore, resolveDaemonPaths } from '@alembic/core/daemon';
-import { PROVIDER_KEY_ENV, WorkspaceSettingsStore, } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { PROVIDER_KEY_ENV, WorkspaceSettingsStore, } from '@alembic/core/shared';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -457,22 +457,31 @@ export class CodexMcpServer {
                 },
             };
         }
+        const knowledge = inspectCodexKnowledge(this.projectRoot);
+        const hostAgentAction = knowledge.usable
+            ? buildCodexRecommendedAction({
+                label: 'Run Codex host-agent rescan',
+                reason: 'Refresh Alembic project knowledge through the Codex host-agent workflow.',
+                startsDaemon: true,
+                tool: 'alembic_rescan',
+            })
+            : buildCodexRecommendedAction({
+                label: 'Start Codex host-agent bootstrap',
+                reason: 'Have Codex read the Mission Briefing, analyze the project, submit knowledge, and complete dimensions without requiring an Alembic AI Provider.',
+                startsDaemon: true,
+                tool: 'alembic_bootstrap',
+            });
         return {
             success: true,
             data: {
                 dashboardUrl: daemon.state.dashboardUrl || daemon.state.url,
                 daemon: summarizeCodexDaemonStatus(daemon),
                 nextActions: [
-                    buildCodexRecommendedAction({
-                        label: 'Start bootstrap',
-                        reason: 'Create or refresh Alembic project knowledge from the Dashboard-backed daemon.',
-                        startsDaemon: true,
-                        tool: 'alembic_codex_bootstrap',
-                    }),
+                    hostAgentAction,
                     buildCodexRecommendedAction({
                         arguments: { limit: 10 },
-                        label: 'List jobs',
-                        reason: 'Recover job status after Codex reconnects or the Dashboard refreshes.',
+                        label: 'List internal AI jobs',
+                        reason: 'Recover status for explicit Alembic internal AI daemon jobs after Codex reconnects or the Dashboard refreshes.',
                         startsDaemon: false,
                         tool: 'alembic_codex_job',
                     }),

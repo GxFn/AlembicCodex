@@ -3,8 +3,8 @@
  * submitKnowledge, submitKnowledgeBatch, knowledgeLifecycle
  */
 import { dimensionTags } from '@alembic/core/dimensions';
-import { UnifiedValidator } from '@alembic/core/domain/knowledge/UnifiedValidator';
-import { getDeveloperIdentity } from '@alembic/core/shared/developer-identity';
+import { UnifiedValidator } from '@alembic/core/knowledge';
+import { getDeveloperIdentity } from '@alembic/core/shared';
 import { resolveProjectRoot } from '@alembic/core/workspace';
 import { envelope } from '../envelope.js';
 // ─── 限流 ──────────────────────────────────────────────────
@@ -121,7 +121,7 @@ export async function submitKnowledgeBatch(ctx, args) {
     let items = args.items;
     if (args.deduplicate !== false) {
         try {
-            const { aggregateCandidates } = await import('@alembic/core/service/candidate/CandidateAggregator');
+            const { aggregateCandidates } = await import('@alembic/core/service/candidate');
             // 对 title 字段做去重
             const readinessItems = items.map((it) => ({
                 ...it,

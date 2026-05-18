@@ -1,4 +1,4 @@
-import { collectAiEnvOverrides, maskAiEnvConfig, PROVIDER_KEY_ENV, WorkspaceSettingsStore, } from '@alembic/core/shared/WorkspaceSettingsStore';
+import { collectAiEnvOverrides, maskAiEnvConfig, PROVIDER_KEY_ENV, WorkspaceSettingsStore, } from '@alembic/core/shared';
 import { WorkspaceResolver } from '@alembic/core/workspace';
 export function inspectCodexAiConfig(projectRoot, env = process.env) {
     const resolver = WorkspaceResolver.fromProject(projectRoot);

@@ -44,7 +44,7 @@
 import { execSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, renameSync, rmdirSync, rmSync, writeFileSync, } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { isExcludedProject } from '@alembic/core/shared/isOwnDevRepo';
+import { isExcludedProject } from '@alembic/core/shared';
 import { DEFAULT_KNOWLEDGE_BASE_DIR, DEFAULT_SUB_REPO_DIR, isGitRepo, ProjectRegistry, WorkspaceResolver, } from '@alembic/core/workspace';
 import { PACKAGE_ROOT } from '../shared/package-assets.js';
 /** Alembic 源码仓库根目录（定位 templates/ 等资源） */

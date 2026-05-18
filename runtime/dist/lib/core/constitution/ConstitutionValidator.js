@@ -1,5 +1,5 @@
 import Logger from '@alembic/core/logging';
-import { ConstitutionViolation } from '@alembic/core/shared/errors/BaseError';
+import { ConstitutionViolation } from '@alembic/core/shared';
 /**
  * ConstitutionValidator — 数据守护验证器
  *

@@ -3,7 +3,7 @@
  * 提取自各路由文件中的重复实现
  */
 import { KnowledgeEntry } from '@alembic/core/knowledge';
-import { getDeveloperIdentity } from '@alembic/core/shared/developer-identity';
+import { getDeveloperIdentity } from '@alembic/core/shared';
 /**
  * 从请求中提取操作上下文（用户身份、IP、UA）
  * @returns }

@@ -9,8 +9,8 @@
  * alembic_bootstrap 已迁移到 bootstrap-external.js（外部 Agent 路径）。
  */
 import { dimensionTags } from '@alembic/core/dimensions';
-import { getRequiredFieldsDescription } from '@alembic/core/domain/knowledge/FieldSpec';
-import { getDeveloperIdentity } from '@alembic/core/shared/developer-identity';
+import { getRequiredFieldsDescription } from '@alembic/core/knowledge';
+import { getDeveloperIdentity } from '@alembic/core/shared';
 import { envelope } from '../envelope.js';
 import * as browseHandlers from './browse.js';
 import * as guardHandlers from './guard.js';
@@ -199,7 +199,7 @@ export async function consolidatedSkill(ctx, args) {
  */
 export async function enhancedSubmitKnowledge(ctx, args) {
     const { RecipeProductionGateway } = await import('@alembic/core/knowledge');
-    const { findSimilarRecipes } = await import('@alembic/core/service/candidate/SimilarityService');
+    const { findSimilarRecipes } = await import('@alembic/core/service/candidate');
     const items = args.items;
     if (!items || !Array.isArray(items) || items.length === 0) {
         return envelope({

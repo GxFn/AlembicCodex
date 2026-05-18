@@ -12,7 +12,7 @@ import { DimensionCopy } from '@alembic/core/dimensions';
 import { KnowledgeService, RecipeProductionGateway } from '@alembic/core/knowledge';
 import { getDiscovererRegistry, LanguageService } from '@alembic/core/project-intelligence';
 import { HybridRetriever, SearchEngine } from '@alembic/core/search';
-import { findSimilarRecipes } from '@alembic/core/service/candidate/SimilarityService';
+import { findSimilarRecipes } from '@alembic/core/service/candidate';
 import { ConsolidationAdvisor } from '@alembic/core/service/evolution/ConsolidationAdvisor';
 import { ContentPatcher } from '@alembic/core/service/evolution/ContentPatcher';
 import { DecayDetector } from '@alembic/core/service/evolution/DecayDetector';

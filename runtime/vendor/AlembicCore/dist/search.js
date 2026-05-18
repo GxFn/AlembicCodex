@@ -4,7 +4,7 @@ export { CoarseRanker } from './service/search/CoarseRanker.js';
 export { contextBoost } from './service/search/contextBoost.js';
 export { FieldWeightedScorer } from './service/search/FieldWeightedScorer.js';
 export { HybridRetriever } from './service/search/HybridRetriever.js';
-export { MultiSignalRanker } from './service/search/MultiSignalRanker.js';
+export { AuthoritySignal, ContextMatchSignal, DifficultySignal, MultiSignalRanker, PopularitySignal, RecencySignal, RelevanceSignal, VectorSignal, } from './service/search/MultiSignalRanker.js';
 export { SearchEngine };
 export { queryNonDeprecatedEntries, RawDbGuardAdapter, RawDbKnowledgeAdapter, RawDbSourceRefAdapter, unwrapRawDb, unwrapSearchDb, } from './repository/search/SearchRepoAdapter.js';
 export { groupByKind, slimSearchResult, } from './service/search/SearchTypes.js';

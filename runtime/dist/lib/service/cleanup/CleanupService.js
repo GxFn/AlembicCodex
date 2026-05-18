@@ -22,9 +22,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { recipeDimensionIdOrUnknown } from '@alembic/core/domain/dimension';
-import { CANDIDATES_DIR } from '@alembic/core/infrastructure/config/Defaults';
-import { getContextIndexPath, getProjectKnowledgePath, getProjectRecipesPath, getProjectSkillsPath, } from '@alembic/core/infrastructure/config/Paths';
+import { recipeDimensionIdOrUnknown } from '@alembic/core/dimensions';
+import { CANDIDATES_DIR } from '@alembic/core/config';
+import { getContextIndexPath, getProjectKnowledgePath, getProjectRecipesPath, getProjectSkillsPath, } from '@alembic/core/config';
 import { CONSUMABLE_LIFECYCLES, lifecycleInSql } from '@alembic/core/knowledge';
 // ── 常量 ────────────────────────────────────────────────────
 /** 垃圾桶根目录（相对于 .asd/） */

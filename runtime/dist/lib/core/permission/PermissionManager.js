@@ -1,5 +1,5 @@
 import Logger from '@alembic/core/logging';
-import { PermissionDenied } from '@alembic/core/shared/errors/BaseError';
+import { PermissionDenied } from '@alembic/core/shared';
 /**
  * PermissionManager - 权限管理器
  * 基于 3-tuple 模型：(actor, action, resource)
