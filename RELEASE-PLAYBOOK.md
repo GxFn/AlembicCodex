@@ -4,9 +4,11 @@ This playbook describes how to release, test, and promote the Alembic Codex plug
 
 ## Release Model
 
-Alembic for Codex is built from the Alembic monorepo and published through a dedicated plugin distribution repo:
+Alembic for Codex is built from the AlembicPlugin repository with explicit sibling source checkouts for shared packages:
 
-- The npm runtime package: `alembic-ai`.
+- Local development uses `@alembic/core: file:../AlembicCore`.
+- Dashboard assets are built from `../AlembicDashboard`.
+- The npm runtime package name is currently `alembic-ai`, but root npm publishing is gated while the root package still contains workspace-local `file:../...` dependencies.
 - The Codex plugin submodule: `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
 - The embedded Codex runtime package generated at `plugins/alembic-codex/runtime`.
 - The embedded runtime tarball generated at `plugins/alembic-codex/runtime.tgz`.
@@ -32,12 +34,21 @@ uses a plugin-specific npm cache plus a startup lock before invoking
 `npx --package ./runtime.tgz`, so local verification and Codex restarts can
 reuse npm artifacts without contending for one shared `_npx` install directory.
 
+The embedded runtime is intentionally different from the root development
+package: `plugins/alembic-codex/runtime/package.json` must keep
+`@alembic/core: file:vendor/AlembicCore`, and
+`plugins/alembic-codex/runtime/vendor/AlembicCore/.alembic-source.json` must
+record the Core source label and commit used to produce the portable snapshot.
+That portable runtime dependency is allowed only inside the embedded runtime;
+the root package must not be published while it leaks `file:../AlembicCore`.
+
 That means every package version bump must keep these surfaces aligned:
 
 - `package.json`
 - `package-lock.json`
 - `plugins/alembic-codex/.mcp.json`
 - `plugins/alembic-codex/runtime/package.json`
+- `plugins/alembic-codex/runtime/vendor/AlembicCore/.alembic-source.json`
 - `plugins/alembic-codex/README.md`
 - `plugins/alembic-codex/README.zh-CN.md`
 - the `GxFn/AlembicCodex` submodule commit
@@ -56,13 +67,14 @@ npm run build
 npm run build:dashboard
 npm run prepare:codex-plugin-runtime
 alembic codex diagnostics --json
+npm run verify:release-package-boundary
 npm run release:codex-plugin
 npm run sync:gxfn-marketplace --prefix plugins/alembic-codex
 npm run release:codex-plugin:daemon
 ```
 
 4. Commit and push any plugin changes from inside `plugins/alembic-codex`.
-5. Commit the updated submodule pointer and release-readiness changes in the Alembic monorepo.
+5. Commit the updated `plugins/alembic-codex` pointer and release-readiness changes in the AlembicPlugin repository.
 6. Push `main` and wait for CI to pass.
 7. Create an annotated tag on the exact green commit:
 
@@ -71,8 +83,9 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-8. Watch the `Release` workflow. It verifies the tag matches `package.json`, builds runtime/Dashboard/VS Code extension, runs lint, unit and integration tests, previews the npm package, uploads the VS Code artifact, and publishes npm with provenance.
-9. Confirm the registry:
+8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out the sibling `AlembicCore` and `AlembicDashboard` repositories, builds runtime and Dashboard assets, runs lint, unit and integration tests, verifies the portable runtime metadata, previews the npm package, and then runs the package boundary publish gate.
+9. Do not expect npm publish to proceed while the root package still contains `file:../AlembicCore`. The publish gate must fail before `npm publish` until a staging manifest or registry dependency handoff is added after the Core package baseline is accepted.
+10. Confirm the registry only after that publish gate has intentionally been removed or converted into a staging-manifest guard:
 
 ```bash
 npm view alembic-ai version dist-tags.latest
@@ -82,26 +95,24 @@ The expected result is both values matching the tag version.
 
 ## Release Workflow Contract
 
-The GitHub `Release` workflow is expected to do the irreversible publish step.
+The GitHub `Release` workflow is expected to prove the release candidate and protect the irreversible publish step. While the root manifest keeps `@alembic/core: file:../AlembicCore`, the workflow must stop at `release:package-boundary:publish` before `npm publish`.
 
 It must pass:
 
 - Tag/package version equality check.
 - `npm ci`.
 - Dashboard dependency install.
-- VS Code extension dependency install.
 - `npm run build`.
 - `npm run build:dashboard`.
 - `npm run prepare:codex-plugin-runtime`.
 - `npm run verify:codex-channel`.
 - `npm run verify:codex-plugin`.
-- `npm run build:vscode-ext`.
+- `npm run verify:release-package-boundary`.
 - `npm run lint -- --diagnostic-level=error`.
 - `npm run test:unit`.
 - `npm run test:integration`.
 - `npm pack --dry-run`.
-- VS Code extension package preview.
-- `npm publish --provenance --access public --ignore-scripts`.
+- `npm run release:package-boundary:publish` before any `npm publish --provenance --access public --ignore-scripts`.
 
 `prepublishOnly` still runs `npm run release:codex-plugin` for local safety, but the Release workflow uses `--ignore-scripts` because it already ran the build and test gates.
 
