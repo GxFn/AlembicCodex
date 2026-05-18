@@ -60,7 +60,7 @@ Enable `alembic-codex` from the plugin list after installation.
 
 ## First Checks
 
-Use `alembic_codex_diagnostics` first. It reports Node, npm, npx, package version, daemon version, plugin metadata checks, offline fallback guidance, cleanup policy, and structured `issues` / `nextActions`.
+Use `alembic_codex_diagnostics` first. It reports Node, npm, npx, package version, daemon version, plugin metadata checks, portable runtime artifact guidance, cleanup policy, and structured `issues` / `nextActions`.
 
 Use `alembic_codex_status` to inspect workspace initialization and daemon state without starting the daemon. The response includes an `onboarding` block with a concise state, primary recommended tool call, whether that call starts the daemon, and follow-up actions.
 
@@ -92,7 +92,7 @@ Before publishing, run:
 npm run release:codex-plugin
 ```
 
-The release check builds the runtime and Dashboard, prepares `plugins/alembic-codex/runtime`, verifies the local Codex marketplace entry, validates the embedded MCP runtime package, checks the lightweight `alembic-codex-mcp` binary, default agent tier, disabled admin gate, declared assets, shipped skills, default prompts, README runtime fallback, package tarball contents, local install simulation, and real MCP stdio calls.
+The release check builds the runtime and Dashboard, prepares `plugins/alembic-codex/runtime`, verifies the local Codex marketplace entry, validates the embedded MCP runtime package, checks the lightweight `alembic-codex-mcp` binary, default agent tier, disabled admin gate, declared assets, shipped skills, default prompts, README runtime artifact guidance, package tarball contents, local install simulation, and real MCP stdio calls.
 
 For the full local daemon path, run:
 
@@ -135,12 +135,7 @@ The Alembic monorepo still keeps its local development marketplace at `.agents/p
 
 ## Offline Fallback
 
-The default plugin config launches the embedded `./runtime.tgz` package through the wrapper and `npx`. If the first run cannot reach the npm registry to resolve production dependencies, install the same runtime version globally and run the MCP binary from `PATH`:
-
-```bash
-npm install -g alembic-ai@0.1.2
-alembic-codex-mcp
-```
+The default plugin config launches the embedded `./runtime.tgz` package through the wrapper and `npx`. AlembicPlugin does not ship a root registry package fallback. If the first run cannot resolve production dependencies, restore network access for the wrapper cache, clear the plugin-specific npm cache if needed, and rerun `alembic_codex_diagnostics`.
 
 ## Cleanup Policy
 

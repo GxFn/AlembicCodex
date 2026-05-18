@@ -60,7 +60,7 @@ main
 
 ## 首次检查
 
-先使用 `alembic_codex_diagnostics`。它会报告 Node、npm、npx、package version、daemon version、插件元数据检查、离线 fallback 指引、清理策略，以及结构化的 `issues` / `nextActions`。
+先使用 `alembic_codex_diagnostics`。它会报告 Node、npm、npx、package version、daemon version、插件元数据检查、portable runtime artifact 指引、清理策略，以及结构化的 `issues` / `nextActions`。
 
 使用 `alembic_codex_status` 检查工作区初始化和 daemon 状态，不会启动 daemon。返回结果包含 `onboarding` 块：当前状态、推荐的下一步 tool call、该调用是否会启动 daemon，以及后续动作。
 
@@ -92,7 +92,7 @@ alembic codex status --json
 npm run release:codex-plugin
 ```
 
-这会构建 runtime 和 Dashboard，生成 `plugins/alembic-codex/runtime`，验证本地 Codex marketplace entry、内置 MCP runtime package、轻量 `alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、README runtime fallback、npm tarball 内容、本地安装模拟，以及真实 MCP stdio 调用。
+这会构建 runtime 和 Dashboard，生成 `plugins/alembic-codex/runtime`，验证本地 Codex marketplace entry、内置 MCP runtime package、轻量 `alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、README runtime artifact 指引、npm tarball 内容、本地安装模拟，以及真实 MCP stdio 调用。
 
 完整本地 daemon 链路运行：
 
@@ -135,12 +135,7 @@ Alembic 主仓库仍保留自己的本地开发 marketplace：`.agents/plugins/m
 
 ## 离线 Fallback
 
-默认插件配置通过 wrapper 和 `npx` 启动内置 `./runtime.tgz` package。如果首次运行无法访问 npm registry 解析生产依赖，可以全局安装同一 runtime 版本，然后从 `PATH` 运行 MCP binary：
-
-```bash
-npm install -g alembic-ai@0.1.2
-alembic-codex-mcp
-```
+默认插件配置通过 wrapper 和 `npx` 启动内置 `./runtime.tgz` package。AlembicPlugin 不提供 root registry package fallback。如果首次运行无法解析生产依赖，请恢复 wrapper cache 的网络访问，必要时清理插件专用 npm cache，然后重新运行 `alembic_codex_diagnostics`。
 
 ## 清理策略
 

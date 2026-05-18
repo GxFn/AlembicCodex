@@ -1,6 +1,6 @@
 # Alembic Codex Plugin Release Playbook
 
-This playbook describes how to release, test, and promote the Alembic Codex plugin. It is intentionally operational: every section should help a maintainer decide what to run, what to verify, and what to say publicly.
+This playbook describes how to release, test, and promote the Alembic Codex plugin. AlembicPlugin is artifact-only: it does not publish the root package to a registry. The release output is the installable Codex plugin snapshot plus the portable runtime artifact at `plugins/alembic-codex/runtime.tgz`.
 
 ## Release Model
 
@@ -8,15 +8,15 @@ Alembic for Codex is built from the AlembicPlugin repository with explicit sibli
 
 - Local development uses `@alembic/core: file:../AlembicCore`.
 - Dashboard assets are built from `../AlembicDashboard`.
-- The npm runtime package name is currently `alembic-ai`, but root npm publishing is gated while the root package still contains workspace-local `file:../...` dependencies.
-- The Codex plugin submodule: `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
-- The embedded Codex runtime package generated at `plugins/alembic-codex/runtime`.
-- The embedded runtime tarball generated at `plugins/alembic-codex/runtime.tgz`.
-- The installable plugin repository: `GxFn/AlembicCodex`.
-- The repo-local Codex marketplace entry: `.agents/plugins/marketplace.json`.
+- The AlembicPlugin root package is private and is not a registry distribution package.
+- The Codex plugin submodule is `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
+- The embedded Codex runtime package is generated at `plugins/alembic-codex/runtime`.
+- The embedded runtime tarball is generated at `plugins/alembic-codex/runtime.tgz`.
+- The installable plugin repository is `GxFn/AlembicCodex`.
+- The repo-local Codex marketplace entry is `.agents/plugins/marketplace.json`.
 
 The plugin MCP config installs the embedded runtime package and lets `npx`
-resolve that package's production npm dependencies:
+resolve that package's production dependencies:
 
 ```json
 {
@@ -26,29 +26,33 @@ resolve that package's production npm dependencies:
 }
 ```
 
-`./runtime/package.json` is still `alembic-ai@<version>`, and
-`./runtime.tgz` is packed from that exact directory. The tarball is what makes
-the wrapper install production dependencies with normal npm package semantics
-while keeping Alembic business code inside the installed plugin. The wrapper
-uses a plugin-specific npm cache plus a startup lock before invoking
-`npx --package ./runtime.tgz`, so local verification and Codex restarts can
-reuse npm artifacts without contending for one shared `_npx` install directory.
+`./runtime/package.json` remains `alembic-ai@<version>`, and
+`./runtime.tgz` is packed from that exact directory. This package name is an
+internal portable runtime identity for the plugin artifact, not a root registry
+release contract. The tarball is what makes the wrapper install production
+dependencies with normal npm package semantics while keeping Alembic business
+code inside the installed plugin. The wrapper uses a plugin-specific npm cache
+plus a startup lock before invoking `npx --package ./runtime.tgz`, so local
+verification and Codex restarts can reuse npm artifacts without contending for
+one shared `_npx` install directory.
 
 The embedded runtime is intentionally different from the root development
 package: `plugins/alembic-codex/runtime/package.json` must keep
 `@alembic/core: file:vendor/AlembicCore`, and
 `plugins/alembic-codex/runtime/vendor/AlembicCore/.alembic-source.json` must
 record the Core source label and commit used to produce the portable snapshot.
-That portable runtime dependency is allowed only inside the embedded runtime;
-the root package must not be published while it leaks `file:../AlembicCore`.
+That portable runtime dependency is allowed only inside the embedded runtime.
+Do not replace it with a registry dependency and do not reintroduce the removed agent package dependency.
 
 That means every package version bump must keep these surfaces aligned:
 
 - `package.json`
 - `package-lock.json`
+- `channels/codex/channel.json`
 - `plugins/alembic-codex/.mcp.json`
 - `plugins/alembic-codex/runtime/package.json`
 - `plugins/alembic-codex/runtime/vendor/AlembicCore/.alembic-source.json`
+- `plugins/alembic-codex/runtime.tgz`
 - `plugins/alembic-codex/README.md`
 - `plugins/alembic-codex/README.zh-CN.md`
 - the `GxFn/AlembicCodex` submodule commit
@@ -56,7 +60,7 @@ That means every package version bump must keep these surfaces aligned:
 
 ## Version And Tag Flow
 
-Use the tag-driven GitHub Release workflow as the source of truth. Avoid local manual `npm publish` except for emergency recovery.
+Use the tag-driven GitHub Release workflow as the source of truth for plugin artifacts. Avoid local manual artifact assembly except for emergency recovery.
 
 1. Choose the version, for example `0.1.0`.
 2. Update package metadata to the same version.
@@ -83,19 +87,13 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out the sibling `AlembicCore` and `AlembicDashboard` repositories, builds runtime and Dashboard assets, runs lint, unit and integration tests, verifies the portable runtime metadata, previews the npm package, and then runs the package boundary publish gate.
-9. Do not expect npm publish to proceed while the root package still contains `file:../AlembicCore`. The publish gate must fail before `npm publish` until a staging manifest or registry dependency handoff is added after the Core package baseline is accepted.
-10. Confirm the registry only after that publish gate has intentionally been removed or converted into a staging-manifest guard:
-
-```bash
-npm view alembic-ai version dist-tags.latest
-```
-
-The expected result is both values matching the tag version.
+8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out sibling `AlembicCore` and `AlembicDashboard`, builds runtime and Dashboard assets, runs lint, unit and integration tests, verifies the portable runtime metadata, smokes the Codex plugin package, and uploads the Codex plugin artifacts.
+9. Confirm the uploaded artifact includes `plugins/alembic-codex/runtime.tgz`, plugin manifests, plugin READMEs, `channels/codex/channel.json`, and `.agents/plugins/marketplace.json`.
+10. Confirm `runtime/vendor/AlembicCore/.alembic-source.json` records the expected Core source and a 40-character commit.
 
 ## Release Workflow Contract
 
-The GitHub `Release` workflow is expected to prove the release candidate and protect the irreversible publish step. While the root manifest keeps `@alembic/core: file:../AlembicCore`, the workflow must stop at `release:package-boundary:publish` before `npm publish`.
+The GitHub `Release` workflow is expected to prove the release candidate and upload the plugin artifacts. The root package is private and the workflow must not contain a root registry publication step.
 
 It must pass:
 
@@ -108,13 +106,14 @@ It must pass:
 - `npm run verify:codex-channel`.
 - `npm run verify:codex-plugin`.
 - `npm run verify:release-package-boundary`.
+- Portable runtime metadata check for `runtime.tgz` and `.alembic-source.json`.
 - `npm run lint -- --diagnostic-level=error`.
 - `npm run test:unit`.
 - `npm run test:integration`.
-- `npm pack --dry-run`.
-- `npm run release:package-boundary:publish` before any `npm publish --provenance --access public --ignore-scripts`.
+- `npm run smoke:codex-plugin`.
+- `actions/upload-artifact` with the Codex plugin manifest, marketplace/channel metadata, READMEs, and `plugins/alembic-codex/runtime.tgz`.
 
-`prepublishOnly` still runs `npm run release:codex-plugin` for local safety, but the Release workflow uses `--ignore-scripts` because it already ran the build and test gates.
+`prepublishOnly` intentionally points to `npm run release:root-npm-publish:disabled` so an accidental root package registry attempt fails with an explicit artifact-only message. Run `npm run release:codex-plugin` directly for local plugin release readiness.
 
 ## Test Matrix
 
@@ -126,7 +125,7 @@ Use the matrix below when changing plugin metadata, MCP startup, daemon lifecycl
 | Runtime build | `npm run build` | TypeScript builds and CLI/MCP bins are generated | Every code change |
 | Embedded runtime package | `npm run prepare:codex-plugin-runtime` | `plugins/alembic-codex/runtime` contains compiled Alembic code, Dashboard, resources, and local package metadata | Every release candidate |
 | CLI diagnostics | `alembic codex diagnostics --json` | Node, npm/npx, embedded runtime wiring, plugin files, admin gate, daemon version checks work outside Codex | Every release candidate |
-| Package/install smoke | `npm run smoke:codex-plugin -- --no-stdio` | npm tarball contents and local marketplace install simulation | Docs/metadata/package files changes |
+| Package/install smoke | `npm run smoke:codex-plugin -- --no-stdio` | Plugin artifact contents and local marketplace install simulation | Docs/metadata/package files changes |
 | MCP stdio smoke | `npm run smoke:codex-plugin` | Real MCP client can list/call Codex tools through stdio | MCP shim changes |
 | Plugin submodule commit | `git -C plugins/alembic-codex status` | Dedicated `GxFn/AlembicCodex` repo contains the complete installable plugin with embedded runtime | Every release candidate |
 | GxFn marketplace sync | `npm run sync:gxfn-marketplace --prefix plugins/alembic-codex` | Aggregate `GxFn/GxFnCodexMarketplace` receives the installable Alembic plugin snapshot | Every release candidate |
@@ -134,7 +133,7 @@ Use the matrix below when changing plugin metadata, MCP startup, daemon lifecycl
 | Unit tests | `npm run test:unit` | Core behavior and Codex MCP unit contracts | Shared code changes |
 | Integration tests | `npm run test:integration` | End-to-end service behavior without relying on the Codex app | HTTP/workflow/storage changes |
 | CI | GitHub `CI` on `main` | Linux/Node 22 compatibility and clean checkout behavior | Before tagging |
-| Release workflow | GitHub `Release` on `v*` tag | Production publish path | Every npm release |
+| Release workflow | GitHub `Release` on `v*` tag | Plugin artifact release path | Every public plugin artifact release |
 | Manual Codex app pass | Install/enable plugin, run first-minute prompts | Actual marketplace-style UX | Before public announcement |
 
 ## Manual Codex App Pass
@@ -158,9 +157,9 @@ Run this against a fresh test repository and one real project before public prom
 
 | Symptom | First Check | Likely Cause | Fix |
 | --- | --- | --- | --- |
-| Plugin visible but MCP does not start | `alembic codex diagnostics --json` | Node < 22, missing npm/npx, npx cannot resolve embedded runtime dependencies | Install Node 22, use global `npm install -g alembic-ai@<version>` fallback |
+| Plugin visible but MCP does not start | `alembic codex diagnostics --json` | Node < 22, missing npm/npx, npx cannot resolve embedded runtime dependencies | Install Node 22, regenerate `runtime.tgz`, inspect the wrapper npm cache and startup lock |
 | Diagnostics runtime mismatch | `plugins/alembic-codex/.mcp.json`, `plugins/alembic-codex/runtime/package.json`, and `plugins/alembic-codex/runtime.tgz` | Plugin config no longer points at `./runtime.tgz`, or runtime was not regenerated | Run `npm run prepare:codex-plugin-runtime` and rerun `npm run verify:codex-plugin` |
-| npm release did not happen | Release workflow logs | Tag mismatch, tests failed, npm token/provenance issue | Fix workflow failure, create a new patch version/tag |
+| Artifact upload missing | Release workflow logs | Tag mismatch, tests failed, artifact upload path changed, or runtime tarball was not generated | Fix workflow failure, create a new patch version/tag |
 | Daemon starts but tools fail | `alembic daemon status --json` and daemon log path | stale daemon state, missing bridge token, health identity mismatch | Stop daemon, rerun dashboard/bootstrap, inspect `daemon.log` |
 | Job remains running forever | `alembic_codex_job` and Dashboard jobs page | daemon restart before interruption marking, old JobStore record | Restart daemon; lifecycle should mark active jobs failed with interruption reason |
 | Codex creates project artifacts in Ghost mode | `alembic codex status --json` | setup profile regression or manual standard init | Fix setup profile; rerun on clean test project |
@@ -214,7 +213,7 @@ Ship:
 - A short GIF or video: diagnostics -> status -> init -> prime -> Guard.
 - README quickstart focused on the Codex plugin, not the full Alembic CLI.
 - Issue template that asks users to attach redacted `alembic codex diagnostics --json`.
-- A known-limitations section: Node 22 required, first run may need npm registry access, daemon is local-only.
+- A known-limitations section: Node 22 required, first run may need registry access for production dependencies used by the embedded runtime, daemon is local-only.
 
 Message:
 
@@ -240,7 +239,7 @@ Each example should include:
 - Exact Codex prompt or tool call.
 - Result before/after Alembic prime or Guard.
 - One screenshot or short clip.
-- A fallback note for offline/npm failures.
+- A fallback note for offline/runtime dependency failures.
 
 ### Phase 4: Marketplace Readiness
 
@@ -254,7 +253,7 @@ Maintain a submission pack:
 - Permission and side-effect explanation.
 - Test evidence from latest CI and Release workflow.
 - Known limitations and support URL.
-- `npm view alembic-ai version dist-tags.latest` output.
+- Artifact evidence for the exact uploaded `runtime.tgz` and `GxFn/AlembicCodex` commit.
 
 If a formal marketplace review path is required, submit only after the manual Codex app pass is green on the exact embedded `./runtime.tgz` package generated for the release version.
 
@@ -271,9 +270,9 @@ Product health:
 
 Adoption:
 
-- npm downloads for `alembic-ai`.
 - GitHub stars/watchers.
 - Plugin install or enable count when available.
+- Artifact download count from releases when available.
 - Repeat usage signals: `prime`, `guard`, `job`, and Dashboard calls.
 
 Quality:
@@ -304,10 +303,11 @@ Quality:
 ### Verification
 - CI: <link>
 - Release: <link>
-- npm: `alembic-ai@<version>`
+- Artifact: `plugins/alembic-codex/runtime.tgz`
+- Plugin repo: `GxFn/AlembicCodex@<commit>`
 
 ### Known limitations
 - Requires Node.js 22+.
-- First run through `npx --package ./runtime.tgz` may need npm registry access for production dependencies.
+- First run through `npx --package ./runtime.tgz` may need registry access for production dependencies.
 - Admin tools are disabled by default.
 ```

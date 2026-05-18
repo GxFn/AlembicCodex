@@ -116,8 +116,8 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             },
         },
         offlineFallback: {
-            note: 'The Codex plugin ships Alembic runtime code in ./runtime and starts MCP through ./bin/alembic-codex-mcp-wrapper.mjs. The wrapper invokes npx against ./runtime.tgz with a plugin-specific npm cache and startup lock.',
-            globalInstall: `npm install -g ${context.pinnedRuntimeSpecifier}`,
+            note: 'The Codex plugin ships Alembic runtime code in ./runtime and starts MCP through ./bin/alembic-codex-mcp-wrapper.mjs. The wrapper invokes npx against ./runtime.tgz with a plugin-specific npm cache and startup lock. AlembicPlugin does not provide a root registry package fallback.',
+            registryPackageFallback: false,
             localPackage: context.embeddedRuntimeSpecifier,
             command: context.runtimeBin,
         },
@@ -265,7 +265,7 @@ function buildDiagnosticIssues(input) {
     }
     if (!input.checks.npx) {
         issues.push({
-            action: `Install npm/npx support, or install the fallback runtime globally with npm install -g alembic-ai@${input.packageVersion}.`,
+            action: 'Install npm/npx support so the Codex plugin wrapper can launch the embedded ./runtime.tgz artifact.',
             code: 'NPX_UNAVAILABLE',
             message: String(input.npx.error || 'npx is not available.'),
             severity: 'error',
