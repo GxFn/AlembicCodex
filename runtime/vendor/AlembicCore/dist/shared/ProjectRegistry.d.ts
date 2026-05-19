@@ -56,10 +56,15 @@ export declare const ProjectRegistry: {
      */
     inspect(projectRoot: string): ProjectRegistryInspection;
     /**
-     * 注册项目（幂等）
-     * 如果已注册，更新 ghost 状态
+     * 注册项目（幂等 attach）
+     * 已注册项目再次普通初始化时必须继承既有模式；模式切换只能走显式入口。
      */
     register(projectRoot: string, ghost: boolean, writeZone?: WriteZone): ProjectEntry;
+    /**
+     * 显式切换 workspace mode。
+     * 这是唯一会改变已注册项目 Ghost / Standard 状态的入口，供用户明确迁移或设置时调用。
+     */
+    setWorkspaceMode(projectRoot: string, mode: WorkspaceMode, writeZone?: WriteZone): ProjectEntry;
     /**
      * 移除项目注册
      */

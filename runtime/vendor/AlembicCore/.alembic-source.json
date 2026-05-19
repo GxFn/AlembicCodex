@@ -1,5 +1,5 @@
 {
   "source": "../AlembicCore",
-  "commit": "ab5e332843d6da89c3def6bf33631e0397552566",
+  "commit": "d954010fd6a22cab07692a2b707eb073cc520f52",
   "packageDependency": "file:vendor/AlembicCore"
 }
