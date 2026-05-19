@@ -20,7 +20,11 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             runtime: context,
             requirement: 'status',
         });
-    const moduleBoundary = options.moduleBoundary || buildCodexModuleBoundaryStatus({ enhancementRoute });
+    const moduleBoundary = options.moduleBoundary ||
+        buildCodexModuleBoundaryStatus({
+            enhancementRoute,
+            hostProjectAlignment: options.hostProjectAlignment,
+        });
     const checks = {
         adminGate: context.requestedTier !== 'admin' || context.adminEnabled,
         node: nodeMajor >= 22,
@@ -93,6 +97,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
             ? summarizeCodexProjectRootResolution(options.projectRootResolution)
             : null,
         autoInit: options.autoInit || null,
+        hostProjectAlignment: options.hostProjectAlignment || null,
         enhancementRoute,
         moduleBoundary,
         gitDiffCheckpoint: readHealthGitDiffCheckpoint(daemonStatus.health),

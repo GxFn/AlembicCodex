@@ -15,6 +15,7 @@ export const ALEMBIC_FILE_MONITOR_MODES = [
     'embedded-runtime-adapter',
     'disabled',
 ];
+export const ALEMBIC_RUNTIME_DATA_ROOT_SOURCES = ['project-root', 'ghost-registry'];
 export const ALEMBIC_JOB_KINDS = ['bootstrap', 'rescan'];
 export const ALEMBIC_JOB_ENDPOINTS = {
     bootstrap: '/api/v1/jobs/bootstrap',
@@ -29,6 +30,19 @@ export const ALEMBIC_FILE_MONITOR_EVENT_SOURCES = [
 export const ALEMBIC_FILE_MONITOR_COMPATIBILITY_ALIASES = {
     [LEGACY_IDE_EDIT_SOURCE]: HOST_EDIT_SOURCE,
 };
+export function createAlembicRuntimeProjectIdentity(options) {
+    return {
+        dataRoot: options.dataRoot,
+        dataRootSource: options.dataRootSource,
+        databasePath: options.databasePath,
+        projectId: options.projectId,
+        projectRoot: options.projectRoot,
+        runtimeDir: options.runtimeDir,
+        schemaMigrationVersion: options.schemaMigrationVersion ?? null,
+        // workspaceMode 可由 provider 显式传入；缺省时按 dataRootSource 推导，方便外层渐进接入。
+        workspaceMode: options.workspaceMode ?? inferWorkspaceModeFromDataRootSource(options.dataRootSource),
+    };
+}
 export function createAlembicRuntimeCapabilities(options) {
     const jobKinds = [...(options.jobKinds ?? ALEMBIC_JOB_KINDS)];
     return {
@@ -60,20 +74,17 @@ export function createAlembicRuntimeCapabilities(options) {
     };
 }
 export function createAlembicRuntimeHealthData(options) {
+    const projectIdentity = createAlembicRuntimeProjectIdentity(options);
     return {
         capabilities: options.capabilities,
         dashboardUrl: options.dashboardUrl ?? null,
-        dataRoot: options.dataRoot,
-        databasePath: options.databasePath,
+        ...projectIdentity,
         enhancement: createAlembicRuntimeEnhancementIdentity({
             version: options.version,
             ...options.enhancement,
         }),
         mode: options.mode,
         pid: options.pid,
-        projectId: options.projectId,
-        projectRoot: options.projectRoot,
-        schemaMigrationVersion: options.schemaMigrationVersion ?? null,
         uptime: options.uptime,
         version: options.version,
     };
@@ -104,6 +115,28 @@ export function summarizeAlembicRuntimeCapabilities(value) {
         jobKinds: stringArray(jobs?.kinds),
     };
 }
+export function summarizeAlembicRuntimeProjectIdentity(value) {
+    const identity = asRecord(value);
+    return {
+        dataRoot: firstString(identity?.dataRoot),
+        dataRootSource: normalizeAlembicRuntimeDataRootSource(identity?.dataRootSource),
+        databasePath: firstString(identity?.databasePath),
+        projectId: nullableString(identity?.projectId),
+        projectRoot: firstString(identity?.projectRoot),
+        runtimeDir: firstString(identity?.runtimeDir),
+        schemaMigrationVersion: nullableString(identity?.schemaMigrationVersion),
+        workspaceMode: normalizeAlembicWorkspaceMode(identity?.workspaceMode),
+    };
+}
+export function isAlembicRuntimeDataRootSource(value) {
+    return typeof value === 'string' && ALEMBIC_RUNTIME_DATA_ROOT_SOURCES.includes(value);
+}
+export function normalizeAlembicRuntimeDataRootSource(value) {
+    return isAlembicRuntimeDataRootSource(value) ? value : null;
+}
+export function normalizeAlembicWorkspaceMode(value) {
+    return value === 'standard' || value === 'ghost' ? value : null;
+}
 export function isAlembicRuntimeRouteKind(value) {
     return typeof value === 'string' && ALEMBIC_RUNTIME_ROUTE_KINDS.includes(value);
 }
@@ -131,6 +164,12 @@ function firstString(...values) {
         }
     }
     return null;
+}
+function nullableString(value) {
+    return typeof value === 'string' ? value : null;
+}
+function inferWorkspaceModeFromDataRootSource(source) {
+    return source === 'ghost-registry' ? 'ghost' : 'standard';
 }
 function stringArray(value) {
     if (!Array.isArray(value)) {

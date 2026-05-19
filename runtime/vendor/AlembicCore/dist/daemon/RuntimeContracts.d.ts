@@ -1,3 +1,4 @@
+import type { WorkspaceMode } from '../shared/ProjectRegistry.js';
 import { type CanonicalFileChangeEventSource } from '../shared/source-contracts.js';
 export declare const ALEMBIC_RUNTIME_API_VERSION = "v1";
 export declare const ALEMBIC_RUNTIME_PACKAGE_NAME = "alembic-ai";
@@ -5,6 +6,7 @@ export declare const ALEMBIC_RUNTIME_HEALTH_PATH = "/api/v1/daemon/health";
 export declare const ALEMBIC_FILE_CHANGES_PATH = "/api/v1/file-changes";
 export declare const ALEMBIC_RUNTIME_ROUTE_KINDS: readonly ["local-alembic-daemon", "embedded-plugin-runtime", "local-alembic-install", "unavailable"];
 export declare const ALEMBIC_FILE_MONITOR_MODES: readonly ["daemon-git-worktree", "host-event-bridge", "embedded-runtime-adapter", "disabled"];
+export declare const ALEMBIC_RUNTIME_DATA_ROOT_SOURCES: readonly ["project-root", "ghost-registry"];
 export declare const ALEMBIC_JOB_KINDS: readonly ["bootstrap", "rescan"];
 export declare const ALEMBIC_JOB_ENDPOINTS: {
     readonly bootstrap: "/api/v1/jobs/bootstrap";
@@ -19,14 +21,18 @@ export type AlembicRuntimeMode = 'api' | 'daemon';
 export type AlembicRuntimeRouteKind = (typeof ALEMBIC_RUNTIME_ROUTE_KINDS)[number];
 export type AlembicEnhancementRoute = 'local-alembic';
 export type AlembicFileMonitorMode = (typeof ALEMBIC_FILE_MONITOR_MODES)[number];
+export type AlembicRuntimeDataRootSource = (typeof ALEMBIC_RUNTIME_DATA_ROOT_SOURCES)[number];
 export type AlembicJobKind = (typeof ALEMBIC_JOB_KINDS)[number];
 export type AlembicInternalAiConfigSource = 'empty' | 'process-env' | 'runtime-overrides' | 'workspace-settings';
 export interface AlembicRuntimeProjectIdentity {
     dataRoot: string;
+    dataRootSource: AlembicRuntimeDataRootSource;
     databasePath?: string;
     projectId: string | null;
     projectRoot: string;
+    runtimeDir: string;
     schemaMigrationVersion?: string | null;
+    workspaceMode?: WorkspaceMode;
 }
 export interface AlembicRuntimeEnhancementIdentity {
     apiVersion: typeof ALEMBIC_RUNTIME_API_VERSION;
@@ -103,6 +109,16 @@ export interface CreateAlembicRuntimeHealthDataOptions extends AlembicRuntimePro
     uptime?: number;
     version: string;
 }
+export interface AlembicRuntimeProjectIdentitySummary {
+    dataRoot: string | null;
+    dataRootSource: AlembicRuntimeDataRootSource | null;
+    databasePath: string | null;
+    projectId: string | null;
+    projectRoot: string | null;
+    runtimeDir: string | null;
+    schemaMigrationVersion: string | null;
+    workspaceMode: WorkspaceMode | null;
+}
 export interface AlembicRuntimeCapabilitySummary {
     apiAvailable: boolean | null;
     dashboardAvailable: boolean | null;
@@ -113,6 +129,7 @@ export interface AlembicRuntimeCapabilitySummary {
     jobsAvailable: boolean | null;
     jobKinds: string[];
 }
+export declare function createAlembicRuntimeProjectIdentity(options: AlembicRuntimeProjectIdentity): AlembicRuntimeProjectIdentity;
 export declare function createAlembicRuntimeCapabilities(options: CreateAlembicRuntimeCapabilitiesOptions): AlembicRuntimeCapabilities;
 export declare function createAlembicRuntimeHealthData(options: CreateAlembicRuntimeHealthDataOptions): AlembicRuntimeHealthData;
 export declare function createAlembicRuntimeEnhancementIdentity(input: {
@@ -122,6 +139,10 @@ export declare function createAlembicRuntimeEnhancementIdentity(input: {
     version: string;
 }): AlembicRuntimeEnhancementIdentity;
 export declare function summarizeAlembicRuntimeCapabilities(value: unknown): AlembicRuntimeCapabilitySummary;
+export declare function summarizeAlembicRuntimeProjectIdentity(value: unknown): AlembicRuntimeProjectIdentitySummary;
+export declare function isAlembicRuntimeDataRootSource(value: unknown): value is AlembicRuntimeDataRootSource;
+export declare function normalizeAlembicRuntimeDataRootSource(value: unknown): AlembicRuntimeDataRootSource | null;
+export declare function normalizeAlembicWorkspaceMode(value: unknown): WorkspaceMode | null;
 export declare function isAlembicRuntimeRouteKind(value: unknown): value is AlembicRuntimeRouteKind;
 export declare function normalizeAlembicRuntimeRouteKind(value: unknown): AlembicRuntimeRouteKind | null;
 export declare function isAlembicFileMonitorMode(value: unknown): value is AlembicFileMonitorMode;

@@ -46,9 +46,16 @@ const PLUGIN_OWNED_BOUNDARIES = [
     {
         id: 'dashboard-url-handoff',
         owner: 'AlembicPlugin',
-        pluginRole: 'Starts or connects to an enhancement daemon and returns a Dashboard URL to Codex.',
+        pluginRole: 'Presents Codex host project alignment and returns a Dashboard URL only when Alembic selected/active runtime already matches the host project.',
         retainedInPlugin: true,
         sourceOfTruth: 'alembic_codex_dashboard and status/onboarding adapters',
+    },
+    {
+        id: 'host-project-mismatch-presentation',
+        owner: 'AlembicPlugin',
+        pluginRole: 'Reads Core project/runtime state for Codex-visible mismatch guidance; never switches Alembic projects.',
+        retainedInPlugin: true,
+        sourceOfTruth: 'lib/codex/HostProjectAlignment.ts',
     },
 ];
 const EXTERNAL_OWNED_BOUNDARIES = [
@@ -97,8 +104,9 @@ const EXTERNAL_OWNED_BOUNDARIES = [
 ];
 export function buildCodexModuleBoundaryStatus(input = {}) {
     const route = input.enhancementRoute || null;
+    const hostProjectAlignment = input.hostProjectAlignment || null;
     return {
-        phase: 'runtime-contract-consumption-wave-2',
+        phase: 'multi-project-control-wave-4-dashboard-plugin-consumer-handoff',
         pluginOwns: PLUGIN_OWNED_BOUNDARIES.map(copyBoundary),
         pluginDoesNotOwn: EXTERNAL_OWNED_BOUNDARIES.map(copyBoundary),
         adapters: {
@@ -114,6 +122,13 @@ export function buildCodexModuleBoundaryStatus(input = {}) {
                 hostAgentSource: route?.hostAgentRoute.source ?? null,
                 internalAiProviderIsProviderStateOnly: true,
                 missingCapabilities: route ? [...route.missingCapabilities] : [],
+            },
+            hostProjectAlignment: {
+                connectionState: hostProjectAlignment?.connectionState ?? null,
+                handoffAllowed: hostProjectAlignment?.handoffAllowed ?? null,
+                role: 'Read-only Codex host project versus Alembic selected/active runtime mismatch presentation; does not own switch/start orchestration.',
+                sourceOfTruth: '@alembic/core/workspace and @alembic/core/daemon ProjectRuntimeControlState',
+                switchOwnership: 'Alembic/Dashboard',
             },
             embeddedRuntime: {
                 artifact: CODEX_EMBEDDED_RUNTIME_SPECIFIER,
@@ -133,6 +148,7 @@ export function buildCodexModuleBoundaryStatus(input = {}) {
         nextWaveGaps: [
             'Replace Plugin-built dashboard/dist with a stable AlembicDashboard or Alembic release asset after that artifact contract exists.',
             'Continue consuming Alembic daemon health runtimeBoundary fields as they stabilize instead of adding Plugin-local permanent contracts.',
+            'Prefer Alembic projects API for richer read-only selected/active project summaries once the safe handoff route is guaranteed available to every bundled runtime.',
             'Keep git-diff checkpoint and JobStore usage marked as embedded runtime compatibility until Alembic daemon contracts can fully cover them.',
         ],
     };

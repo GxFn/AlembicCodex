@@ -6,6 +6,7 @@ import { DaemonSupervisor } from '../daemon/DaemonSupervisor.js';
 import { inspectCodexAiConfig } from './AiConfigState.js';
 import { buildCodexRuntimeDiagnostics } from './Diagnostics.js';
 import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
+import { buildCodexHostProjectAlignment, } from './HostProjectAlignment.js';
 import { inspectCodexKnowledge } from './KnowledgeState.js';
 import { buildCodexModuleBoundaryStatus, } from './ModuleBoundary.js';
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, getCodexInitMarkerPath, readCodexInitMarker, resolveCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
@@ -27,7 +28,15 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         runtime,
         requirement: 'status',
     });
-    const moduleBoundary = buildCodexModuleBoundaryStatus({ enhancementRoute });
+    const hostProjectAlignment = buildCodexHostProjectAlignment({
+        daemonStatus,
+        enhancementRoute,
+        projectRoot,
+    });
+    const moduleBoundary = buildCodexModuleBoundaryStatus({
+        enhancementRoute,
+        hostProjectAlignment,
+    });
     const projectRootResolution = options.projectRootResolution || resolveCodexProjectRoot({ projectRoot: projectRootInput });
     const autoInit = buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, {
         runtimeState: options.autoInit,
@@ -36,6 +45,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         aiConfig,
         autoInit,
         enhancementRoute,
+        hostProjectAlignment,
         moduleBoundary,
         projectRootResolution,
     });
@@ -50,6 +60,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         daemonStatus,
         diagnostics,
         enhancementRoute,
+        hostProjectAlignment,
         knowledge,
         projectRootResolution,
     });
@@ -100,6 +111,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         },
         autoInit,
         knowledge,
+        hostProjectAlignment,
         projectArtifacts: {
             runtimeDir: join(projectRoot, DEFAULT_FOLDER_NAMES.project.runtime),
             runtimeExists: existsSync(join(projectRoot, DEFAULT_FOLDER_NAMES.project.runtime)),
@@ -265,6 +277,7 @@ export function buildCodexKnowledgeGateActions(knowledge) {
 }
 export function buildCodexStatusOnboarding(input) {
     const boundaryNotes = buildCodexRouteBoundaryNotes(input.enhancementRoute);
+    const alignmentNotes = buildCodexHostProjectAlignmentNotes(input.hostProjectAlignment);
     if (input.projectRootResolution && input.projectRootResolution.trust !== 'trusted') {
         return {
             state: 'project_root_unresolved',
@@ -287,6 +300,7 @@ export function buildCodexStatusOnboarding(input) {
                 buildCodexProjectRootRequiredMessage(input.projectRootResolution),
                 ...buildCodexProjectRootRequiredActions(),
                 'Initialization and init-on-demand tools fail closed until the project root is trusted.',
+                ...alignmentNotes,
                 ...boundaryNotes,
             ],
         };
@@ -310,7 +324,7 @@ export function buildCodexStatusOnboarding(input) {
                     tool: 'alembic_codex_diagnostics',
                 }),
             ],
-            notes: ['Status checks do not start the daemon.', ...boundaryNotes],
+            notes: ['Status checks do not start the daemon.', ...alignmentNotes, ...boundaryNotes],
         };
     }
     if (!input.knowledge.initialized) {
@@ -340,6 +354,7 @@ export function buildCodexStatusOnboarding(input) {
                     ? 'Only cold-start initialization tools are exposed until setup completes.'
                     : 'Only cold-start initialization tools are exposed until Alembic knowledge exists.',
                 'Ghost mode keeps Alembic data outside the repository by default.',
+                ...alignmentNotes,
                 ...boundaryNotes,
             ],
         };
@@ -361,6 +376,34 @@ export function buildCodexStatusOnboarding(input) {
             notes: [
                 'Codex host-agent bootstrap does not require an Alembic AI Provider.',
                 'Prime, Guard, search, and lifecycle tools are available after the knowledge base is usable.',
+                ...alignmentNotes,
+                ...boundaryNotes,
+            ],
+        };
+    }
+    if (input.hostProjectAlignment && !input.hostProjectAlignment.handoffAllowed) {
+        return {
+            state: `project_handoff_${input.hostProjectAlignment.connectionState}`,
+            summary: input.hostProjectAlignment.connectionState === 'mismatch'
+                ? 'Alembic Codex is initialized, but the Codex host project differs from the Alembic selected or active project.'
+                : 'Alembic Codex is initialized, but this Codex host project is not connected to an active Alembic runtime project yet.',
+            primaryAction: buildCodexRecommendedAction({
+                label: 'Check workspace status',
+                reason: 'Inspect the Codex host project, Alembic selected project, and active runtime project before Dashboard handoff.',
+                startsDaemon: false,
+                tool: 'alembic_codex_status',
+            }),
+            nextActions: [
+                buildCodexRecommendedAction({
+                    label: 'Run diagnostics',
+                    reason: 'Review plugin runtime status and project handoff mismatch details.',
+                    startsDaemon: false,
+                    tool: 'alembic_codex_diagnostics',
+                }),
+            ],
+            notes: [
+                ...alignmentNotes,
+                'Plugin does not switch Alembic projects or start an embedded runtime to cover a different selected project.',
                 ...boundaryNotes,
             ],
         };
@@ -398,12 +441,31 @@ export function buildCodexStatusOnboarding(input) {
             }),
         ],
         notes: daemonReady
-            ? ['Dashboard and job APIs are available now.', ...boundaryNotes]
+            ? ['Dashboard and job APIs are available now.', ...alignmentNotes, ...boundaryNotes]
             : [
                 'Status checks stay light; project-knowledge tools wake the daemon only when needed.',
+                ...alignmentNotes,
                 ...boundaryNotes,
             ],
     };
+}
+function buildCodexHostProjectAlignmentNotes(alignment) {
+    if (!alignment) {
+        return [];
+    }
+    const mismatch = alignment.handoffMismatch;
+    if (alignment.connectionState === 'connected') {
+        return [
+            'Codex host project matches the Alembic selected/active runtime project for Dashboard handoff.',
+        ];
+    }
+    if (!mismatch) {
+        return alignment.nextActions;
+    }
+    return [
+        `Host project alignment: ${alignment.connectionState}; host=${mismatch.hostRoot || 'unavailable'}, selected=${mismatch.selectedRoot || 'unavailable'}, active=${mismatch.activeRoot || 'unavailable'}, reason=${mismatch.reason}.`,
+        ...alignment.nextActions,
+    ];
 }
 function buildCodexRouteBoundaryNotes(enhancementRoute) {
     if (!enhancementRoute) {
