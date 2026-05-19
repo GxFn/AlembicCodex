@@ -35,7 +35,7 @@ Use `alembic_codex_bootstrap` and `alembic_codex_rescan` only when the user expl
 
 Use `alembic_codex_job` to check explicit internal AI job status later. Job lookup is local and should not start the daemon.
 
-Use `alembic_codex_dashboard` when the user needs review, candidates, or progress visualization. Return the Dashboard URL instead of opening a browser yourself.
+Use `alembic_codex_dashboard` when the user needs review, candidates, or progress visualization and a local Alembic Dashboard daemon is already available for the selected project. Return its URL instead of opening a browser yourself; if the tool reports missing Dashboard handoff capability, surface that next step instead of inventing an embedded Dashboard URL.
 
 ## Permission Boundary
 

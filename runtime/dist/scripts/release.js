@@ -11,7 +11,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { DASHBOARD_DIR, PACKAGE_ROOT } from '../lib/shared/package-assets.js';
+import { PACKAGE_ROOT } from '../lib/shared/package-assets.js';
 const require = createRequire(import.meta.url);
 // 颜色输出
 const _colors = {
@@ -130,15 +130,6 @@ class ReleaseChecker {
             info('构建 TypeScript...');
             exec('npm run build');
             success('TypeScript 构建成功');
-            info('构建 Dashboard...');
-            exec('npm run build:dashboard');
-            const distPath = path.join(DASHBOARD_DIR, 'dist/index.html');
-            if (fs.existsSync(distPath)) {
-                success('Dashboard 构建成功');
-            }
-            else {
-                throw new Error('dist/index.html 不存在');
-            }
         }
         catch (err) {
             this.errors.push('发布产物构建失败');

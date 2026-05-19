@@ -94,7 +94,7 @@ Before publishing, run:
 npm run release:codex-plugin
 ```
 
-The release check builds the runtime and Dashboard, prepares `plugins/alembic-codex/runtime`, verifies the local Codex marketplace entry, validates the embedded MCP runtime package, checks the lightweight `alembic-codex-mcp` binary, default agent tier, disabled admin gate, declared assets, shipped skills, default prompts, README runtime artifact guidance, package tarball contents, local install simulation, and real MCP stdio calls.
+The release check builds the runtime, prepares `plugins/alembic-codex/runtime`, verifies the local Codex marketplace entry, validates the embedded MCP runtime package, checks the lightweight `alembic-codex-mcp` binary, default agent tier, disabled admin gate, declared assets, shipped skills, default prompts, README runtime artifact guidance, package tarball contents, local install simulation, and real MCP stdio calls. Dashboard frontend build and serving belong to Alembic/AlembicDashboard; this plugin only hands off a local Dashboard URL when that daemon capability is already available.
 
 For the full local daemon path, run:
 

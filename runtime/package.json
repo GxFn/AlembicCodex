@@ -101,7 +101,6 @@
     ".agents",
     "channels",
     "config",
-    "dashboard/dist",
     "dist",
     "injectable-skills",
     "plugins/alembic-codex",

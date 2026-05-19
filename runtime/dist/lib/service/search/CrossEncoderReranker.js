@@ -4,8 +4,7 @@
  * Local LLM scoring has been removed from AlembicPlugin. This adapter keeps
  * the SearchCrossEncoder contract and ranks with token overlap only.
  */
-import { tokenize } from '@alembic/core/search';
-import { jaccardSimilarity } from '@alembic/core/search';
+import { jaccardSimilarity, tokenize } from '@alembic/core/search';
 export class CrossEncoderReranker {
     constructor(_opts = {}) { }
     async rerank(query, candidates) {

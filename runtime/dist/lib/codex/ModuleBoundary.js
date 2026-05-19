@@ -1,18 +1,16 @@
 import { CODEX_EMBEDDED_RUNTIME_SPECIFIER, CODEX_PLUGIN_NAME, CODEX_RUNTIME_BIN, CODEX_RUNTIME_PACKAGE, } from './RuntimeContext.js';
 export const CODEX_DASHBOARD_ARTIFACT_BOUNDARY = {
-    artifactPath: 'dashboard/dist',
-    buildCommand: 'npm run build:dashboard',
-    deletionAllowedThisWave: false,
-    pluginRole: 'dashboard-url-handoff-and-portable-artifact-packaging',
-    releaseAssetSwitchChecks: [
-        'Dashboard artifact includes index.html and hashed assets without requiring Plugin-owned frontend source.',
-        'Artifact metadata records AlembicDashboard source version or release tag.',
-        'Codex plugin runtime can package the artifact without running AlembicDashboard build locally.',
+    artifactPath: null,
+    buildCommand: null,
+    deletionCompletedThisWave: true,
+    localDaemonRequirement: 'alembic_codex_dashboard returns a URL only from a local Alembic daemon that advertises Dashboard capability.',
+    pluginDoesNotBuildOrServe: [
+        'Plugin-owned Dashboard frontend distribution directory',
+        'AlembicDashboard source checkout',
+        'embedded runtime Dashboard frontend directory',
     ],
-    releaseAssetSwitchCondition: 'Switch after Alembic/AlembicDashboard publish a stable Dashboard release artifact that the Codex plugin runtime can consume without rebuilding frontend source.',
-    sourceCandidates: ['../AlembicDashboard', 'vendor/AlembicDashboard'],
-    sourceOwner: 'AlembicDashboard',
-    sourceResolver: 'scripts/local-source-paths.mjs#resolveDashboardSource',
+    pluginRole: 'dashboard-url-handoff-only',
+    sourceOwner: 'Alembic/AlembicDashboard',
 };
 const PLUGIN_OWNED_BOUNDARIES = [
     {
@@ -39,7 +37,7 @@ const PLUGIN_OWNED_BOUNDARIES = [
     {
         id: 'portable-runtime-packaging',
         owner: 'AlembicPlugin',
-        pluginRole: 'Packages compiled Plugin runtime, embedded Core snapshot, Dashboard artifact, and Codex wrapper.',
+        pluginRole: 'Packages compiled Plugin runtime, embedded Core snapshot, and Codex wrapper without Dashboard frontend assets.',
         retainedInPlugin: true,
         sourceOfTruth: 'scripts/prepare-codex-plugin-runtime.mjs',
     },
@@ -97,9 +95,9 @@ const EXTERNAL_OWNED_BOUNDARIES = [
     {
         id: 'dashboard-frontend-source',
         owner: 'AlembicDashboard',
-        pluginRole: 'Consumes built Dashboard artifact and returns Dashboard URL; does not own frontend source.',
+        pluginRole: 'Receives Dashboard URL handoff from Alembic; Plugin does not build, copy, package, or serve Dashboard frontend assets.',
         retainedInPlugin: false,
-        sourceOfTruth: 'AlembicDashboard src and release artifact',
+        sourceOfTruth: 'AlembicDashboard source and Alembic Dashboard server',
     },
 ];
 export function buildCodexModuleBoundaryStatus(input = {}) {
@@ -146,7 +144,7 @@ export function buildCodexModuleBoundaryStatus(input = {}) {
         },
         dashboard: { ...CODEX_DASHBOARD_ARTIFACT_BOUNDARY },
         nextWaveGaps: [
-            'Replace Plugin-built dashboard/dist with a stable AlembicDashboard or Alembic release asset after that artifact contract exists.',
+            'Ask Alembic/AlembicDashboard to guarantee a stable local Dashboard URL contract for Codex handoff; do not reintroduce Plugin-packaged frontend assets.',
             'Continue consuming Alembic daemon health runtimeBoundary fields as they stabilize instead of adding Plugin-local permanent contracts.',
             'Prefer Alembic projects API for richer read-only selected/active project summaries once the safe handoff route is guaranteed available to every bundled runtime.',
             'Keep git-diff checkpoint and JobStore usage marked as embedded runtime compatibility until Alembic daemon contracts can fully cover them.',

@@ -63,6 +63,7 @@ export class WikiGenerator {
     projectRoot;
     wikiDir;
     _aborted;
+    aiProvider;
     codeEntityGraph;
     knowledgeService;
     metaPath;
@@ -78,6 +79,7 @@ export class WikiGenerator {
     constructor(deps) {
         this.projectRoot = deps.projectRoot;
         const dataRoot = deps.dataRoot || deps.projectRoot;
+        this.aiProvider = deps.aiProvider || null;
         this.moduleService = deps.moduleService || null;
         this.knowledgeService = deps.knowledgeService || null;
         this.projectGraph = deps.projectGraph || null;

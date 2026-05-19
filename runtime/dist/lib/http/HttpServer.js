@@ -459,54 +459,6 @@ export class HttpServer {
     getApp() {
         return this.app;
     }
-    /**
-     * 挂载 Dashboard 静态资源（生产模式：直接托管预构建产物）
-     * 必须在 initialize() + start() 之后调用
-     * @param distDir dashboard/dist 目录的绝对路径
-     */
-    mountDashboard(distDir) {
-        // 从路由栈中移除最后的 404 catch-all 和根路径 handler
-        // Express 5 使用 app.router（Express 4 为 app._router）
-        const router = this.app.router ?? this.app._router;
-        if (!router) {
-            this.logger.warn('mountDashboard: Express router not available, mounting without route reordering');
-            this.app.use(express.static(distDir));
-            this.app.get('{*path}', (req, res, next) => {
-                if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-                    return next();
-                }
-                res.sendFile(join(distDir, 'index.html'));
-            });
-            this.logger.info('Dashboard mounted (production mode, fallback)', { distDir });
-            return;
-        }
-        const layers = router.stack;
-        // 倒序弹出最后 2 层（404 + root handler）
-        const removedLayers = [];
-        for (let i = layers.length - 1; i >= 0; i--) {
-            const layer = layers[i];
-            if (layer.route) {
-                removedLayers.unshift(layers.splice(i, 1)[0]);
-                if (removedLayers.length >= 2) {
-                    break;
-                }
-            }
-        }
-        // 注入 express.static 托管 dist 目录
-        this.app.use(express.static(distDir));
-        // SPA fallback: 非 API / 非 socket.io 请求返回 index.html
-        this.app.get('{*path}', (req, res, next) => {
-            if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-                return next();
-            }
-            res.sendFile(join(distDir, 'index.html'));
-        });
-        // 放回 404 handler（SPA fallback 之后，作为兜底）
-        for (const layer of removedLayers) {
-            layers.push(layer);
-        }
-        this.logger.info('Dashboard mounted (production mode)', { distDir });
-    }
     /** 获取服务器实例 */
     getServer() {
         return this.server;

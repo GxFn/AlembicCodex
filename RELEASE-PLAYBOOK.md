@@ -7,7 +7,7 @@ This playbook describes how to release, test, and promote the Alembic Codex plug
 Alembic for Codex is built from the AlembicPlugin repository with explicit sibling source checkouts for shared packages:
 
 - Local development uses `@alembic/core: file:../AlembicCore`.
-- Dashboard assets are built from `../AlembicDashboard`.
+- Dashboard frontend source, build, packaging, and serving belong to Alembic/AlembicDashboard.
 - The AlembicPlugin root package is private and is not a registry distribution package.
 - The Codex plugin submodule is `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
 - The embedded Codex runtime package is generated at `plugins/alembic-codex/runtime`.
@@ -68,7 +68,6 @@ Use the tag-driven GitHub Release workflow as the source of truth for plugin art
 
 ```bash
 npm run build
-npm run build:dashboard
 npm run prepare:codex-plugin-runtime
 alembic codex diagnostics --json
 npm run verify:release-package-boundary
@@ -87,7 +86,7 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out sibling `AlembicCore` and `AlembicDashboard`, builds runtime and Dashboard assets, runs lint, unit and integration tests, verifies the portable runtime metadata, smokes the Codex plugin package, and uploads the Codex plugin artifacts.
+8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out sibling `AlembicCore`, builds runtime assets, runs lint, unit and integration tests, verifies the portable runtime metadata, smokes the Codex plugin package, and uploads the Codex plugin artifacts.
 9. Confirm the uploaded artifact includes `plugins/alembic-codex/runtime.tgz`, plugin manifests, plugin READMEs, `channels/codex/channel.json`, and `.agents/plugins/marketplace.json`.
 10. Confirm `runtime/vendor/AlembicCore/.alembic-source.json` records the expected Core source and a 40-character commit.
 
@@ -99,9 +98,7 @@ It must pass:
 
 - Tag/package version equality check.
 - `npm ci`.
-- Dashboard dependency install.
 - `npm run build`.
-- `npm run build:dashboard`.
 - `npm run prepare:codex-plugin-runtime`.
 - `npm run verify:codex-channel`.
 - `npm run verify:codex-plugin`.
@@ -123,13 +120,13 @@ Use the matrix below when changing plugin metadata, MCP startup, daemon lifecycl
 | --- | --- | --- | --- |
 | Static plugin metadata | `npm run verify:codex-plugin` | Manifest, assets, skills, marketplace entry, embedded runtime package, README release copy | Every plugin metadata or docs change |
 | Runtime build | `npm run build` | TypeScript builds and CLI/MCP bins are generated | Every code change |
-| Embedded runtime package | `npm run prepare:codex-plugin-runtime` | `plugins/alembic-codex/runtime` contains compiled Alembic code, Dashboard, resources, and local package metadata | Every release candidate |
+| Embedded runtime package | `npm run prepare:codex-plugin-runtime` | `plugins/alembic-codex/runtime` contains compiled Plugin runtime code, Core snapshot, resources, and local package metadata without Dashboard frontend assets | Every release candidate |
 | CLI diagnostics | `alembic codex diagnostics --json` | Node, npm/npx, embedded runtime wiring, plugin files, admin gate, daemon version checks work outside Codex | Every release candidate |
 | Package/install smoke | `npm run smoke:codex-plugin -- --no-stdio` | Plugin artifact contents and local marketplace install simulation | Docs/metadata/package files changes |
 | MCP stdio smoke | `npm run smoke:codex-plugin` | Real MCP client can list/call Codex tools through stdio | MCP shim changes |
 | Plugin submodule commit | `git -C plugins/alembic-codex status` | Dedicated `GxFn/AlembicCodex` repo contains the complete installable plugin with embedded runtime | Every release candidate |
 | GxFn marketplace sync | `npm run sync:gxfn-marketplace --prefix plugins/alembic-codex` | Aggregate `GxFn/GxFnCodexMarketplace` receives the installable Alembic plugin snapshot | Every release candidate |
-| Daemon smoke | `npm run release:codex-plugin:daemon` | Dashboard daemon startup, daemon state, job recovery | Daemon/job/Dashboard bridge changes |
+| Daemon smoke | `npm run release:codex-plugin:daemon` | Embedded daemon API startup, daemon state, failed-closed Dashboard handoff, job recovery | Daemon/job/Dashboard bridge changes |
 | Unit tests | `npm run test:unit` | Core behavior and Codex MCP unit contracts | Shared code changes |
 | Integration tests | `npm run test:integration` | End-to-end service behavior without relying on the Codex app | HTTP/workflow/storage changes |
 | CI | GitHub `CI` on `main` | Linux/Node 22 compatibility and clean checkout behavior | Before tagging |
@@ -147,7 +144,7 @@ Run this against a fresh test repository and one real project before public prom
 5. If uninitialized, run `alembic_codex_init`.
 6. Confirm Ghost mode did not create project-local `.asd/`, `Alembic/`, `.cursor/`, `.vscode/mcp.json`, or `.env`.
 7. Run `alembic_codex_status` again and confirm the primary action is `alembic_task` with `operation=prime`.
-8. Run `alembic_codex_dashboard` and confirm a localhost Dashboard URL is returned.
+8. Run `alembic_codex_dashboard`; if no local Alembic Dashboard daemon is active, confirm it fails closed with `CODEX_DASHBOARD_HANDOFF_UNAVAILABLE` and no embedded URL. When local Alembic owns the Dashboard server, confirm the returned URL comes from that local daemon capability.
 9. Run `alembic_bootstrap` and confirm Codex receives a Mission Briefing for the host-agent workflow without requiring an AI Provider.
 10. Optional internal AI line: with provider credentials configured, run `alembic_codex_bootstrap` and capture the job id.
 11. Run `alembic_codex_job` with the job id from the optional internal AI line.

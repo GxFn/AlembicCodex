@@ -94,7 +94,7 @@ alembic codex status --json
 npm run release:codex-plugin
 ```
 
-这会构建 runtime 和 Dashboard，生成 `plugins/alembic-codex/runtime`，验证本地 Codex marketplace entry、内置 MCP runtime package、轻量 `alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、README runtime artifact 指引、npm tarball 内容、本地安装模拟，以及真实 MCP stdio 调用。
+这会构建 runtime，生成 `plugins/alembic-codex/runtime`，验证本地 Codex marketplace entry、内置 MCP runtime package、轻量 `alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、README runtime artifact 指引、npm tarball 内容、本地安装模拟，以及真实 MCP stdio 调用。Dashboard 前端构建和服务归 Alembic/AlembicDashboard；本插件只在本地 daemon 已提供 Dashboard 能力时交接 URL。
 
 完整本地 daemon 链路运行：
 
