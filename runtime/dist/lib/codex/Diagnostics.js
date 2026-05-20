@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
 import { buildCodexModuleBoundaryStatus, } from './ModuleBoundary.js';
@@ -8,8 +9,8 @@ import { buildCodexProjectRootRequiredMessage, summarizeCodexProjectRootResoluti
 import { ALEMBIC_PLUGIN_HOST_ENV, ALEMBIC_RUNTIME_MODE_ENV, ALEMBIC_RUNTIME_MODE_PLUGIN, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_MODE_ENV, CODEX_MCP_SHIM_ENV, CODEX_PLUGIN_HOST, CODEX_PLUGIN_NAME, resolveCodexRuntimeContext, } from './RuntimeContext.js';
 export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCodexRuntimeContext(), options = {}) {
     const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] || '0', 10);
-    const npm = probeCommand('npm');
-    const npx = probeCommand('npx');
+    const npm = probeCodexRuntimeCommand('npm', context, options.commandProbeRunner);
+    const npx = probeCodexRuntimeCommand('npx', context, options.commandProbeRunner);
     const npmAvailable = npm.available === true;
     const npxAvailable = npx.available === true;
     const plugin = buildCodexPluginDiagnostics(context);
@@ -272,7 +273,16 @@ function buildDiagnosticIssues(input) {
             severity: 'error',
         });
     }
-    if (!input.checks.npm) {
+    const staleCommandCwd = input.npm.staleCwd === true || input.npx.staleCwd === true;
+    if (staleCommandCwd) {
+        issues.push({
+            action: 'Restart the Alembic Codex MCP process or open a new Codex session so diagnostics no longer inherit a deleted plugin cache working directory.',
+            code: 'CODEX_STALE_COMMAND_CWD',
+            message: 'npm/npx failed with uv_cwd, which usually means the current Alembic Codex MCP process still holds a plugin cache directory that was replaced during cache refresh. The plugin runtime pin is separate from this stale cwd condition.',
+            severity: 'error',
+        });
+    }
+    if (!input.checks.npm && input.npm.staleCwd !== true) {
         issues.push({
             action: 'Install npm or use a Node.js distribution that includes npm.',
             code: 'NPM_UNAVAILABLE',
@@ -280,7 +290,7 @@ function buildDiagnosticIssues(input) {
             severity: 'error',
         });
     }
-    if (!input.checks.npx) {
+    if (!input.checks.npx && input.npx.staleCwd !== true) {
         issues.push({
             action: 'Install npm/npx support so the Codex plugin wrapper can launch the embedded ./runtime.tgz artifact.',
             code: 'NPX_UNAVAILABLE',
@@ -368,17 +378,45 @@ function buildRecommendedAction(input) {
         tool: input.tool,
     };
 }
-function probeCommand(command) {
-    const result = spawnSync(command, ['--version'], {
+export function probeCodexRuntimeCommand(command, context = resolveCodexRuntimeContext(), runner = spawnSync) {
+    const cwd = resolveDiagnosticsCommandCwd(context);
+    const result = runner(command, ['--version'], {
+        ...(cwd ? { cwd } : {}),
         encoding: 'utf8',
         timeout: 2000,
     });
-    const output = `${result.stdout || result.stderr || ''}`.trim();
+    const output = stringifyProbeOutput(result.stdout || result.stderr || '').trim();
+    const error = result.error?.message || output || `Unable to run ${command}`;
     return {
         available: result.status === 0,
+        cwd,
         version: result.status === 0 ? output : null,
-        error: result.status === 0 ? null : result.error?.message || output || `Unable to run ${command}`,
+        error: result.status === 0 ? null : error,
+        staleCwd: isUvCwdError(error),
     };
+}
+function resolveDiagnosticsCommandCwd(context) {
+    const candidates = [context.pluginRoot, context.packageRoot, tmpdir()];
+    for (const candidate of candidates) {
+        if (isExistingDirectory(candidate)) {
+            return candidate;
+        }
+    }
+    return null;
+}
+function isExistingDirectory(path) {
+    try {
+        return existsSync(path) && statSync(path).isDirectory();
+    }
+    catch {
+        return false;
+    }
+}
+function stringifyProbeOutput(value) {
+    return typeof value === 'string' ? value : value.toString('utf8');
+}
+function isUvCwdError(message) {
+    return /\buv_cwd\b/.test(message) || /no such file or directory,\s*uv_cwd/i.test(message);
 }
 function readHealthVersion(health) {
     const data = health?.data;
