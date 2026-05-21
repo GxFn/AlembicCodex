@@ -3,7 +3,6 @@ import { join, resolve } from 'node:path';
 import { WorkspaceSettingsStore } from '@alembic/core/shared';
 import { DEFAULT_FOLDER_NAMES, WorkspaceResolver } from '@alembic/core/workspace';
 import { DaemonSupervisor } from '../daemon/DaemonSupervisor.js';
-import { inspectCodexAiConfig } from './AiConfigState.js';
 import { buildCodexRuntimeDiagnostics } from './Diagnostics.js';
 import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
 import { buildCodexHostProjectAlignment, } from './HostProjectAlignment.js';
@@ -16,14 +15,12 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const projectRoot = resolve(projectRootInput);
     const resolver = WorkspaceResolver.fromProject(projectRoot);
     const settingsStore = new WorkspaceSettingsStore(resolver);
-    const aiConfig = inspectCodexAiConfig(projectRoot);
     const facts = resolver.toFacts();
     const supervisor = options.supervisor || new DaemonSupervisor();
     const daemonStatus = await supervisor.status(projectRoot);
     const knowledge = inspectCodexKnowledge(projectRoot);
     const runtime = options.runtime || resolveCodexRuntimeContext();
     const enhancementRoute = buildCodexEnhancementRouteChoice({
-        aiConfig,
         daemonStatus,
         runtime,
         requirement: 'status',
@@ -42,7 +39,6 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         runtimeState: options.autoInit,
     });
     const diagnostics = buildCodexRuntimeDiagnostics(daemonStatus, runtime, {
-        aiConfig,
         autoInit,
         enhancementRoute,
         hostProjectAlignment,
@@ -74,7 +70,6 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const gitDiffCheckpoint = readGitDiffCheckpointStatus(daemonStatus.health);
     return {
         ok: knowledge.initialized,
-        aiConfig,
         packageVersion: runtime.packageVersion,
         profile: CODEX_SETUP_PROFILE,
         channel: {

@@ -5,22 +5,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { resolveProjectRoot } from '@alembic/core/workspace';
-import { readHostAiConfigInfo } from '#codex/HostAiAdapter.js';
 import { PACKAGE_ROOT } from '#shared/package-assets.js';
 import { envelope } from '../envelope.js';
 export async function health(ctx) {
     const checks = { database: false, gateway: false, vectorStore: false };
     const issues = [];
     let knowledgeBase = null;
-    // 1) AI 配置
-    let aiInfo = { provider: 'unknown', hasKey: false };
-    try {
-        const hostAiInfo = readHostAiConfigInfo(resolveProjectRoot(ctx.container));
-        aiInfo = { ...hostAiInfo, provider: hostAiInfo.provider || 'unknown' };
-    }
-    catch (e) {
-        issues.push(`ai: ${e instanceof Error ? e.message : String(e)}`);
-    }
+    // 1) Plugin 不再维护第三方 AI Provider 配置；健康检查只表达边界，不做 key 探测。
+    const aiInfo = {
+        provider: null,
+        hasKey: false,
+        owner: 'Alembic',
+        pluginConfigRemoved: true,
+    };
     // 2) Database 连通性 + 知识库统计
     try {
         const knowledgeRepo = ctx.container.get('knowledgeRepository');

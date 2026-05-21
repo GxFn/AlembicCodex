@@ -34,7 +34,7 @@ Prime and search can include `searchMeta.residentSearch` / `residentVector` diag
 
 Use `alembic_bootstrap` for default Codex host-agent cold start and `alembic_rescan` for host-agent refresh. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
 
-Use `alembic_codex_bootstrap` and `alembic_codex_rescan` only when the user explicitly wants Alembic internal AI daemon jobs and the AI Provider is configured. These tools start or connect to the daemon, enqueue work, and return a recoverable job id.
+Use `alembic_codex_bootstrap` and `alembic_codex_rescan` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; these tools only start/connect to the daemon, enqueue work, and return a recoverable job id.
 
 Use `alembic_codex_job` to check explicit internal AI job status later. Job lookup is local and should not start the daemon.
 
@@ -42,7 +42,7 @@ Use `alembic_codex_dashboard` when the user needs review, candidates, or progres
 
 ## Permission Boundary
 
-Default Codex mode is agent tier. It may search knowledge, prime tasks, run Guard, use host-agent bootstrap/rescan, and submit candidates. Explicit internal AI daemon jobs require a configured AI Provider.
+Default Codex mode is agent tier. It may search knowledge, prime tasks, run Guard, use host-agent bootstrap/rescan, and submit candidates. Explicit daemon jobs may require Alembic resident-service configuration, but the Codex plugin does not configure third-party AI providers or store API keys.
 
 Do not publish, deprecate, delete, or directly edit Recipes from the default tier. Admin tools only appear when both `ALEMBIC_MCP_TIER=admin` and `ALEMBIC_CODEX_ENABLE_ADMIN=1` are set.
 

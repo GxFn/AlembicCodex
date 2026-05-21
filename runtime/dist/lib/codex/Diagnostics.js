@@ -16,7 +16,6 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
     const plugin = buildCodexPluginDiagnostics(context);
     const enhancementRoute = options.enhancementRoute ||
         buildCodexEnhancementRouteChoice({
-            aiConfig: options.aiConfig,
             daemonStatus,
             runtime: context,
             requirement: 'status',

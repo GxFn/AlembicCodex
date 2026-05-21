@@ -9,19 +9,11 @@
  * 依赖 InfraModule 先注册: eventBus, database
  */
 import { VectorService } from '@alembic/core/vector';
-import { providerSupportsExecutableEmbedding } from '../../codex/HostAiAdapter.js';
 export function register(c) {
     // ═══ ContextualEnricher (host-managed; local AI enrichment disabled) ═══
-    c.singleton('contextualEnricher', (_ct) => null, { aiDependent: true });
+    c.singleton('contextualEnricher', (_ct) => null);
     // ═══ VectorService ═══
     c.singleton('vectorService', (ct) => {
-        const aiProvider = (ct.singletons.aiProvider || null);
-        const configuredEmbedProvider = ct.singletons._embedProvider;
-        const embedProvider = providerSupportsExecutableEmbedding(configuredEmbedProvider)
-            ? configuredEmbedProvider
-            : providerSupportsExecutableEmbedding(aiProvider)
-                ? aiProvider
-                : null;
         const config = ct.singletons._config?.vector || {};
         return new VectorService({
             vectorStore: ct.get('vectorStore'),
@@ -30,7 +22,9 @@ export function register(c) {
                 ? ct.get('hybridRetriever')
                 : null,
             eventBus: ct.services.eventBus ? ct.get('eventBus') : null,
-            embedProvider: embedProvider,
+            // Plugin 不维护可执行 embedding provider。Resident vector search 由 Alembic daemon
+            // HTTP API 增强；embedded runtime 只保留可降级的 baseline/vector store 管线。
+            embedProvider: null,
             contextualEnricher: ct.services.contextualEnricher
                 ? ct.get('contextualEnricher')
                 : null,
@@ -40,7 +34,7 @@ export function register(c) {
                 ? ct.get('database').getDrizzle?.()
                 : undefined,
         });
-    }, { aiDependent: true });
+    });
 }
 /**
  * 初始化 VectorService（在容器初始化后调用）

@@ -11,7 +11,6 @@ import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { CacheCoordinator } from '../infrastructure/cache/CacheCoordinator.js';
 import { GraphCache } from '../infrastructure/cache/GraphCache.js';
 import * as AgentModule from './modules/AgentModule.js';
-import * as AiModule from './modules/AiModule.js';
 import * as AppModule from './modules/AppModule.js';
 import * as GuardModule from './modules/GuardModule.js';
 // ─── DI Modules ──────────────────────────────────────
@@ -26,7 +25,6 @@ import * as VectorModule from './modules/VectorModule.js';
  */
 export class ServiceContainer {
     logger;
-    _aiDependentSingletons = [];
     services;
     singletons;
     constructor() {
@@ -40,16 +38,8 @@ export class ServiceContainer {
      *
      * @param name 服务名称
      * @param factory 工厂函数（首次 get 时执行）
-     * @param [options] 选项
-     *   - aiDependent: 标记为 AI Provider 依赖项，热重载时自动清除缓存
      */
-    singleton(name, factory, options = {}) {
-        if (options.aiDependent) {
-            this._aiDependentSingletons = this._aiDependentSingletons || [];
-            if (!this._aiDependentSingletons.includes(name)) {
-                this._aiDependentSingletons.push(name);
-            }
-        }
+    singleton(name, factory, _options = {}) {
         this.register(name, () => {
             if (!this.singletons[name]) {
                 this.singletons[name] = factory(this);
@@ -100,23 +90,10 @@ export class ServiceContainer {
             if (bootstrapComponents.skillHooks) {
                 this.singletons.skillHooks = bootstrapComponents.skillHooks;
             }
-            if (bootstrapComponents.aiProvider) {
-                this.singletons.aiProvider = bootstrapComponents.aiProvider;
-            }
-            if (bootstrapComponents.embedProvider) {
-                this.singletons._embedProvider = bootstrapComponents.embedProvider;
-            }
-            // ═══ AI Provider 初始化（委托 AiModule）═══
-            await AiModule.initialize(this);
             // RecipeExtractor 实例（用于工具增强）
             AppModule.initRecipeExtractor(this);
             // 注册所有模块 (替代 _registerInfrastructure / _registerRepositories / _registerServices)
             InfraModule.register(this);
-            // ═══ AI Provider 热重载标记 ═══
-            // 哪些 singleton key 持有 aiProvider 引用，在 reloadAiProvider() 时需要清除
-            // 由各 Module 通过 singleton(name, factory, { aiDependent: true }) 自动注册
-            // 预初始化为空数组，确保模块注册前已就绪
-            this._aiDependentSingletons = this._aiDependentSingletons || [];
             // ═══ 容器级语言偏好 ═══
             this.singletons._lang = null;
             // 注册模块 (顺序重要: AppModule 先注册 qualityScorer 等基础服务)
@@ -128,7 +105,6 @@ export class ServiceContainer {
             VectorModule.register(this);
             GuardModule.register(this);
             AgentModule.register(this);
-            AiModule.register(this);
             PanoramaModule.register(this);
             // v3.1: 初始化 Enhancement Pack 注册表（异步加载所有框架增强包）
             try {
@@ -153,17 +129,6 @@ export class ServiceContainer {
             });
             throw error;
         }
-    }
-    /**
-     * 热重载宿主 AI Provider 引用或配置选择。
-     */
-    reloadAiProvider(newProvider) {
-        if (!newProvider) {
-            this.logger.warn('[ServiceContainer] reloadAiProvider called with null — ignored');
-            return;
-        }
-        const manager = this.singletons._aiProviderManager;
-        manager.switchProvider(newProvider);
     }
     // ─── 跨进程缓存协调 ─────
     /**
@@ -239,7 +204,6 @@ export class ServiceContainer {
         const projectRoot = resolveProjectRoot(this);
         return {
             container: this,
-            aiProvider: this.singletons.aiProvider || null,
             projectRoot,
             dataRoot: resolveDataRoot(this) || projectRoot,
             logger: this.logger,

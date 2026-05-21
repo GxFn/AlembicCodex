@@ -2,13 +2,12 @@ import { rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute } from 'node:path';
 import { JobStore, resolveDaemonPaths } from '@alembic/core/daemon';
-import { PROVIDER_KEY_ENV, WorkspaceSettingsStore } from '@alembic/core/shared';
 import { ProjectRegistry } from '@alembic/core/workspace';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SetupService } from '../../cli/SetupService.js';
-import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
+import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
 import { McpServer as EmbeddedMcpServer } from './McpServer.js';
 import { TIER_ORDER, TOOLS, withMcpToolAnnotations } from './tools.js';
@@ -142,9 +141,6 @@ export class CodexMcpServer {
             knowledge = inspectCodexKnowledge(this.projectRoot);
         }
         const executePreflight = preflightCodexTool({
-            aiConfig: isCodexProjectRootDiscoveryTool(name)
-                ? null
-                : inspectCodexAiConfig(this.projectRoot),
             coreTools: TOOLS,
             knowledge,
             projectRootResolution: this.projectRootResolution,
@@ -162,8 +158,6 @@ export class CodexMcpServer {
                 return this.buildDiagnostics();
             case 'alembic_codex_init':
                 return this.initializeWorkspace(args);
-            case 'alembic_codex_ai_config':
-                return this.configureAi(args);
             case 'alembic_codex_dashboard':
                 return this.openDashboard();
             case 'alembic_codex_bootstrap':
@@ -195,9 +189,7 @@ export class CodexMcpServer {
     async buildDiagnostics() {
         const daemonStatus = await this.supervisor.status(this.projectRoot);
         const runtime = resolveCodexRuntimeContext();
-        const aiConfig = inspectCodexAiConfig(this.projectRoot);
         const enhancementRoute = buildCodexEnhancementRouteChoice({
-            aiConfig,
             daemonStatus,
             runtime,
             requirement: 'status',
@@ -210,7 +202,6 @@ export class CodexMcpServer {
         return {
             success: true,
             data: buildCodexRuntimeDiagnostics(daemonStatus, runtime, {
-                aiConfig,
                 autoInit: this.#initRuntimeState,
                 enhancementRoute,
                 hostProjectAlignment,
@@ -261,76 +252,6 @@ export class CodexMcpServer {
             message: ok
                 ? buildCodexPostInitMessage(knowledgeAfterInit)
                 : 'Alembic Codex initialization failed. Run diagnostics before retrying.',
-        };
-    }
-    async configureAi(args) {
-        const mode = args.mode === 'configure' ? 'configure' : 'status';
-        if (mode === 'status') {
-            return {
-                success: true,
-                data: { aiConfig: inspectCodexAiConfig(this.projectRoot) },
-                message: 'Alembic Codex AI config inspected.',
-            };
-        }
-        const provider = typeof args.provider === 'string' ? args.provider.trim().toLowerCase() : '';
-        if (!provider) {
-            return failureResult('alembic_codex_ai_config', 'provider is required when configuring Alembic Codex AI settings.', {
-                errorCode: 'CODEX_AI_PROVIDER_REQUIRED',
-                needsUserInput: true,
-                required: { provider: 'deepseek | openai | claude | google | ollama' },
-            });
-        }
-        const apiKey = typeof args.apiKey === 'string' ? args.apiKey.trim() : '';
-        if (apiKey && args.confirmChatSecret !== true) {
-            return failureResult('alembic_codex_ai_config', 'confirmChatSecret=true is required before storing an API key provided through Codex chat.', {
-                errorCode: 'CODEX_AI_SECRET_CONFIRMATION_REQUIRED',
-                needsUserInput: true,
-                required: { confirmChatSecret: true },
-            });
-        }
-        if (!PROVIDER_KEY_ENV[provider] && provider !== 'ollama') {
-            return failureResult('alembic_codex_ai_config', `Unsupported AI provider: ${provider}`, {
-                errorCode: 'CODEX_AI_PROVIDER_UNSUPPORTED',
-                required: { provider: 'deepseek | openai | claude | google | ollama' },
-            });
-        }
-        if (!inspectCodexKnowledge(this.projectRoot).initialized) {
-            const initResult = await this.runWorkspaceInitialization({
-                force: false,
-                initializedBy: 'codex-plugin-init-on-demand',
-                requestedMode: null,
-                requestedTool: 'alembic_codex_ai_config',
-                route: 'tool-call',
-                seed: false,
-            });
-            if (isErrorResult(initResult)) {
-                return initResult;
-            }
-        }
-        const updates = {
-            ALEMBIC_AI_PROVIDER: provider,
-        };
-        for (const [argKey, envKey] of [
-            ['model', 'ALEMBIC_AI_MODEL'],
-            ['proxy', 'ALEMBIC_AI_PROXY'],
-            ['reasoningEffort', 'ALEMBIC_AI_REASONING_EFFORT'],
-        ]) {
-            const value = args[argKey];
-            if (typeof value === 'string' && value.trim().length > 0) {
-                updates[envKey] = value.trim();
-            }
-        }
-        const keyEnv = PROVIDER_KEY_ENV[provider];
-        if (apiKey && keyEnv) {
-            updates[keyEnv] = apiKey;
-        }
-        const store = WorkspaceSettingsStore.fromProject(this.projectRoot);
-        store.writeAiConfig(updates);
-        store.applyToProcessEnv({ override: true });
-        return {
-            success: true,
-            data: { aiConfig: inspectCodexAiConfig(this.projectRoot) },
-            message: 'Alembic Codex AI config updated.',
         };
     }
     async ensureWorkspaceInitializedForTool(toolName) {
@@ -504,7 +425,6 @@ export class CodexMcpServer {
     async openDashboard() {
         const daemon = await this.supervisor.status(this.projectRoot);
         const enhancementRoute = buildCodexEnhancementRouteChoice({
-            aiConfig: inspectCodexAiConfig(this.projectRoot),
             daemonStatus: daemon,
             runtime: resolveCodexRuntimeContext(),
             requirement: 'dashboard',
@@ -779,7 +699,6 @@ export class CodexMcpServer {
     async ensureEnhancementDaemon(requirement, tool) {
         const currentDaemon = await this.supervisor.status(this.projectRoot);
         const currentEnhancementRoute = buildCodexEnhancementRouteChoice({
-            aiConfig: inspectCodexAiConfig(this.projectRoot),
             daemonStatus: currentDaemon,
             runtime: resolveCodexRuntimeContext(),
             requirement,
@@ -809,7 +728,6 @@ export class CodexMcpServer {
             waitUntilReadyMs: this.waitUntilReadyMs,
         });
         const enhancementRoute = buildCodexEnhancementRouteChoice({
-            aiConfig: inspectCodexAiConfig(this.projectRoot),
             daemonStatus: daemon,
             runtime: resolveCodexRuntimeContext(),
             requirement,

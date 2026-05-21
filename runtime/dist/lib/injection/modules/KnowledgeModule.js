@@ -5,7 +5,7 @@
  *   - knowledgeService, knowledgeGraphService, codeEntityGraph, confidenceRouter
  *   - searchEngine, vectorStore, indexingPipeline
  *   - discovererRegistry, enhancementRegistry, languageService, dimensionCopy
- *   - constitution, aiProvider, projectGraph
+ *   - constitution, projectGraph
  */
 import { getEnhancementRegistry } from '@alembic/core/core/enhancement';
 import { DimensionCopy } from '@alembic/core/dimensions';
@@ -49,11 +49,11 @@ export function register(c) {
     });
     // ═══ Search + Vector ═══
     c.singleton('searchEngine', (ct) => {
-        const aiProvider = ct.singletons.aiProvider || null;
-        const embedProvider = ct.singletons._embedProvider || aiProvider;
         const vectorService = ct.services.vectorService ? ct.get('vectorService') : null;
         return new SearchEngine(ct.get('database'), {
-            aiProvider: embedProvider,
+            // Plugin 不再注入第三方 AI/embedding provider；语义增强走 Alembic resident service，
+            // 本地 embedded runtime 保持 baseline/hybrid search 行为。
+            aiProvider: null,
             vectorStore: ct.get('vectorStore'),
             vectorService,
             hybridRetriever: ct.get('hybridRetriever'),
@@ -62,7 +62,7 @@ export function register(c) {
             knowledgeRepo: ct.get('knowledgeRepository'),
             sourceRefRepo: ct.get('recipeSourceRefRepository'),
         });
-    }, { aiDependent: true });
+    });
     c.singleton('vectorStore', (ct) => {
         const dataRoot = resolveDataRoot(ct);
         const wz = ct.singletons.writeZone;
@@ -109,16 +109,13 @@ export function register(c) {
         return store;
     });
     c.singleton('indexingPipeline', (ct) => {
-        const aiProvider = ct.singletons.aiProvider || null;
-        const embedProvider = ct.singletons._embedProvider || aiProvider;
         const dataRoot = resolveDataRoot(ct);
         return new IndexingPipeline({
             projectRoot: dataRoot,
             scanDirs: resolveKnowledgeScanDirs(ct),
             vectorStore: ct.get('vectorStore'),
-            aiProvider: embedProvider,
         });
-    }, { aiDependent: true });
+    });
     c.singleton('hybridRetriever', (ct) => {
         const config = ct.singletons._config?.vector;
         const hybrid = config?.hybrid || {};
@@ -134,7 +131,6 @@ export function register(c) {
     c.register('languageService', () => LanguageService);
     c.register('dimensionCopy', () => DimensionCopy);
     c.register('constitution', () => c.singletons.constitution || null);
-    c.register('aiProvider', () => c.singletons.aiProvider || null);
     c.register('projectGraph', () => c.singletons.projectGraph || null);
     // ═══ Governance / Evolution ═══
     c.singleton('sourceRefReconciler', (ct) => {

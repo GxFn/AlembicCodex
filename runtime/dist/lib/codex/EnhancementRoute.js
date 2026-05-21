@@ -14,7 +14,7 @@ export function buildCodexEnhancementRouteChoice(input) {
     const daemon = summarizeEnhancementDaemon(input.daemonStatus);
     const localInstall = input.localInstall || probeLocalAlembicInstall();
     const missingCapabilities = findMissingCapabilities(requirement, daemon);
-    const internalAiProvider = summarizeInternalAiProvider(input.daemonStatus.health, input.aiConfig);
+    const internalAiProvider = summarizeInternalAiProvider(input.daemonStatus.health);
     const embeddedRuntime = {
         artifact: runtime.embeddedRuntimeSpecifier,
         available: true,
@@ -251,7 +251,7 @@ function findMissingCapabilities(requirement, daemon) {
     }
     return missing;
 }
-function summarizeInternalAiProvider(health, aiConfig) {
+function summarizeInternalAiProvider(health) {
     const data = asRecord(health?.data);
     const capabilities = asRecord(data?.capabilities);
     const internalAi = asRecord(capabilities?.internalAi);
@@ -264,10 +264,10 @@ function summarizeInternalAiProvider(health, aiConfig) {
         };
     }
     return {
-        available: aiConfig?.ready === true,
-        configSource: aiConfig?.source ?? null,
-        model: aiConfig?.model ?? null,
-        provider: aiConfig?.provider ?? null,
+        available: false,
+        configSource: null,
+        model: null,
+        provider: null,
     };
 }
 function readConfigSource(value) {
