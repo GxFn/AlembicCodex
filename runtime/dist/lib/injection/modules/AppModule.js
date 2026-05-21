@@ -16,6 +16,7 @@ import { RecipeCandidateValidator } from '@alembic/core/service/recipe/RecipeCan
 import { RecipeParser } from '@alembic/core/service/recipe/RecipeParser';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { ModuleService } from '../../service/module/ModuleService.js';
+import { ResidentSearchClient } from '../../service/search/ResidentSearchClient.js';
 import { PrimeSearchPipeline } from '../../service/task/PrimeSearchPipeline.js';
 export function register(c) {
     // ═══ Quality + Recipe ═══
@@ -46,7 +47,11 @@ export function register(c) {
         });
     });
     // ═══ PrimeSearchPipeline (for prime multi-query search) ═══
-    c.singleton('primeSearchPipeline', (ct) => new PrimeSearchPipeline(ct.get('searchEngine')));
+    c.singleton('residentSearchClient', (ct) => {
+        const projectRoot = resolveProjectRoot(ct);
+        return new ResidentSearchClient({ projectRoot });
+    });
+    c.singleton('primeSearchPipeline', (ct) => new PrimeSearchPipeline(ct.get('searchEngine'), { residentSearchClient: ct.get('residentSearchClient') }));
 }
 /** 初始化 RecipeExtractor 实例 (在 initialize 期间调用) */
 export function initRecipeExtractor(c) {

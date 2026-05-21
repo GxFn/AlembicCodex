@@ -26,6 +26,14 @@ function getSearchEngine(ctx) {
         return null;
     }
 }
+function getResidentSearchClient(ctx) {
+    try {
+        return ctx.container.get('residentSearchClient');
+    }
+    catch {
+        return null;
+    }
+}
 /** 降级创建 SearchEngine（仅在 container 无法提供时） */
 async function getFallbackEngine(ctx) {
     const { SearchEngine } = await import('@alembic/core/search');
@@ -59,6 +67,7 @@ function filterByKind(items, kind) {
 export async function search(ctx, args) {
     const t0 = Date.now();
     const engine = getSearchEngine(ctx) || (await getFallbackEngine(ctx));
+    const residentSearchClient = getResidentSearchClient(ctx);
     const query = args.query;
     const mode = args.mode || 'auto';
     const kind = args.kind || args.type || 'all';
@@ -80,14 +89,28 @@ export async function search(ctx, args) {
     const recallLimit = kind !== 'all' ? limit * 2 : limit;
     // semantic 模式也过采样 2x（向量搜索可能有噪声）
     const engineLimit = mode === 'semantic' ? recallLimit * 2 : recallLimit;
-    // ── 统一调用 SearchEngine ──
-    const result = await engine.search(query, {
-        mode: isContext ? 'bm25' : mode,
+    const residentAttempt = await tryResidentSearch(residentSearchClient, {
+        kind,
         limit: engineLimit,
+        mode,
+        query,
         rank,
-        groupByKind: true,
-        context,
     });
+    // ── 统一调用 SearchEngine ──
+    const result = residentAttempt?.meta.available && residentAttempt.items.length > 0
+        ? {
+            items: residentAttempt.items,
+            mode: residentAttempt.meta.actualMode || mode,
+            ranked: false,
+            searchMeta: residentAttempt.meta.searchMeta,
+        }
+        : await engine.search(query, {
+            mode: isContext ? 'bm25' : mode,
+            limit: engineLimit,
+            rank,
+            groupByKind: true,
+            context,
+        });
     let items = result?.items || [];
     const actualMode = result?.mode || mode;
     // ── Kind 过滤 + 截断 ──
@@ -124,6 +147,11 @@ export async function search(ctx, args) {
                     degradedReason: degraded ? 'vectorStore/aiProvider 不可用，已降级到 BM25' : undefined,
                 }
                 : {}),
+            searchMeta: {
+                ...(result?.searchMeta || {}),
+                ...(residentAttempt ? { residentSearch: residentAttempt.meta } : {}),
+                ...(residentAttempt ? { residentVector: residentAttempt.meta.residentVector } : {}),
+            },
             // context 模式专属: metadata 包装（保持向后兼容）
             ...(isContext
                 ? {
@@ -141,6 +169,48 @@ export async function search(ctx, args) {
         },
         meta: { tool: toolName, source, responseTimeMs: elapsed },
     });
+}
+async function tryResidentSearch(residentSearchClient, request) {
+    if (!residentSearchClient || !shouldAskResidentSearch(request.mode)) {
+        return null;
+    }
+    try {
+        const result = await residentSearchClient.search({
+            query: request.query,
+            mode: request.mode,
+            limit: request.limit,
+            rank: request.rank,
+            kind: request.kind,
+        });
+        if (!result.meta.available) {
+            process.stderr.write(`[MCP/Search] resident search unavailable: ${result.meta.reason}\n`);
+        }
+        return {
+            items: result.items,
+            meta: result.meta,
+        };
+    }
+    catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[MCP/Search] resident search request failed: ${reason}\n`);
+        return {
+            items: [],
+            meta: {
+                attempted: true,
+                available: false,
+                durationMs: 0,
+                reason,
+                requestedMode: request.mode,
+                residentVector: { available: false, reason },
+                resultCount: 0,
+                route: 'alembic-resident-service',
+                used: false,
+            },
+        };
+    }
+}
+function shouldAskResidentSearch(mode) {
+    return mode === 'auto' || mode === 'semantic';
 }
 // ─── Backward-compatible aliases ────────────────────────────
 // consolidated.ts 按 mode 路由时直接调用这些别名

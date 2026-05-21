@@ -146,6 +146,59 @@ export interface RankingContext {
     intent?: string;
     [key: string]: unknown;
 }
+export type SearchRoute = 'core-search-engine' | 'resident-service' | 'plugin-embedded' | 'unknown' | (string & {});
+export interface SearchWorkspaceIdentity {
+    projectId?: string;
+    projectRoot?: string;
+    dataRoot?: string;
+    workspaceMode?: string;
+    [key: string]: unknown;
+}
+export interface SearchTimingMeta {
+    totalMs?: number;
+    embedMs?: number;
+    vectorMs?: number;
+    fuseMs?: number;
+    [key: string]: number | undefined;
+}
+export interface ResidentVectorMeta {
+    available: boolean;
+    reason?: string;
+    endpoint?: string;
+    serviceVersion?: string;
+    [key: string]: unknown;
+}
+export interface SearchResponseMeta {
+    route: SearchRoute;
+    requestedMode: string;
+    actualMode: string;
+    semanticUsed: boolean;
+    vectorUsed: boolean;
+    resultCount: number;
+    durationMs: number;
+    fallbackReason?: string;
+    workspace?: SearchWorkspaceIdentity;
+    timings?: SearchTimingMeta;
+    residentVector?: ResidentVectorMeta;
+    [key: string]: unknown;
+}
+export interface BuildSearchResponseMetaInput {
+    route?: SearchRoute;
+    requestedMode?: string;
+    actualMode?: string;
+    semanticUsed?: boolean;
+    vectorUsed?: boolean;
+    resultCount?: number;
+    durationMs?: number;
+    fallbackReason?: string;
+    workspace?: SearchWorkspaceIdentity;
+    timings?: SearchTimingMeta;
+    residentVector?: ResidentVectorMeta;
+    [key: string]: unknown;
+}
+export declare function inferSearchSemanticUsage(actualMode: string | undefined): boolean;
+export declare function inferSearchVectorUsage(actualMode: string | undefined): boolean;
+export declare function buildSearchResponseMeta(input?: BuildSearchResponseMetaInput): SearchResponseMeta;
 /** Search response envelope */
 export interface SearchResponse {
     items: SearchResultItem[];
@@ -155,6 +208,7 @@ export interface SearchResponse {
     type?: string;
     ranked?: boolean;
     byKind?: Record<string, SearchResultItem[]>;
+    searchMeta?: SearchResponseMeta;
 }
 /** Duck-typed database connection (better-sqlite3 style) */
 export interface SearchDb {
@@ -280,6 +334,9 @@ export interface SearchVectorService {
     }): Promise<Array<{
         id: string;
         score: number;
+        vectorUsed?: boolean;
+        semanticUsed?: boolean;
+        fallbackReason?: string;
         [key: string]: unknown;
     }>>;
 }

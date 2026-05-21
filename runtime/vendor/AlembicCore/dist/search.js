@@ -7,7 +7,7 @@ export { HybridRetriever } from './service/search/HybridRetriever.js';
 export { AuthoritySignal, ContextMatchSignal, DifficultySignal, MultiSignalRanker, PopularitySignal, RecencySignal, RelevanceSignal, VectorSignal, } from './service/search/MultiSignalRanker.js';
 export { SearchEngine };
 export { queryNonDeprecatedEntries, RawDbGuardAdapter, RawDbKnowledgeAdapter, RawDbSourceRefAdapter, unwrapRawDb, unwrapSearchDb, } from './repository/search/SearchRepoAdapter.js';
-export { groupByKind, slimSearchResult, } from './service/search/SearchTypes.js';
+export { buildSearchResponseMeta, groupByKind, inferSearchSemanticUsage, inferSearchVectorUsage, slimSearchResult, } from './service/search/SearchTypes.js';
 export { tokenize } from './service/search/tokenizer.js';
 export { cosineSimilarity, jaccardSimilarity, textSimilarity, tokenizeForSimilarity, } from './shared/similarity.js';
 /**

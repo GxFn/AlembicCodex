@@ -9,13 +9,19 @@
  * 依赖 InfraModule 先注册: eventBus, database
  */
 import { VectorService } from '@alembic/core/vector';
+import { providerSupportsExecutableEmbedding } from '../../codex/HostAiAdapter.js';
 export function register(c) {
     // ═══ ContextualEnricher (host-managed; local AI enrichment disabled) ═══
     c.singleton('contextualEnricher', (_ct) => null, { aiDependent: true });
     // ═══ VectorService ═══
     c.singleton('vectorService', (ct) => {
-        const aiProvider = ct.singletons.aiProvider || null;
-        const embedProvider = ct.singletons._embedProvider || aiProvider;
+        const aiProvider = (ct.singletons.aiProvider || null);
+        const configuredEmbedProvider = ct.singletons._embedProvider;
+        const embedProvider = providerSupportsExecutableEmbedding(configuredEmbedProvider)
+            ? configuredEmbedProvider
+            : providerSupportsExecutableEmbedding(aiProvider)
+                ? aiProvider
+                : null;
         const config = ct.singletons._config?.vector || {};
         return new VectorService({
             vectorStore: ct.get('vectorStore'),

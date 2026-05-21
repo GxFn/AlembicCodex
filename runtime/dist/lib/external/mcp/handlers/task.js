@@ -127,6 +127,11 @@ async function _prime(ctx, args) {
             queries: searchResult.searchMeta.queries,
             resultCount: searchResult.searchMeta.resultCount,
             filteredCount: searchResult.searchMeta.filteredCount,
+            ...(searchResult.searchMeta.residentSearch
+                ? {
+                    residentSearch: searchResult.searchMeta.residentSearch,
+                }
+                : {}),
         };
     }
     // Bind intent to session

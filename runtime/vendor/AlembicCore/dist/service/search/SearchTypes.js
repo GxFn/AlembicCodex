@@ -6,6 +6,44 @@
  *
  * @module SearchTypes
  */
+export function inferSearchSemanticUsage(actualMode) {
+    const normalized = (actualMode ?? '').toLowerCase();
+    return (normalized.includes('semantic') || normalized.includes('rrf') || normalized.includes('hybrid'));
+}
+export function inferSearchVectorUsage(actualMode) {
+    const normalized = (actualMode ?? '').toLowerCase();
+    return (normalized.includes('semantic') || normalized.includes('rrf') || normalized.includes('hybrid'));
+}
+export function buildSearchResponseMeta(input = {}) {
+    const actualMode = input.actualMode ?? input.requestedMode ?? 'unknown';
+    const requestedMode = input.requestedMode ?? actualMode;
+    const rawDuration = input.durationMs ?? input.timings?.totalMs ?? 0;
+    const durationMs = Number.isFinite(rawDuration) ? Math.max(0, Math.round(rawDuration)) : 0;
+    const meta = {
+        route: input.route ?? 'core-search-engine',
+        requestedMode,
+        actualMode,
+        semanticUsed: input.semanticUsed ?? inferSearchSemanticUsage(actualMode),
+        vectorUsed: input.vectorUsed ?? inferSearchVectorUsage(actualMode),
+        resultCount: input.resultCount ?? 0,
+        durationMs,
+    };
+    // resident service / Plugin bridge 共享观测契约：
+    // 只在真实存在时写入，避免旧客户端把 undefined 当成显式状态。
+    if (input.fallbackReason) {
+        meta.fallbackReason = input.fallbackReason;
+    }
+    if (input.workspace) {
+        meta.workspace = input.workspace;
+    }
+    if (input.timings) {
+        meta.timings = input.timings;
+    }
+    if (input.residentVector) {
+        meta.residentVector = input.residentVector;
+    }
+    return meta;
+}
 /**
  * 统一投影函数 — 将 SearchResultItem 投影为 SlimSearchResult。
  *

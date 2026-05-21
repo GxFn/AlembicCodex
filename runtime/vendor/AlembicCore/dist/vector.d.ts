@@ -19,7 +19,7 @@ export type { VectorChunkData, VectorChunkEnricher, VectorDocumentInfo, } from '
 export type { SyncCoordinatorConfig } from './service/vector/SyncCoordinator.js';
 export { SyncCoordinator } from './service/vector/SyncCoordinator.js';
 export { VectorService };
-export type { BuildResult, EmbedProvider, ProgressFn, ProgressInfo, SyncResult, VectorServiceConfig, VectorStats, } from './service/vector/VectorService.js';
+export type { BuildResult, EmbedProvider, ProgressFn, ProgressInfo, SyncResult, VectorHybridSearchHit, VectorServiceConfig, VectorStats, } from './service/vector/VectorService.js';
 export type LocalVectorStoreKind = 'json' | 'hnsw';
 export type JsonVectorStoreOptions = NonNullable<ConstructorParameters<typeof JsonVectorAdapter>[1]>;
 export type HnswVectorStoreOptions = NonNullable<ConstructorParameters<typeof HnswVectorAdapter>[1]>;

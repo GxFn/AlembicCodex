@@ -16,10 +16,12 @@ const RELATIVE_SCORE_RATIO = 0.15;
 const GAP_DROP_RATIO = 0.25;
 // ── PrimeSearchPipeline ─────────────────────────────
 export class PrimeSearchPipeline {
+    #residentSearchClient;
     #search;
     #sessionQueries = [];
-    constructor(searchEngine) {
+    constructor(searchEngine, options = {}) {
         this.#search = searchEngine;
+        this.#residentSearchClient = options.residentSearchClient ?? null;
     }
     /**
      * Core method: multi-query search + scenario routing + result merging.
@@ -35,10 +37,18 @@ export class PrimeSearchPipeline {
             sessionHistory: this.#buildSessionHistory(),
         };
         // Multi-query parallel search (auto mode + keyword mode for cross-language)
-        const allResults = await this.#multiQuerySearch(intent.queries, intent.keywordQueries ?? [], context);
+        const searchBundle = await this.#multiQuerySearch(intent.queries, intent.keywordQueries ?? [], context);
+        const allResults = searchBundle.items;
         // Quality filter: absolute threshold + relative-to-best + score gap detection
         const filtered = this.#qualityFilter(allResults);
         if (filtered.length === 0) {
+            if (searchBundle.residentSearch) {
+                return {
+                    relatedKnowledge: [],
+                    guardRules: [],
+                    searchMeta: this.#buildSearchMeta(intent, allResults.length, 0, searchBundle.residentSearch),
+                };
+            }
             return null;
         }
         // Classify: knowledge vs rules
@@ -49,14 +59,7 @@ export class PrimeSearchPipeline {
         return {
             relatedKnowledge: knowledge,
             guardRules: rules,
-            searchMeta: {
-                queries: intent.queries,
-                scenario: intent.scenario,
-                language: intent.language,
-                module: intent.module,
-                resultCount: allResults.length,
-                filteredCount: filtered.length,
-            },
+            searchMeta: this.#buildSearchMeta(intent, allResults.length, filtered.length, searchBundle.residentSearch),
         };
     }
     /**
@@ -115,14 +118,20 @@ export class PrimeSearchPipeline {
                 .search(autoQueries[0], { mode: 'semantic', limit: 6, rank: false })
                 .catch(() => ({ items: [] }))
             : Promise.resolve({ items: [] });
+        // AlembicPlugin 不再持有 embedding executor。语义增强由本地 Alembic resident service
+        // 提供；不可用时保留 baseline embedded search，并把原因写入 searchMeta。
+        const residentPromise = autoQueries[0]
+            ? this.#residentSemanticSearch(autoQueries[0])
+            : Promise.resolve(null);
         // Keyword-mode searches (raw FWS scores — for cross-language synonym matching)
         const kwPromises = keywordQueries.map((q) => this.#search
             .search(q, { mode: 'keyword', limit: 8, rank: false })
             .catch(() => ({ items: [] })));
-        const [autoResponses, kwResponses, semanticResponse] = await Promise.all([
+        const [autoResponses, kwResponses, semanticResponse, residentResponse] = await Promise.all([
             Promise.all(autoPromises),
             Promise.all(kwPromises),
             semanticPromise,
+            residentPromise,
         ]);
         // Merge: auto + semantic + keyword
         const semanticItems = (semanticResponse.items ||
@@ -130,14 +139,19 @@ export class PrimeSearchPipeline {
         const allResponses = [
             ...autoResponses,
             ...(semanticItems.length > 0 ? [semanticResponse] : []),
+            ...(residentResponse?.items.length ? [residentResponse] : []),
             ...kwResponses,
         ];
+        const residentSearch = residentResponse?.meta;
         // Single-query shortcut: preserve original scores from search engine.
         // RRF is pointless with one response — it just converts rank to score,
         // discarding the magnitude information from BM25/CoarseRanker.
         if (allResponses.length === 1) {
             const items = (allResponses[0]?.items || []);
-            return items.map(slimSearchResult).sort((a, b) => b.score - a.score);
+            return {
+                items: items.map(slimSearchResult).sort((a, b) => b.score - a.score),
+                ...(residentSearch ? { residentSearch } : {}),
+            };
         }
         // Multi-query: Weighted RRF — RRF(d) = Σ origScore / (k + rank)
         // Retains original score magnitude while still boosting cross-query overlap.
@@ -172,7 +186,52 @@ export class PrimeSearchPipeline {
             item.score = Math.round(rrfScore * RRF_K * 1000) / 1000;
             results.push(item);
         }
-        return results.sort((a, b) => b.score - a.score);
+        return {
+            items: results.sort((a, b) => b.score - a.score),
+            ...(residentSearch ? { residentSearch } : {}),
+        };
+    }
+    async #residentSemanticSearch(query) {
+        if (!this.#residentSearchClient) {
+            return null;
+        }
+        try {
+            return await this.#residentSearchClient.search({
+                query,
+                mode: 'semantic',
+                limit: 6,
+                rank: false,
+            });
+        }
+        catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            process.stderr.write(`[PrimeSearchPipeline] resident semantic search unavailable: ${reason}\n`);
+            return {
+                items: [],
+                meta: {
+                    attempted: true,
+                    available: false,
+                    durationMs: 0,
+                    reason,
+                    requestedMode: 'semantic',
+                    residentVector: { available: false, reason },
+                    resultCount: 0,
+                    route: 'alembic-resident-service',
+                    used: false,
+                },
+            };
+        }
+    }
+    #buildSearchMeta(intent, resultCount, filteredCount, residentSearch) {
+        return {
+            queries: intent.queries,
+            scenario: intent.scenario,
+            language: intent.language,
+            module: intent.module,
+            resultCount,
+            filteredCount,
+            ...(residentSearch ? { residentSearch } : {}),
+        };
     }
     /**
      * Build sessionHistory for contextBoost (last 5 queries).

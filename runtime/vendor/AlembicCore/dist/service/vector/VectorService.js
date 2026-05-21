@@ -238,15 +238,19 @@ export class VectorService {
             return results.map((r) => ({
                 id: r.item.id || '',
                 score: r.score,
+                vectorUsed: true,
+                semanticUsed: true,
                 item: r.item,
             }));
         }
         const { topK = 10, alpha = 0.5, sparseSearchFn = null } = opts;
         // Embed query — circuit breaker skips embed after repeated failures
         let queryVector = null;
+        let fallbackReason;
         const circuitOpen = Date.now() < this.#embedCircuitOpenUntil;
         const tEmbedStart = performance.now();
         if (circuitOpen) {
+            fallbackReason = 'embed_circuit_open';
             this.#logger.debug('[VectorService] embed circuit open, skipping embed');
         }
         else {
@@ -261,11 +265,13 @@ export class VectorService {
                 this.#embedConsecutiveFailures++;
                 if (this.#embedConsecutiveFailures >= VectorService.#EMBED_CIRCUIT_THRESHOLD) {
                     this.#embedCircuitOpenUntil = Date.now() + VectorService.#EMBED_CIRCUIT_COOLDOWN_MS;
+                    fallbackReason = `embed_circuit_open:${err instanceof Error ? err.message : String(err)}`;
                     this.#logger.warn('[VectorService] embed circuit OPEN — skipping embed for 60s', {
                         consecutiveFailures: this.#embedConsecutiveFailures,
                     });
                 }
                 else {
+                    fallbackReason = `embed_failed:${err instanceof Error ? err.message : String(err)}`;
                     this.#logger.warn('[VectorService] embed failed, degrading to sparse-only', {
                         error: err instanceof Error ? err.message : String(err),
                         failCount: this.#embedConsecutiveFailures,
@@ -286,6 +292,9 @@ export class VectorService {
                 id: r.id || '',
                 score: r.score || 0,
                 ...r,
+                vectorUsed: !!queryVector,
+                semanticUsed: !!queryVector,
+                ...(fallbackReason && !queryVector ? { fallbackReason } : {}),
             }));
         }
         catch (err) {

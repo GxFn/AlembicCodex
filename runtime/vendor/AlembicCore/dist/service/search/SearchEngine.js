@@ -10,10 +10,11 @@ import { CoarseRanker } from './CoarseRanker.js';
 import { contextBoost } from './contextBoost.js';
 import { FieldWeightedScorer } from './FieldWeightedScorer.js';
 import { MultiSignalRanker } from './MultiSignalRanker.js';
+import { buildSearchResponseMeta } from './SearchTypes.js';
 // ── Re-exports for backward compatibility ──
 export { BM25Scorer } from './BM25Scorer.js';
 export { FieldWeightedScorer } from './FieldWeightedScorer.js';
-export { groupByKind, slimSearchResult } from './SearchTypes.js';
+export { buildSearchResponseMeta, groupByKind, inferSearchSemanticUsage, inferSearchVectorUsage, slimSearchResult, } from './SearchTypes.js';
 export { tokenize } from './tokenizer.js';
 /**
  * SearchEngine - 完整搜索服务
@@ -112,7 +113,21 @@ export class SearchEngine {
         const shouldRank = options.rank ?? mode !== 'keyword';
         const tSearchStart = performance.now();
         if (!query || !query.trim()) {
-            return { items: [], total: 0, query };
+            return {
+                items: [],
+                total: 0,
+                query,
+                mode,
+                type,
+                ranked: false,
+                searchMeta: buildSearchResponseMeta({
+                    route: 'core-search-engine',
+                    requestedMode: mode,
+                    actualMode: mode,
+                    resultCount: 0,
+                    durationMs: performance.now() - tSearchStart,
+                }),
+            };
         }
         // 带 sessionHistory 的上下文搜索不缓存（个性化结果）
         const hasSessionContext = (context?.sessionHistory?.length ?? 0) > 0;
@@ -131,17 +146,28 @@ export class SearchEngine {
         const recallLimit = shouldRank ? limit * 3 : limit;
         let results;
         let actualMode = mode;
+        let fallbackReason;
+        let semanticUsed;
+        let vectorUsed;
         switch (mode) {
             case 'auto': {
                 // ── Weighted-First + Confidence Gate ──
                 // 先跑 weighted（~40ms），评估是否需要 embed（2-22s）
                 const weightedItems = this._scorerSearch(query, type, recallLimit);
                 const confidence = this.#computeWeightedConfidence(query, weightedItems, limit);
-                if (confidence >= 60 || !this.vectorService) {
+                if (confidence >= 60) {
                     // 高 confidence: weighted 已足够，跳过 embed
                     results = weightedItems;
                     actualMode = `auto(weighted-only,conf=${confidence})`;
                     this.logger.info(`[QueryRouter] skip-semantic: conf=${confidence} topScore=${weightedItems[0]?.score ?? 0} query="${query}"`);
+                    break;
+                }
+                if (!this.vectorService) {
+                    // 没有 VectorService 时不是“向量失败”，而是明确走 Core baseline 搜索。
+                    results = weightedItems;
+                    actualMode = `auto(weighted-only,conf=${confidence})`;
+                    fallbackReason = 'vector_service_unavailable';
+                    this.logger.info(`[QueryRouter] skip-semantic: vector_service_unavailable conf=${confidence} topScore=${weightedItems[0]?.score ?? 0} query="${query}"`);
                     break;
                 }
                 // 低 confidence: 投入 embed，RRF 融合
@@ -156,6 +182,14 @@ export class SearchEngine {
                         sparseSearchFn: () => weightedItems,
                     });
                     if (rrfResults.length > 0) {
+                        const rrfVectorUsed = rrfResults.some((r) => r.vectorUsed === true);
+                        semanticUsed = rrfVectorUsed;
+                        vectorUsed = rrfVectorUsed;
+                        if (!rrfVectorUsed) {
+                            fallbackReason =
+                                rrfResults.find((r) => typeof r.fallbackReason === 'string')?.fallbackReason ??
+                                    'vector_service_sparse_only';
+                        }
                         results = rrfResults.map((r) => {
                             const base = r.data?.item ||
                                 r.data ||
@@ -179,16 +213,26 @@ export class SearchEngine {
                             };
                         });
                         this._supplementDetails(results);
-                        actualMode = `auto(rrf,conf=${confidence},α=${adaptiveAlpha.toFixed(2)})`;
+                        actualMode = rrfVectorUsed
+                            ? `auto(rrf,conf=${confidence},α=${adaptiveAlpha.toFixed(2)})`
+                            : `auto(sparse-rrf,conf=${confidence})`;
                         break;
                     }
                 }
-                catch {
+                catch (err) {
                     // VectorService RRF 失败, 降级
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    fallbackReason = `vector_service_hybrid_failed:${errorMessage}`;
+                    this.logger.warn('[QueryRouter] vector service hybrid failed, falling back to weighted', {
+                        error: errorMessage,
+                        query,
+                        confidence,
+                    });
                 }
                 // 降级: embed 失败 → 返回已有的 weighted 结果
                 results = weightedItems;
                 actualMode = `auto(weighted-fallback,conf=${confidence})`;
+                fallbackReason ??= 'vector_service_hybrid_unavailable';
                 break;
             }
             case 'weighted':
@@ -199,6 +243,7 @@ export class SearchEngine {
                 const semResult = await this._semanticSearch(query, type, recallLimit);
                 results = semResult.items;
                 actualMode = semResult.actualMode || 'semantic';
+                fallbackReason = semResult.fallbackReason;
                 break;
             }
             default:
@@ -220,6 +265,16 @@ export class SearchEngine {
         };
         // ── 搜索计时日志 ──
         const tSearchEnd = performance.now();
+        response.searchMeta = buildSearchResponseMeta({
+            route: 'core-search-engine',
+            requestedMode: mode,
+            actualMode,
+            semanticUsed,
+            vectorUsed,
+            resultCount: results.length,
+            durationMs: tSearchEnd - tSearchStart,
+            fallbackReason,
+        });
         this.logger.info(`Search completed: mode=${actualMode} total=${results.length} time=${Math.round(tSearchEnd - tSearchStart)}ms ranked=${response.ranked} query="${query}"`);
         if (options.groupByKind) {
             response.byKind = { rule: [], pattern: [], fact: [] };
@@ -490,12 +545,20 @@ export class SearchEngine {
         // Legacy fallback: 直接使用 aiProvider embed + vectorStore
         if (!this.aiProvider) {
             this.logger.debug('AI provider not available, falling back to FieldWeighted search');
-            return { items: this._scorerSearch(query, type, limit), actualMode: 'weighted' };
+            return {
+                items: this._scorerSearch(query, type, limit),
+                actualMode: 'weighted',
+                fallbackReason: 'embed_provider_unavailable',
+            };
         }
         try {
             const queryEmbedding = await this.aiProvider.embed(query);
             if (!queryEmbedding || queryEmbedding.length === 0) {
-                return { items: this._scorerSearch(query, type, limit), actualMode: 'weighted' };
+                return {
+                    items: this._scorerSearch(query, type, limit),
+                    actualMode: 'weighted',
+                    fallbackReason: 'empty_query_embedding',
+                };
             }
             if (this.vectorStore) {
                 try {
@@ -544,19 +607,34 @@ export class SearchEngine {
                     }
                 }
                 catch (vecErr) {
+                    const errorMessage = vecErr instanceof Error ? vecErr.message : String(vecErr);
                     this.logger.warn('Vector store query failed, falling back to FieldWeighted', {
-                        error: vecErr.message,
+                        error: errorMessage,
                     });
+                    return {
+                        items: this._scorerSearch(query, type, limit),
+                        actualMode: 'weighted',
+                        fallbackReason: `vector_store_query_failed:${errorMessage}`,
+                    };
                 }
             }
             this.logger.debug('Vector search fallback to FieldWeighted');
-            return { items: this._scorerSearch(query, type, limit), actualMode: 'weighted' };
+            return {
+                items: this._scorerSearch(query, type, limit),
+                actualMode: 'weighted',
+                fallbackReason: 'vector_store_unavailable_or_empty',
+            };
         }
         catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
             this.logger.warn('Semantic search failed, falling back to FieldWeighted', {
-                error: err.message,
+                error: errorMessage,
             });
-            return { items: this._scorerSearch(query, type, limit), actualMode: 'weighted' };
+            return {
+                items: this._scorerSearch(query, type, limit),
+                actualMode: 'weighted',
+                fallbackReason: `semantic_search_failed:${errorMessage}`,
+            };
         }
     }
     /**

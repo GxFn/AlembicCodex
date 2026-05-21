@@ -57,7 +57,8 @@ export class HostAiProviderManager {
         return hasChatCapability(this.#provider) ? this.#provider : null;
     }
     get embedProvider() {
-        return this.#embedProvider ?? this.runtimeProvider;
+        const candidate = this.#embedProvider ?? this.#provider;
+        return providerSupportsExecutableEmbedding(candidate) ? candidate : null;
     }
     get rawEmbedProvider() {
         return this.#embedProvider;
@@ -220,13 +221,23 @@ function normalizeHostProvider(provider) {
         ? provider.model
         : defaultModelForProvider(providerName);
     const provided = provider;
-    const executable = typeof provided.chat === 'function' ||
-        typeof provided.chatWithTools === 'function' ||
-        typeof provided.chatWithStructuredOutput === 'function';
-    const embedExecutable = typeof provided.embed === 'function' ||
-        (typeof provided.supportsEmbedding === 'function' && provided.supportsEmbedding());
+    const hostManaged = provided.hostManaged === true;
+    const chatExplicitlyNonExecutable = provided.__hostAiExecutable === false || hostManaged;
+    const executable = provided.__hostAiExecutable === true ||
+        (!chatExplicitlyNonExecutable &&
+            (typeof provided.chat === 'function' ||
+                typeof provided.chatWithTools === 'function' ||
+                typeof provided.chatWithStructuredOutput === 'function'));
     const normalizedProvider = provider;
     const unavailable = unavailableProviderMethods();
+    const explicitlyNonExecutable = provided.__hostEmbedExecutable === false ||
+        provided.__hostAiExecutable === false ||
+        hostManaged;
+    const embedExecutable = provided.__hostEmbedExecutable === true ||
+        (!explicitlyNonExecutable &&
+            typeof provided.embed === 'function' &&
+            provided.embed !== unavailable.embed &&
+            safeSupportsEmbedding(provided));
     for (const [key, value] of Object.entries(unavailable)) {
         if (typeof normalizedProvider[key] !== 'function') {
             normalizedProvider[key] = value;
@@ -259,13 +270,27 @@ function hasChatCapability(provider) {
     return provider?.__hostAiExecutable === true;
 }
 function hasEmbeddingCapability(provider) {
-    return provider?.__hostEmbedExecutable === true;
+    return providerSupportsExecutableEmbedding(provider);
 }
 function providerSupportsEmbedding(provider) {
+    return providerSupportsExecutableEmbedding(provider);
+}
+export function providerSupportsExecutableEmbedding(provider) {
     if (!provider) {
         return false;
     }
     return provider.__hostEmbedExecutable === true;
+}
+function safeSupportsEmbedding(provider) {
+    if (typeof provider.supportsEmbedding !== 'function') {
+        return true;
+    }
+    try {
+        return provider.supportsEmbedding() === true;
+    }
+    catch {
+        return false;
+    }
 }
 function modelOption(provider, model) {
     const contextWindow = contextWindowForModel(model);

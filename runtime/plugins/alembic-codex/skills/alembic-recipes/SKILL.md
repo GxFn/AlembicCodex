@@ -37,6 +37,7 @@ Do not:
 1. Call `alembic_task(operation: "prime")` at the start of meaningful coding work.
 2. Use `alembic_search(mode: "auto")` for general lookup.
 3. Use `alembic_search(mode: "context")` for coding assistance.
+4. If `searchMeta.residentSearch` / `residentVector` is present, use it to understand whether semantic/vector recall came from the local Alembic resident service or fell back to Plugin baseline search. Do not assume AlembicPlugin has its own embedding executor.
 4. Use `alembic_knowledge(operation: "list")` with filters when browsing by kind, language, or category.
 5. Use `alembic_knowledge(operation: "get", id)` for full Recipe content.
 

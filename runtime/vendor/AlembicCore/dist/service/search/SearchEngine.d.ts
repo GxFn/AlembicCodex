@@ -10,8 +10,8 @@ import { MultiSignalRanker } from './MultiSignalRanker.js';
 import type { DbRow, RankingContext, Scorer, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResultItem, SearchVectorService, SearchVectorStore } from './SearchTypes.js';
 export { BM25Scorer } from './BM25Scorer.js';
 export { FieldWeightedScorer } from './FieldWeightedScorer.js';
-export type { BM25DocMeta, DbRow, DocMeta, RankingContext, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResultItem, SearchVectorService, SearchVectorStore, SlimSearchResult, VectorHit, } from './SearchTypes.js';
-export { groupByKind, slimSearchResult } from './SearchTypes.js';
+export type { BM25DocMeta, DbRow, DocMeta, RankingContext, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResponseMeta, SearchResultItem, SearchVectorService, SearchVectorStore, SlimSearchResult, VectorHit, } from './SearchTypes.js';
+export { buildSearchResponseMeta, groupByKind, inferSearchSemanticUsage, inferSearchVectorUsage, slimSearchResult, } from './SearchTypes.js';
 export { tokenize } from './tokenizer.js';
 /**
  * SearchEngine - 完整搜索服务
@@ -116,6 +116,7 @@ export declare class SearchEngine {
     _semanticSearch(query: string, type: string, limit: number): Promise<{
         items: SearchResultItem[];
         actualMode: string;
+        fallbackReason?: string;
     }>;
     /**
      * 补充详细字段（content / description / trigger / delivery 字段）— 批量 IN 查询

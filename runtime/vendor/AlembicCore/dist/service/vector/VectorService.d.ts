@@ -61,6 +61,14 @@ export interface ProgressInfo {
     detail?: string;
     [key: string]: unknown;
 }
+export interface VectorHybridSearchHit {
+    id: string;
+    score: number;
+    vectorUsed: boolean;
+    semanticUsed: boolean;
+    fallbackReason?: string;
+    [key: string]: unknown;
+}
 export type ProgressFn = (info: ProgressInfo) => void;
 export declare class VectorService {
     #private;
@@ -123,11 +131,7 @@ export declare class VectorService {
             score?: number;
             [key: string]: unknown;
         }>) | null;
-    }): Promise<Array<{
-        id: string;
-        score: number;
-        [key: string]: unknown;
-    }>>;
+    }): Promise<VectorHybridSearchHit[]>;
     /** 通过 ID 查找相似向量 */
     similarById(id: string, topK?: number): Promise<Array<{
         item: Record<string, unknown>;
