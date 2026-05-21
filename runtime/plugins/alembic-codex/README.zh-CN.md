@@ -22,7 +22,7 @@ codex plugin marketplace add GxFn/AlembicCodex --ref main
 如果要固定到对应 Git tag，先创建并推送该 tag，然后使用：
 
 ```bash
-codex plugin marketplace add GxFn/AlembicCodex --ref v0.1.2
+codex plugin marketplace add GxFn/AlembicCodex --ref main
 ```
 
 如果 Codex 要求填写 GitHub Target 或直接 artifact path，请填写：
@@ -49,7 +49,7 @@ main
 ## Runtime
 
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
-- 插件内置 Alembic 业务运行时代码在 `./runtime`；这个内置 package 是 `alembic-ai@0.1.2`。
+- 插件内置 Alembic 业务运行时代码在 `./runtime`；这个内置 package 是 `alembic-ai@0.2.0`。
 - Marketplace MCP 配置运行插件本地的 `./bin/alembic-codex-mcp-wrapper.mjs`；wrapper 会用插件专属 npm cache 和启动锁调用 `npx --package ./runtime.tgz alembic-codex-mcp`，确保复用插件本地 runtime tarball，同时避免共享 `_npx` 启动冲突。
 - Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会设置 `ALEMBIC_CHANNEL_ID=codex`；项目功能判断应使用这个稳定渠道标识。

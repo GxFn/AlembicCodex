@@ -9,6 +9,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { SetupService } from '../../cli/SetupService.js';
 import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
+import { getPackageVersion } from '../../shared/package-assets.js';
 import { McpServer as EmbeddedMcpServer } from './McpServer.js';
 import { TIER_ORDER, TOOLS, withMcpToolAnnotations } from './tools.js';
 function resolveWorkspaceModeConflict(projectRoot, requestedMode) {
@@ -50,7 +51,7 @@ export class CodexMcpServer {
         this.sessionId = `codex-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     }
     async start() {
-        this.sdkServer = new SdkMcpServer({ name: 'alembic-codex', version: '0.1.1' }, { capabilities: { tools: {} } });
+        this.sdkServer = new SdkMcpServer({ name: 'alembic-codex', version: getPackageVersion() }, { capabilities: { tools: {} } });
         this.registerHandlers();
         await this.sdkServer.connect(new StdioServerTransport());
         process.stderr.write(`Alembic Codex MCP ready — ${getVisibleCodexTools(undefined, this.projectRoot).length} tools\n`);

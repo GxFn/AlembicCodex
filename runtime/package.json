@@ -1,6 +1,6 @@
 {
   "name": "alembic-ai",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Alembic Codex plugin integration repository. Embedded Codex plugin runtime.",
   "type": "module",
   "main": "dist/lib/bootstrap.js",
