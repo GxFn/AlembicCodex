@@ -8,8 +8,9 @@ import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SetupService } from '../../cli/SetupService.js';
-import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
+import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isPluginOwnedCodexFacingTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
+import { McpServer as EmbeddedMcpServer } from './McpServer.js';
 import { TIER_ORDER, TOOLS, withMcpToolAnnotations } from './tools.js';
 function resolveWorkspaceModeConflict(projectRoot, requestedMode) {
     if (!requestedMode) {
@@ -32,6 +33,7 @@ export class CodexMcpServer {
     waitUntilReadyMs;
     sessionId;
     sdkServer = null;
+    #pluginOwnedMcpServer = null;
     #initPromise = null;
     #initRuntimeState = {
         attempted: false,
@@ -57,6 +59,10 @@ export class CodexMcpServer {
     async shutdown() {
         if (this.sdkServer) {
             await this.sdkServer.close();
+        }
+        if (this.#pluginOwnedMcpServer) {
+            await this.#pluginOwnedMcpServer.shutdown();
+            this.#pluginOwnedMcpServer = null;
         }
     }
     registerHandlers() {
@@ -170,8 +176,13 @@ export class CodexMcpServer {
                 return this.stopDaemon(args);
             case 'alembic_codex_cleanup':
                 return this.cleanupRuntime(args);
-            default:
-                return this.callDaemonTool(name, args);
+            default: {
+                const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
+                if (isPluginOwnedCodexFacingTool(serviceBoundary)) {
+                    return this.callPluginOwnedTool(name, args, serviceBoundary);
+                }
+                return this.callDaemonTool(name, args, serviceBoundary);
+            }
         }
     }
     async buildStatus() {
@@ -712,33 +723,89 @@ export class CodexMcpServer {
             return null;
         }
     }
-    async callDaemonTool(name, args) {
+    async callPluginOwnedTool(name, args, serviceBoundary) {
         if (!TOOLS.some((tool) => tool.name === name)) {
-            return failureResult(name, `Unknown Alembic tool: ${name}`);
+            return attachCodexServiceBoundary(failureResult(name, `Unknown Alembic tool: ${name}`), serviceBoundary);
+        }
+        try {
+            const localMcp = await this.getPluginOwnedMcpServer();
+            const result = await localMcp._executeMcpHandler(name, args, {
+                actor: {
+                    role: 'external_agent',
+                    user: process.env.USER || undefined,
+                    sessionId: this.sessionId,
+                },
+                source: { kind: 'codex', name: 'plugin-owned-codex-facing' },
+                surface: 'codex',
+            });
+            return attachCodexServiceBoundary(result, serviceBoundary);
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return attachCodexServiceBoundary(failureResult(name, `Plugin-owned Codex tool execution failed: ${message}`), serviceBoundary);
+        }
+    }
+    async callDaemonTool(name, args, serviceBoundary = resolveCodexServiceRequestBoundary(name, args)) {
+        if (!TOOLS.some((tool) => tool.name === name)) {
+            return attachCodexServiceBoundary(failureResult(name, `Unknown Alembic tool: ${name}`), serviceBoundary);
         }
         const { blocked, daemon, enhancementRoute, hostProjectAlignment } = await this.ensureEnhancementDaemon('mcp', name);
         if (blocked) {
-            return blocked;
+            return attachCodexServiceBoundary(blocked, serviceBoundary);
         }
         if (!daemon.ready || !daemon.state) {
-            return failureResult(name, daemon.message || 'Alembic daemon is not ready yet.', {
+            return attachCodexServiceBoundary(failureResult(name, daemon.message || 'Alembic daemon is not ready yet.', {
                 daemon: summarizeCodexDaemonStatus(daemon),
                 enhancementRoute,
                 hostProjectAlignment,
-            });
+            }), serviceBoundary);
         }
         if (!daemon.state.token) {
-            return failureResult(name, 'Alembic daemon token is missing. Restart the daemon and retry.', {
+            return attachCodexServiceBoundary(failureResult(name, 'Alembic daemon token is missing. Restart the daemon and retry.', {
                 daemon: summarizeCodexDaemonStatus(daemon),
                 enhancementRoute,
                 hostProjectAlignment,
-            });
+            }), serviceBoundary);
         }
-        return attachEnhancementRoute(await callDaemonBridge(daemon.state, name, args, {
+        return attachCodexServiceBoundary(attachEnhancementRoute(await callDaemonBridge(daemon.state, name, args, {
             role: 'external_agent',
             user: process.env.USER || undefined,
             sessionId: this.sessionId,
-        }), enhancementRoute);
+        }), enhancementRoute), serviceBoundary);
+    }
+    async getPluginOwnedMcpServer() {
+        if (this.#pluginOwnedMcpServer) {
+            return this.#pluginOwnedMcpServer;
+        }
+        const previousProjectDir = process.env.ALEMBIC_PROJECT_DIR;
+        const previousCwd = safeProjectRootFallback();
+        process.env.ALEMBIC_PROJECT_DIR = this.projectRoot;
+        const server = new EmbeddedMcpServer({
+            actorRole: 'external_agent',
+            source: { kind: 'codex', name: 'plugin-owned-codex-facing' },
+            surface: 'codex',
+        });
+        try {
+            // Plugin-owned Codex tools use the embedded Plugin handler tree. Alembic daemon can still
+            // serve resident capabilities, but it must not replace Codex-facing task payload ownership.
+            await server.initialize();
+            this.#pluginOwnedMcpServer = server;
+            return server;
+        }
+        finally {
+            if (previousProjectDir === undefined) {
+                delete process.env.ALEMBIC_PROJECT_DIR;
+            }
+            else {
+                process.env.ALEMBIC_PROJECT_DIR = previousProjectDir;
+            }
+            try {
+                process.chdir(previousCwd);
+            }
+            catch (err) {
+                process.stderr.write(`[Codex MCP] failed to restore cwd after Plugin-owned tool init: ${err instanceof Error ? err.message : String(err)}\n`);
+            }
+        }
     }
     async ensureEnhancementDaemon(requirement, tool) {
         const currentDaemon = await this.supervisor.status(this.projectRoot);
@@ -932,6 +999,22 @@ function attachEnhancementRoute(result, enhancementRoute) {
         data: {
             ...data,
             enhancementRoute,
+        },
+    };
+}
+function attachCodexServiceBoundary(result, serviceBoundary) {
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+        return result;
+    }
+    const record = result;
+    const data = record.data && typeof record.data === 'object' && !Array.isArray(record.data)
+        ? record.data
+        : {};
+    return {
+        ...record,
+        data: {
+            ...data,
+            serviceBoundary,
         },
     };
 }
