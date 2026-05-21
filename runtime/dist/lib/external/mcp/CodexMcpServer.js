@@ -8,7 +8,7 @@ import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SetupService } from '../../cli/SetupService.js';
-import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isPluginOwnedCodexFacingTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
+import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, CODEX_PROJECT_ROOT_PROPERTY, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexAiConfig, inspectCodexKnowledge, isCodexInitOnDemandTool, isCodexProjectRootDiscoveryTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, resolveCodexToolPolicy, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
 import { McpServer as EmbeddedMcpServer } from './McpServer.js';
 import { TIER_ORDER, TOOLS, withMcpToolAnnotations } from './tools.js';
@@ -178,10 +178,7 @@ export class CodexMcpServer {
                 return this.cleanupRuntime(args);
             default: {
                 const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
-                if (isPluginOwnedCodexFacingTool(serviceBoundary)) {
-                    return this.callPluginOwnedTool(name, args, serviceBoundary);
-                }
-                return this.callDaemonTool(name, args, serviceBoundary);
+                return this.callPluginOwnedTool(name, args, serviceBoundary);
             }
         }
     }
@@ -745,34 +742,6 @@ export class CodexMcpServer {
             return attachCodexServiceBoundary(failureResult(name, `Plugin-owned Codex tool execution failed: ${message}`), serviceBoundary);
         }
     }
-    async callDaemonTool(name, args, serviceBoundary = resolveCodexServiceRequestBoundary(name, args)) {
-        if (!TOOLS.some((tool) => tool.name === name)) {
-            return attachCodexServiceBoundary(failureResult(name, `Unknown Alembic tool: ${name}`), serviceBoundary);
-        }
-        const { blocked, daemon, enhancementRoute, hostProjectAlignment } = await this.ensureEnhancementDaemon('mcp', name);
-        if (blocked) {
-            return attachCodexServiceBoundary(blocked, serviceBoundary);
-        }
-        if (!daemon.ready || !daemon.state) {
-            return attachCodexServiceBoundary(failureResult(name, daemon.message || 'Alembic daemon is not ready yet.', {
-                daemon: summarizeCodexDaemonStatus(daemon),
-                enhancementRoute,
-                hostProjectAlignment,
-            }), serviceBoundary);
-        }
-        if (!daemon.state.token) {
-            return attachCodexServiceBoundary(failureResult(name, 'Alembic daemon token is missing. Restart the daemon and retry.', {
-                daemon: summarizeCodexDaemonStatus(daemon),
-                enhancementRoute,
-                hostProjectAlignment,
-            }), serviceBoundary);
-        }
-        return attachCodexServiceBoundary(attachEnhancementRoute(await callDaemonBridge(daemon.state, name, args, {
-            role: 'external_agent',
-            user: process.env.USER || undefined,
-            sessionId: this.sessionId,
-        }), enhancementRoute), serviceBoundary);
-    }
     async getPluginOwnedMcpServer() {
         if (this.#pluginOwnedMcpServer) {
             return this.#pluginOwnedMcpServer;
@@ -902,28 +871,6 @@ function withCodexProjectRootInput(tool) {
             },
         },
     };
-}
-async function callDaemonBridge(state, name, args, actor) {
-    const response = await fetch(`${state.url}/api/v1/mcp/call`, {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            'x-alembic-daemon-token': state.token || '',
-        },
-        body: JSON.stringify({ name, args, actor }),
-    });
-    const payload = await readJsonResponse(response);
-    if (response.ok) {
-        return payload;
-    }
-    return failureResult(name, extractResponseError(payload) || `Daemon bridge returned ${response.status}`, {
-        daemon: {
-            url: state.url,
-            pid: state.pid,
-            port: state.port,
-        },
-        response: payload,
-    });
 }
 async function callDaemonHttpEndpoint(state, path, request, tool) {
     const response = await fetch(`${state.url}${path}`, {

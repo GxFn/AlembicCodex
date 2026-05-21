@@ -11,6 +11,7 @@
 import { buildColdStartWorkflowPlan, buildExternalMissionBriefing, createExternalColdStartIntent, createExternalWorkflowSession, getActiveExternalWorkflowSession, presentExternalColdStartEmptyProject, presentExternalColdStartResponse, runFullResetPolicy, } from '@alembic/core/host-agent-workflows';
 import { buildProjectSnapshot, ProjectIntelligenceCapability, } from '@alembic/core/project-intelligence';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
+import { CleanupService } from '#service/cleanup/CleanupService.js';
 // ── 主入口 ─────────────────────────────────────────────────────
 /**
  * bootstrapExternal — 外部 Agent 驱动的一键冷启动
@@ -33,8 +34,15 @@ export async function runExternalColdStartWorkflow(ctx) {
     const db = ctx.container.get('database');
     const cleanupResult = await runFullResetPolicy({
         projectRoot: plan.cleanup.projectRoot,
+        dataRoot,
         db,
         logger: ctx.logger,
+        createCleanupService: (policyCtx) => new CleanupService({
+            projectRoot: policyCtx.projectRoot,
+            dataRoot: policyCtx.dataRoot,
+            db: policyCtx.db,
+            logger: policyCtx.logger,
+        }),
     });
     // ═══════════════════════════════════════════════════════════
     // Phase 1-4: 共享数据收集管线（永远全量，无增量检测）

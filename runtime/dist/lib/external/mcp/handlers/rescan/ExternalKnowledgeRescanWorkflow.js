@@ -13,6 +13,7 @@
 import { auditRecipesForRescan, buildExternalMissionBriefing, buildKnowledgeRescanPlan, buildKnowledgeRescanWorkflowPlan, buildRescanPrescreen, createExternalKnowledgeRescanIntent, createExternalWorkflowSession, presentExternalKnowledgeRescanEmptyProject, presentExternalKnowledgeRescanResponse, projectExternalRescanEvidencePlan, runForceRescanCleanPolicy, runRescanCleanPolicy, syncKnowledgeStoreForRescan, } from '@alembic/core/host-agent-workflows';
 import { buildProjectSnapshot, ProjectIntelligenceCapability, } from '@alembic/core/project-intelligence';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
+import { CleanupService } from '#service/cleanup/CleanupService.js';
 // ── 主入口 ─────────────────────────────────────────────────
 export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
     const t0 = Date.now();
@@ -29,8 +30,10 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
     if (intent.cleanupPolicy === 'force-rescan') {
         const result = await runForceRescanCleanPolicy({
             projectRoot: plan.cleanup.projectRoot,
+            dataRoot,
             db,
             logger: ctx.logger,
+            createCleanupService: createWorkflowCleanupService,
         });
         recipeSnapshot = result.recipeSnapshot;
         cleanResult = result.cleanResult;
@@ -38,16 +41,18 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
     else if (intent.cleanupPolicy === 'rescan-clean') {
         const result = await runRescanCleanPolicy({
             projectRoot: plan.cleanup.projectRoot,
+            dataRoot,
             db,
             logger: ctx.logger,
+            createCleanupService: createWorkflowCleanupService,
         });
         recipeSnapshot = result.recipeSnapshot;
         cleanResult = result.cleanResult;
     }
     else {
-        const { CleanupService } = await import('#service/cleanup/CleanupService.js');
-        const cleanupService = new CleanupService({
+        const cleanupService = createWorkflowCleanupService({
             projectRoot: plan.cleanup.projectRoot,
+            dataRoot,
             db,
             logger: ctx.logger,
         });
@@ -188,5 +193,13 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
         dimensions: requestedDimensions,
         reason: intent.reason,
         responseTimeMs: Date.now() - t0,
+    });
+}
+function createWorkflowCleanupService(ctx) {
+    return new CleanupService({
+        projectRoot: ctx.projectRoot,
+        dataRoot: ctx.dataRoot,
+        db: ctx.db,
+        logger: ctx.logger,
     });
 }
