@@ -22,7 +22,7 @@ If the workspace is not initialized and the user wants Alembic knowledge for thi
 For non-trivial coding tasks:
 
 1. Call `alembic_task` with `operation: "prime"` and include the user's task.
-2. Immediately after the prime tool result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: say which Recipe, Guard, or project knowledge was accepted with evidence refs when present, or say the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary.
+2. Immediately after the prime tool result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: briefly and actively shout which Recipe constraints, Guard rules, patterns, or judgment basis were accepted, or say the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary. Keep evidence refs in the payload for later verification or user-requested citations; do not dump paths or line numbers by default.
 3. Use `alembic_search`, `alembic_knowledge`, or `alembic_structure` when more project context is needed.
 4. Make code changes according to approved Recipes and project evidence.
 5. Call `alembic_guard` after meaningful edits, especially before summarizing completion.
