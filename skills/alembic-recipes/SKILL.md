@@ -38,8 +38,9 @@ Do not:
 2. Use `alembic_search(mode: "auto")` for general lookup.
 3. Use `alembic_search(mode: "context")` for coding assistance.
 4. If `searchMeta.residentSearch` / `residentVector` is present, use it to understand whether semantic/vector recall came from the local Alembic resident service or fell back to Plugin baseline search. Do not assume AlembicPlugin has its own embedding executor.
-4. Use `alembic_knowledge(operation: "list")` with filters when browsing by kind, language, or category.
-5. Use `alembic_knowledge(operation: "get", id)` for full Recipe content.
+5. For `alembic_search(mode: "auto")`, keep treating `auto` as the Codex-facing intent; Plugin may request the resident service with a daemon-supported mode such as `semantic`, and `searchMeta.residentSearch.requestedMode` / `residentRequestMode` shows both sides of that boundary.
+6. Use `alembic_knowledge(operation: "list")` with filters when browsing by kind, language, or category.
+7. Use `alembic_knowledge(operation: "get", id)` for full Recipe content.
 
 ## How To Apply Recipes
 

@@ -28,7 +28,7 @@ For non-trivial coding tasks:
 5. Call `alembic_guard` after meaningful edits, especially before summarizing completion.
 6. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
-Prime and search can include `searchMeta.residentSearch` / `residentVector` diagnostics. When a local Alembic resident service is ready, semantic/vector recall is requested there and the metadata shows the resident route, actual mode, vector usage, and fallback reason. When the resident service is unavailable, continue with Plugin baseline knowledge search and treat `residentVector.available=false` as an expected enhancement boundary, not as a Plugin embedding failure.
+Prime and search can include `searchMeta.residentSearch` / `residentVector` diagnostics. When a local Alembic resident service is ready, semantic/vector recall is requested there and the metadata shows the resident route, Codex requested mode, daemon resident request mode, actual mode, vector usage, and fallback reason. When the resident service is unavailable, continue with Plugin baseline knowledge search and treat `residentVector.available=false` as an expected enhancement boundary, not as a Plugin embedding failure.
 
 ## Long-Running Work
 
