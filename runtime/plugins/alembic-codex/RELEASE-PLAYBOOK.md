@@ -62,7 +62,7 @@ That means every package version bump must keep these surfaces aligned:
 
 Use the tag-driven GitHub Release workflow as the source of truth for plugin artifacts. Avoid local manual artifact assembly except for emergency recovery.
 
-1. Choose the version, for example `0.1.0`.
+1. Choose the version, for example `0.2.0`.
 2. Update package metadata to the same version.
 3. Run local release checks:
 
@@ -82,8 +82,8 @@ npm run release:codex-plugin:daemon
 7. Create an annotated tag on the exact green commit:
 
 ```bash
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "Release v0.2.0"
+git push origin v0.2.0
 ```
 
 8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out sibling `AlembicCore`, builds runtime assets, runs lint, unit and integration tests, verifies the portable runtime metadata, smokes the Codex plugin package, and uploads the Codex plugin artifacts.
