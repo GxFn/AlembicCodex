@@ -41,7 +41,7 @@ declare const DEFAULT_CONFIG: {
     minContentLength: number;
     /** 自动通过要求 reasoning.isValid() */
     requireReasoning: boolean;
-    /** 来源白名单（这些来源可以适用更宽松的阈值） */
+    /** 来源白名单（这些来源只适用更宽松阈值，不跳过内容、reasoning 或质量门） */
     trustedSources: string[];
     /** 可信来源的自动通过阈值 */
     trustedAutoApproveThreshold: number;

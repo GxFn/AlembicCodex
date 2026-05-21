@@ -1,4 +1,5 @@
 import Logger from '../../infrastructure/logging/Logger.js';
+import { HOST_AGENT_SOURCE } from '../../shared/source-contracts.js';
 /**
  * ConfidenceRouter — 知识条目自动审核路由器
  *
@@ -19,8 +20,8 @@ const DEFAULT_CONFIG = {
     minContentLength: 20,
     /** 自动通过要求 reasoning.isValid() */
     requireReasoning: true,
-    /** 来源白名单（这些来源可以适用更宽松的阈值） */
-    trustedSources: ['bootstrap', 'cursor-scan', 'mcp'],
+    /** 来源白名单（这些来源只适用更宽松阈值，不跳过内容、reasoning 或质量门） */
+    trustedSources: ['bootstrap', 'cursor-scan', 'mcp', HOST_AGENT_SOURCE],
     /** 可信来源的自动通过阈值 */
     trustedAutoApproveThreshold: 0.7,
     /** 极高置信度阈值 (≥0.90 → 24h Grace) */

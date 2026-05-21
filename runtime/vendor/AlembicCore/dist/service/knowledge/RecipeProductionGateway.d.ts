@@ -85,6 +85,7 @@ export interface CreateRecipeRequest {
     };
 }
 export interface CreatedRecipeInfo {
+    index: number;
     id: string;
     title: string;
     lifecycle: string;
@@ -135,6 +136,12 @@ export interface CreateRecipeResult {
     pendingSemanticReview?: Array<{
         index: number;
         title: string;
+        newRecipeId?: string;
+        createdRecipe?: {
+            id: string;
+            title: string;
+            lifecycle: string;
+        };
         relatedRecipe?: {
             id: string;
             title: string;

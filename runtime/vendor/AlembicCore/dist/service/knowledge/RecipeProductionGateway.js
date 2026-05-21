@@ -55,6 +55,7 @@ export class RecipeProductionGateway {
             duplicates: [],
             supersedeProposal: null,
         };
+        const pendingReviews = [];
         if (items.length === 0) {
             return result;
         }
@@ -192,8 +193,6 @@ export class RecipeProductionGateway {
                         }
                     }
                 }
-                // ── Step 3.2: 收集 pendingSemanticReview ──
-                const pendingReviews = [];
                 for (let ai = 0; ai < batchAdvice.items.length; ai++) {
                     const { advice } = batchAdvice.items[ai];
                     const validEntry = afterSimilarityItems[ai];
@@ -248,10 +247,7 @@ export class RecipeProductionGateway {
                         });
                     }
                 }
-                // 将 pendingSemanticReview 附加到结果
-                if (pendingReviews.length > 0) {
-                    result.pendingSemanticReview = pendingReviews;
-                }
+                // pendingSemanticReview 会在创建完成后再回填 newRecipeId，避免下游只能猜 title。
             }
             catch (err) {
                 this.#logger?.warn(`[Gateway] ConsolidationAdvisor error, falling back to direct submit: ${err instanceof Error ? err.message : String(err)}`);
@@ -260,16 +256,20 @@ export class RecipeProductionGateway {
         }
         // ── Step 4: Create via KnowledgeService ──
         const createdIds = [];
-        for (const { item } of submittableItems) {
+        const createdByIndex = new Map();
+        for (const { item, index } of submittableItems) {
             try {
                 const data = this.#prepareCreateData(item, source, userId);
                 const saved = await this.#knowledgeService.create(data, { userId });
-                result.created.push({
+                const created = {
+                    index,
                     id: saved.id,
                     title: saved.title,
                     lifecycle: saved.lifecycle,
                     raw: saved,
-                });
+                };
+                result.created.push(created);
+                createdByIndex.set(index, created);
                 createdIds.push(saved.id);
                 // Register to bootstrap session dedup cache
                 options.bootstrapDedup?.register({
@@ -291,7 +291,7 @@ export class RecipeProductionGateway {
             }
             catch (err) {
                 result.rejected.push({
-                    index: items.indexOf(item),
+                    index,
                     title: item.title || '(untitled)',
                     reason: 'create_failed',
                     errors: [err instanceof Error ? err.message : String(err)],
@@ -299,6 +299,23 @@ export class RecipeProductionGateway {
                 });
                 this.#logger?.warn(`[Gateway] ✗ create failed for "${item.title}": ${err instanceof Error ? err.message : String(err)}`);
             }
+        }
+        if (pendingReviews.length > 0) {
+            result.pendingSemanticReview = pendingReviews.map((review) => {
+                const created = createdByIndex.get(review.index);
+                if (!created) {
+                    return review;
+                }
+                return {
+                    ...review,
+                    newRecipeId: created.id,
+                    createdRecipe: {
+                        id: created.id,
+                        title: created.title,
+                        lifecycle: created.lifecycle,
+                    },
+                };
+            });
         }
         // ── Step 6: Supersede Proposal ──
         if (options.supersedes && createdIds.length > 0) {
