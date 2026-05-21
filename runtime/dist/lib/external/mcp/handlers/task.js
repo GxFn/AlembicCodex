@@ -214,7 +214,8 @@ function _buildPrimeKnowledgeMaterial(input) {
         acceptedKnowledge,
         acceptedGuards,
         shoutInstruction: _buildPrimeShoutInstruction(status),
-        nextActions: _buildPrimeKnowledgeNextActions(status, receiptId),
+        hostResponse: _buildPrimeHostResponseInstruction(status, receiptId),
+        nextActions: _buildPrimeKnowledgeNextActions(),
     };
 }
 function _projectAcceptedKnowledge(item) {
@@ -296,20 +297,20 @@ function _buildPrimeShoutInstruction(status) {
         'Continue only with explicit code reading and verification.',
     ].join(' ');
 }
-function _buildPrimeKnowledgeNextActions(status, receiptId) {
+function _buildPrimeHostResponseInstruction(status, receiptId) {
+    // hostResponse 是给 Codex 宿主的可见回复动作，不是 MCP 工具调用，避免误触发不存在的 codex_host_response tool。
+    return {
+        action: 'shout_prime_knowledge_receipt',
+        receiptId,
+        status,
+        required: true,
+        reason: status === 'delivered'
+            ? 'Tell the developer which Recipe/Guard knowledge was accepted before acting on it.'
+            : 'Tell the developer whether prime returned no knowledge or degraded before continuing.',
+    };
+}
+function _buildPrimeKnowledgeNextActions() {
     return [
-        {
-            tool: 'codex_host_response',
-            args: {
-                action: 'shout_prime_knowledge_receipt',
-                receiptId,
-                status,
-            },
-            required: true,
-            reason: status === 'delivered'
-                ? 'Tell the developer which Recipe/Guard knowledge was accepted before acting on it.'
-                : 'Tell the developer whether prime returned no knowledge or degraded before continuing.',
-        },
         {
             tool: 'alembic_task',
             args: {
