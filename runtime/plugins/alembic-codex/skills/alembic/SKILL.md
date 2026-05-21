@@ -22,10 +22,11 @@ If the workspace is not initialized and the user wants Alembic knowledge for thi
 For non-trivial coding tasks:
 
 1. Call `alembic_task` with `operation: "prime"` and include the user's task.
-2. Use `alembic_search`, `alembic_knowledge`, or `alembic_structure` when more project context is needed.
-3. Make code changes according to approved Recipes and project evidence.
-4. Call `alembic_guard` after meaningful edits, especially before summarizing completion.
-5. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
+2. Immediately after the prime tool result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: say which Recipe, Guard, or project knowledge was accepted with evidence refs when present, or say the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary.
+3. Use `alembic_search`, `alembic_knowledge`, or `alembic_structure` when more project context is needed.
+4. Make code changes according to approved Recipes and project evidence.
+5. Call `alembic_guard` after meaningful edits, especially before summarizing completion.
+6. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
 ## Long-Running Work
 
