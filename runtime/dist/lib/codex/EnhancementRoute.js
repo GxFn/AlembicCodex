@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { normalizeAlembicFileMonitorMode, summarizeAlembicRuntimeCapabilities, } from '@alembic/core/daemon';
 import { HOST_AGENT_SOURCE } from '@alembic/core/shared';
-import { CODEX_RUNTIME_PACKAGE, resolveCodexRuntimeContext, } from './RuntimeContext.js';
+import { CODEX_RUNTIME_PACKAGE, resolveCodexRuntimeContext, } from './runtime/RuntimeContext.js';
 export const CODEX_HOST_AGENT_ROUTE_TOOLS = [
     'alembic_bootstrap',
     'alembic_rescan',

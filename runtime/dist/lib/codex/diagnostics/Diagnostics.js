@@ -2,11 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildCodexEnhancementRouteChoice, } from './EnhancementRoute.js';
-import { buildCodexModuleBoundaryStatus, } from './ModuleBoundary.js';
-import { asString, CODEX_REQUIRED_SKILLS, loadCodexPluginRegistry } from './PluginRegistry.js';
-import { buildCodexProjectRootRequiredMessage, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
-import { ALEMBIC_PLUGIN_HOST_ENV, ALEMBIC_RUNTIME_MODE_ENV, ALEMBIC_RUNTIME_MODE_PLUGIN, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_MODE_ENV, CODEX_MCP_SHIM_ENV, CODEX_PLUGIN_HOST, CODEX_PLUGIN_NAME, resolveCodexRuntimeContext, } from './RuntimeContext.js';
+import { buildCodexEnhancementRouteChoice, } from '../EnhancementRoute.js';
+import { buildCodexModuleBoundaryStatus, } from '../ModuleBoundary.js';
+import { asString, CODEX_REQUIRED_SKILLS, loadCodexPluginRegistry } from '../PluginRegistry.js';
+import { buildCodexProjectRootRequiredMessage, summarizeCodexProjectRootResolution, } from '../ProjectRootResolver.js';
+import { ALEMBIC_PLUGIN_HOST_ENV, ALEMBIC_RUNTIME_MODE_ENV, ALEMBIC_RUNTIME_MODE_PLUGIN, CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_MODE_ENV, CODEX_MCP_SHIM_ENV, CODEX_PLUGIN_HOST, CODEX_PLUGIN_NAME, resolveCodexRuntimeContext, } from '../runtime/RuntimeContext.js';
 export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCodexRuntimeContext(), options = {}) {
     const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] || '0', 10);
     const npm = probeCodexRuntimeCommand('npm', context, options.commandProbeRunner);

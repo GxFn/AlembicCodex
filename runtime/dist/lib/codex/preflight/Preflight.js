@@ -1,7 +1,7 @@
-import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, isTrustedCodexProjectRoot, summarizeCodexProjectRootResolution, } from './ProjectRootResolver.js';
-import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, } from './RuntimeContext.js';
-import { buildCodexKnowledgeGateActions } from './StatusService.js';
-import { allowedCodexToolNames, CODEX_INIT_ON_DEMAND_TOOL_NAMES, CODEX_LOCAL_TOOLS, resolveCodexToolPolicy, } from './ToolPolicy.js';
+import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, isTrustedCodexProjectRoot, summarizeCodexProjectRootResolution, } from '../ProjectRootResolver.js';
+import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, } from '../runtime/RuntimeContext.js';
+import { buildCodexKnowledgeGateActions } from '../status/StatusService.js';
+import { allowedCodexToolNames, CODEX_INIT_ON_DEMAND_TOOL_NAMES, CODEX_LOCAL_TOOLS, resolveCodexToolPolicy, } from '../ToolPolicy.js';
 const PROJECT_ROOT_DISCOVERY_TOOL_NAMES = new Set([
     'alembic_codex_status',
     'alembic_codex_diagnostics',

@@ -3,7 +3,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import { WorkspaceResolver } from '@alembic/core/workspace';
 import { getPackageVersion, PACKAGE_ROOT } from '../shared/package-assets.js';
-import { CODEX_PLUGIN_ROOT_ENV, CODEX_SETUP_PROFILE } from './RuntimeContext.js';
+import { CODEX_PLUGIN_ROOT_ENV, CODEX_SETUP_PROFILE } from './runtime/RuntimeContext.js';
 const PROJECT_ROOT_REQUIRED_ACTIONS = [
     'Provide the target project root as an absolute path.',
     'Pass the current workspace directory as the projectRoot argument on the Alembic tool call.',

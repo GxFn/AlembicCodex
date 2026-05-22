@@ -1,4 +1,4 @@
-import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, resolveEffectiveCodexTier, } from './RuntimeContext.js';
+import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, resolveEffectiveCodexTier, } from './runtime/RuntimeContext.js';
 // Codex 插件当前只有 alembic-codex 一个入口；这里维护单插件工具策略，不做多插件抽象。
 export const CODEX_PROJECT_ROOT_PROPERTY = {
     type: 'string',

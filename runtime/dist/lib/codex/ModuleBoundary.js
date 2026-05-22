@@ -1,4 +1,4 @@
-import { CODEX_EMBEDDED_RUNTIME_SPECIFIER, CODEX_PLUGIN_NAME, CODEX_RUNTIME_BIN, CODEX_RUNTIME_PACKAGE, } from './RuntimeContext.js';
+import { CODEX_EMBEDDED_RUNTIME_SPECIFIER, CODEX_PLUGIN_NAME, CODEX_RUNTIME_BIN, CODEX_RUNTIME_PACKAGE, } from './runtime/RuntimeContext.js';
 export const CODEX_DASHBOARD_ARTIFACT_BOUNDARY = {
     artifactPath: null,
     buildCommand: null,
