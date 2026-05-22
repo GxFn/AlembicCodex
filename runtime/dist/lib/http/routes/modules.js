@@ -12,9 +12,9 @@ import express from 'express';
 import { ModuleBootstrapBody, ModuleRescanBody, ScanFolderBody, ScanProjectBody, ScanTargetBody, } from '#shared/schemas/http-requests.js';
 import { getJobStore } from '../../daemon/DaemonJobRunner.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
-import { DASHBOARD_OPERATION_IDS } from '../dashboard/DashboardOperations.js';
+import { DASHBOARD_COMPATIBILITY_OPERATION_IDS } from '../compatibility/operations/DashboardCompatibilityOperations.js';
+import { executeDashboardCompatibilityOperation, sendDashboardCompatibilityOperationResponse, } from '../compatibility/operations/dashboard-compatibility-operation.js';
 import { validate } from '../middleware/validate.js';
-import { executeDashboardOperation, sendDashboardOperationResponse, } from '../utils/dashboard-operation.js';
 import { createStreamSession, getStreamSession } from '../utils/sse-sessions.js';
 const router = express.Router();
 const logger = Logger.getInstance();
@@ -377,8 +377,8 @@ router.get('/scan/events/:sessionId', (req, res) => {
 router.post('/scan-project', validate(ScanProjectBody), async (req, res) => {
     const { options = {} } = req.body;
     const container = getServiceContainer();
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.scanProject, { options });
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.scanProject, { options });
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 /**
  * POST /api/v1/modules/update-map
@@ -386,8 +386,8 @@ router.post('/scan-project', validate(ScanProjectBody), async (req, res) => {
  */
 router.post('/update-map', async (req, res) => {
     const container = getServiceContainer();
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.updateModuleMap, { aggressive: true });
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.updateModuleMap, { aggressive: true });
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 /**
  * GET /api/v1/modules/project-info
@@ -410,8 +410,8 @@ router.get('/project-info', async (req, res) => {
 router.post('/bootstrap', validate(ModuleBootstrapBody), async (req, res) => {
     const { maxFiles, skipGuard, contentMaxLines } = req.body || {};
     const container = getServiceContainer();
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.bootstrapProject, { maxFiles, skipGuard, contentMaxLines });
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.bootstrapProject, { maxFiles, skipGuard, contentMaxLines });
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 router.get('/bootstrap/report/latest', async (_req, res) => {
     const dataRoot = getModulesDataRoot();
@@ -520,8 +520,8 @@ router.get('/test-mode', async (_req, res) => {
 router.post('/bootstrap/cancel', async (req, res) => {
     const container = getServiceContainer();
     const reason = req.body?.reason || 'Cancelled by user via Dashboard';
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.cancelBootstrap, { reason });
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.cancelBootstrap, { reason });
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 /**
  * POST /api/v1/modules/rescan
@@ -531,8 +531,8 @@ router.post('/bootstrap/cancel', async (req, res) => {
 router.post('/rescan', validate(ModuleRescanBody), async (req, res) => {
     const { reason, dimensions } = req.body || {};
     const container = getServiceContainer();
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.rescanProject, { reason, dimensions });
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.rescanProject, { reason, dimensions });
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 function getModulesDataRoot() {
     const container = getServiceContainer();

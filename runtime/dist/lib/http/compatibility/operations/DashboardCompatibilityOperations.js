@@ -1,6 +1,7 @@
 import Logger from '@alembic/core/logging';
 const logger = Logger.getInstance();
-export const DASHBOARD_OPERATION_IDS = {
+// 这里的 dashboard.* 是历史 HTTP 兼容 operation id，不表示插件重新打包 Dashboard 前端。
+export const DASHBOARD_COMPATIBILITY_OPERATION_IDS = {
     updateModuleMap: 'dashboard.update_module_map',
     rebuildSemanticIndex: 'dashboard.rebuild_semantic_index',
     scanProject: 'dashboard.scan_project',
@@ -8,55 +9,55 @@ export const DASHBOARD_OPERATION_IDS = {
     cancelBootstrap: 'dashboard.cancel_bootstrap',
     rescanProject: 'dashboard.rescan_project',
 };
-export const DASHBOARD_OPERATION_MANIFESTS = [
+export const DASHBOARD_COMPATIBILITY_OPERATION_MANIFESTS = [
     manifest({
-        id: DASHBOARD_OPERATION_IDS.updateModuleMap,
+        id: DASHBOARD_COMPATIBILITY_OPERATION_IDS.updateModuleMap,
         title: 'Update Module Map',
         description: 'Refresh the project module map from Dashboard.',
         policyProfile: 'write',
     }),
     manifest({
-        id: DASHBOARD_OPERATION_IDS.rebuildSemanticIndex,
+        id: DASHBOARD_COMPATIBILITY_OPERATION_IDS.rebuildSemanticIndex,
         title: 'Rebuild Semantic Index',
         description: 'Rebuild the semantic vector index from Dashboard.',
         policyProfile: 'system',
         timeoutMs: 300_000,
     }),
     manifest({
-        id: DASHBOARD_OPERATION_IDS.scanProject,
+        id: DASHBOARD_COMPATIBILITY_OPERATION_IDS.scanProject,
         title: 'Scan Project',
         description: 'Run a full project scan from Dashboard.',
         policyProfile: 'analysis',
         timeoutMs: 300_000,
     }),
     manifest({
-        id: DASHBOARD_OPERATION_IDS.bootstrapProject,
+        id: DASHBOARD_COMPATIBILITY_OPERATION_IDS.bootstrapProject,
         title: 'Bootstrap Project Knowledge',
         description: 'Start host-driven project bootstrap from Dashboard.',
         policyProfile: 'write',
         timeoutMs: 300_000,
     }),
     manifest({
-        id: DASHBOARD_OPERATION_IDS.cancelBootstrap,
+        id: DASHBOARD_COMPATIBILITY_OPERATION_IDS.cancelBootstrap,
         title: 'Cancel Bootstrap Session',
         description: 'Cancel the active bootstrap or rescan background session from Dashboard.',
         policyProfile: 'write',
     }),
     manifest({
-        id: DASHBOARD_OPERATION_IDS.rescanProject,
+        id: DASHBOARD_COMPATIBILITY_OPERATION_IDS.rescanProject,
         title: 'Rescan Project Knowledge',
         description: 'Run host-driven project rescan from Dashboard.',
         policyProfile: 'write',
         timeoutMs: 300_000,
     }),
 ];
-export const DASHBOARD_OPERATION_HANDLERS = {
-    [DASHBOARD_OPERATION_IDS.updateModuleMap]: updateModuleMap,
-    [DASHBOARD_OPERATION_IDS.rebuildSemanticIndex]: rebuildSemanticIndex,
-    [DASHBOARD_OPERATION_IDS.scanProject]: scanProject,
-    [DASHBOARD_OPERATION_IDS.bootstrapProject]: bootstrapProject,
-    [DASHBOARD_OPERATION_IDS.cancelBootstrap]: cancelBootstrap,
-    [DASHBOARD_OPERATION_IDS.rescanProject]: rescanProject,
+export const DASHBOARD_COMPATIBILITY_OPERATION_HANDLERS = {
+    [DASHBOARD_COMPATIBILITY_OPERATION_IDS.updateModuleMap]: updateModuleMap,
+    [DASHBOARD_COMPATIBILITY_OPERATION_IDS.rebuildSemanticIndex]: rebuildSemanticIndex,
+    [DASHBOARD_COMPATIBILITY_OPERATION_IDS.scanProject]: scanProject,
+    [DASHBOARD_COMPATIBILITY_OPERATION_IDS.bootstrapProject]: bootstrapProject,
+    [DASHBOARD_COMPATIBILITY_OPERATION_IDS.cancelBootstrap]: cancelBootstrap,
+    [DASHBOARD_COMPATIBILITY_OPERATION_IDS.rescanProject]: rescanProject,
 };
 function manifest(input) {
     return {
@@ -123,7 +124,7 @@ async function scanProject(request) {
 }
 async function bootstrapProject(request) {
     const container = getContainer(request);
-    const { createDaemonJob, runDaemonJob } = await import('../../daemon/DaemonJobRunner.js');
+    const { createDaemonJob, runDaemonJob } = await import('../../../daemon/DaemonJobRunner.js');
     const args = {
         maxFiles: numberArg(request.args.maxFiles, 500),
         skipGuard: Boolean(request.args.skipGuard || false),
@@ -158,7 +159,7 @@ async function cancelBootstrap(request) {
 }
 async function rescanProject(request) {
     const container = getContainer(request);
-    const { createDaemonJob, runDaemonJob } = await import('../../daemon/DaemonJobRunner.js');
+    const { createDaemonJob, runDaemonJob } = await import('../../../daemon/DaemonJobRunner.js');
     const args = {
         reason: request.args.reason || 'dashboard-rescan',
         dimensions: Array.isArray(request.args.dimensions)

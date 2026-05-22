@@ -5,9 +5,9 @@
 import express from 'express';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { FileReadQuery, FileSaveBody } from '../../shared/schemas/http-requests.js';
-import { DASHBOARD_OPERATION_IDS } from '../dashboard/DashboardOperations.js';
+import { DASHBOARD_COMPATIBILITY_OPERATION_IDS } from '../compatibility/operations/DashboardCompatibilityOperations.js';
+import { executeDashboardCompatibilityOperation, sendDashboardCompatibilityOperationResponse, } from '../compatibility/operations/dashboard-compatibility-operation.js';
 import { validate, validateQuery } from '../middleware/validate.js';
-import { executeDashboardOperation, sendDashboardOperationResponse, } from '../utils/dashboard-operation.js';
 const router = express.Router();
 /**
  * POST /api/v1/commands/spm-map
@@ -15,8 +15,8 @@ const router = express.Router();
  */
 router.post('/spm-map', async (req, res) => {
     const container = getServiceContainer();
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.updateModuleMap, { aggressive: true });
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.updateModuleMap, { aggressive: true });
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 /**
  * POST /api/v1/commands/embed
@@ -24,8 +24,8 @@ router.post('/spm-map', async (req, res) => {
  */
 router.post('/embed', async (req, res) => {
     const container = getServiceContainer();
-    const envelope = await executeDashboardOperation(container, req, DASHBOARD_OPERATION_IDS.rebuildSemanticIndex, req.body || {});
-    sendDashboardOperationResponse(res, envelope);
+    const envelope = await executeDashboardCompatibilityOperation(container, req, DASHBOARD_COMPATIBILITY_OPERATION_IDS.rebuildSemanticIndex, req.body || {});
+    sendDashboardCompatibilityOperationResponse(res, envelope);
 });
 /**
  * GET /api/v1/commands/status
