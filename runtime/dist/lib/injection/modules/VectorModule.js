@@ -10,7 +10,7 @@
  */
 import { VectorService } from '@alembic/core/vector';
 export function register(c) {
-    // ═══ ContextualEnricher (host-managed; local AI enrichment disabled) ═══
+    // ═══ ContextualEnricher（增强由 Codex host agent / Alembic resident service 托管）═══
     c.singleton('contextualEnricher', (_ct) => null);
     // ═══ VectorService ═══
     c.singleton('vectorService', (ct) => {

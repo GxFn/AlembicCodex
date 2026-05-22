@@ -7,6 +7,7 @@ import express from 'express';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { ExtractPathBody, ExtractTextBody } from '../../shared/schemas/http-requests.js';
 import { validate } from '../middleware/validate.js';
+import { attachPluginDeterministicBoundary } from '../utils/host-managed-boundary.js';
 const router = express.Router();
 const logger = Logger.getInstance();
 /**
@@ -33,11 +34,10 @@ router.post('/path', validate(ExtractPathBody), async (req, res) => {
     // 2. 返回 RecipeParser 结果（MD 文件或原始兜底）
     res.json({
         success: true,
-        data: {
+        data: attachPluginDeterministicBoundary({
             result: items,
             isMarked: result.isMarked || false,
-            hostManaged: true,
-        },
+        }, 'extract-path'),
     });
 });
 /**
@@ -59,11 +59,10 @@ router.post('/text', validate(ExtractTextBody), async (req, res) => {
         // 解析成功，直接返回
         return void res.json({
             success: true,
-            data: {
+            data: attachPluginDeterministicBoundary({
                 result: Array.isArray(result) ? result : [result],
                 source: 'text',
-                hostManaged: true,
-            },
+            }, 'extract-text-markdown'),
         });
     }
     catch (error) {
@@ -75,12 +74,11 @@ router.post('/text', validate(ExtractTextBody), async (req, res) => {
     result = await recipeParser.extractFromText(text, { language });
     res.json({
         success: true,
-        data: {
+        data: attachPluginDeterministicBoundary({
             result: Array.isArray(result) ? result : [result],
             source: 'text',
             relativePath,
-            hostManaged: true,
-        },
+        }, 'extract-text-basic'),
     });
 });
 export default router;

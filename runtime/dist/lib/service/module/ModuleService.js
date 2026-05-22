@@ -10,6 +10,7 @@ import { basename as _pathBasename, extname as _pathExtname, isAbsolute as _path
 import Logger from '@alembic/core/logging';
 import { getDiscovererRegistry } from '@alembic/core/project-intelligence';
 import { inferLang } from '../../external/mcp/handlers/LanguageExtensions.js';
+import { attachHostAgentManagedBoundary } from '../../http/utils/host-managed-boundary.js';
 /** 全局排除目录 */
 const SCAN_EXCLUDE_DIRS = new Set([
     'node_modules',
@@ -70,7 +71,6 @@ export class ModuleService {
     #loaded = false;
     #logger;
     #container;
-    #qualityScorer;
     #recipeExtractor;
     #guardCheckEngine;
     #violationsStore;
@@ -79,7 +79,6 @@ export class ModuleService {
         this.#registry = getDiscovererRegistry();
         this.#logger = Logger.getInstance();
         this.#container = options.container || null;
-        this.#qualityScorer = options.qualityScorer || null;
         this.#recipeExtractor = options.recipeExtractor || null;
         this.#guardCheckEngine = options.guardCheckEngine || null;
         this.#violationsStore = options.violationsStore || null;
@@ -303,7 +302,8 @@ export class ModuleService {
     //  Scanning
     // ═══════════════════════════════════════════════════════
     /**
-     * 扫描 Target。插件模式不再本地执行 AI 提取，只返回文件和 host-managed 边界状态。
+     * 扫描 Target。插件模式只负责确定性文件收集；候选生成 / 语义增强由
+     * Codex host agent 或 Alembic resident service 接管，同时保留旧 hostManaged 字段兼容。
      */
     async scanTarget(target, options = {}) {
         await this.#ensureLoaded();
@@ -348,13 +348,12 @@ export class ModuleService {
         }
         const scannedFiles = files.map((f) => ({ name: f.name, path: f.relativePath }));
         this.#logger.info(`[ModuleService] scanTarget: ${targetName}, ${files.length} files`);
-        const result = {
+        const result = attachHostAgentManagedBoundary({
             recipes: [],
             scannedFiles,
             noAi: true,
-            hostManaged: true,
-            message: 'AlembicPlugin 不再本地执行模块 AI 提取；请由宿主 agent 使用扫描文件完成候选提交。',
-        };
+            message: 'AlembicPlugin 只返回模块文件扫描结果，不执行本地 AI 提取；请由 Codex host agent 或 Alembic resident service 使用扫描文件完成候选提交。',
+        }, 'module-target-scan');
         onProgress?.({
             type: 'scan:completed',
             recipeCount: 0,
@@ -457,14 +456,13 @@ export class ModuleService {
             }
         }
         this.#logger.info(`[ModuleService] scanProject complete: 0 local recipes, ${guardAudit?.summary?.totalViolations || 0} violations`);
-        return {
+        return attachHostAgentManagedBoundary({
             targets: allTargets.map((t) => t.name),
             recipes: [],
             guardAudit,
             scannedFiles,
-            hostManaged: true,
-            message: 'AlembicPlugin 不再本地执行项目 AI 提取；请由宿主 agent 使用扫描结果完成候选提交。',
-        };
+            message: 'AlembicPlugin 只返回项目扫描与 Guard 结果，不执行本地 AI 提取；请由 Codex host agent 或 Alembic resident service 使用扫描结果完成候选提交。',
+        }, 'module-project-scan');
     }
     /** 刷新模块映射（替代 updateDependencyMap） */
     async updateModuleMap(options = {}) {
@@ -551,27 +549,6 @@ export class ModuleService {
             generic: 'unknown',
         };
         return map[id] || 'unknown';
-    }
-    /** 质量评分 enrichment */
-    #enrichRecipes(recipes) {
-        for (const recipe of recipes) {
-            if (!recipe.quality && this.#qualityScorer) {
-                try {
-                    const scorer = this.#qualityScorer;
-                    const scoreResult = scorer.score(recipe);
-                    recipe.quality = {
-                        completeness: 0,
-                        adaptation: 0,
-                        documentation: 0,
-                        overall: scoreResult.score ?? 0,
-                        grade: scoreResult.grade || '',
-                    };
-                }
-                catch (e) {
-                    this.#logger.debug(`[ModuleService] QualityScorer failed: ${e.message}`);
-                }
-            }
-        }
     }
     /** 目录遍历 — 浏览子目录结构 */
     #walkDirsForBrowse(dir, dirs, depth, maxDepth) {
