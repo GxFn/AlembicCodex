@@ -1,9 +1,9 @@
 /**
  * BatchEmbedder — 批量 embedding, 支持背压控制
  *
- * 利用 OpenAI/Gemini 的批量 embed API:
- * - OpenAI: embed(string[]) → number[][]
- * - Gemini: batchEmbedContents → 批量请求
+ * 只依赖外部注入的 embedding provider contract:
+ * - 支持批量: embed(string[]) → number[][]
+ * - 只支持单条: embed(string) → number[]
  *
  * 使用 p-limit 并发控制, 避免 API 限流:
  * - 每批 batchSize (默认 32) 条文本
@@ -13,12 +13,13 @@
  *
  * @module infrastructure/vector/BatchEmbedder
  */
+export interface EmbeddingProvider {
+    embed(text: string | string[]): Promise<number[] | number[][]>;
+}
 export declare class BatchEmbedder {
     #private;
-    /** @param aiProvider AI Provider (需实现 embed(text|string[]) 方法) */
-    constructor(aiProvider: {
-        embed: (text: string | string[]) => Promise<number[] | number[][]>;
-    }, options?: {
+    /** @param embeddingProvider 外部注入的 embedding provider, Core 不拥有具体 provider 或密钥 */
+    constructor(embeddingProvider: EmbeddingProvider, options?: {
         batchSize?: number;
         maxConcurrency?: number;
     });

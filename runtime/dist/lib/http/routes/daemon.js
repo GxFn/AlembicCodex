@@ -1,5 +1,6 @@
 import { resolveProjectRoot, WorkspaceResolver } from '@alembic/core/workspace';
 import express from 'express';
+import { getLatestSchemaMigrationVersion } from '#infra/database/SqliteDatabaseAccess.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { getPackageVersion } from '../../shared/package-assets.js';
 const router = express.Router();
@@ -77,12 +78,7 @@ function readGitDiffCheckpointStatus(container) {
 }
 function getSchemaMigrationVersion(container) {
     try {
-        const db = container.get('database');
-        const row = db
-            .getDb?.()
-            ?.prepare('SELECT version FROM schema_migrations ORDER BY applied_at DESC LIMIT 1')
-            .get();
-        return row?.version || null;
+        return getLatestSchemaMigrationVersion(container.get('database'));
     }
     catch {
         return null;

@@ -25,6 +25,7 @@ import path from 'node:path';
 import { CANDIDATES_DIR, getContextIndexPath, getProjectKnowledgePath, getProjectRecipesPath, getProjectSkillsPath, } from '@alembic/core/config';
 import { recipeDimensionIdOrUnknown } from '@alembic/core/dimensions';
 import { CONSUMABLE_LIFECYCLES, lifecycleInSql } from '@alembic/core/knowledge';
+import { clearTables, deleteKnowledgeEntriesByLifecycle, exportTablesAsJsonLines, listTableColumnNames, queryRecipeSnapshotRows, resolveSqliteDb, } from '#infra/database/SqliteDatabaseAccess.js';
 // ── 常量 ────────────────────────────────────────────────────
 /** 垃圾桶根目录（相对于 .asd/） */
 const TRASH_DIR = '.trash';
@@ -146,29 +147,14 @@ export class CleanupService {
         }
         // 4. 清空 DB 所有数据表
         if (this.#db) {
-            for (const table of ALL_DATA_TABLES) {
-                try {
-                    this.#db.exec(`DELETE FROM ${table}`);
-                    result.clearedTables.push(table);
-                }
-                catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (!msg.includes('no such table')) {
-                        result.errors.push(`Failed to clear ${table}: ${msg}`);
-                        this.#logger.warn(`[CleanupService] DELETE FROM ${table} failed: ${msg}`);
-                    }
-                }
+            const clearedData = clearTables(this.#db, ALL_DATA_TABLES);
+            result.clearedTables.push(...clearedData.clearedTables);
+            result.errors.push(...clearedData.errors);
+            for (const error of clearedData.errors) {
+                this.#logger.warn(`[CleanupService] ${error}`);
             }
             // tasks 相关表（来自 migration 002，需先删子表）
-            for (const table of ['task_events', 'task_dependencies', 'tasks']) {
-                try {
-                    this.#db.exec(`DELETE FROM ${table}`);
-                    result.clearedTables.push(table);
-                }
-                catch {
-                    /* table may not exist */
-                }
-            }
+            result.clearedTables.push(...clearTables(this.#db, ['task_events', 'task_dependencies', 'tasks']).clearedTables);
         }
         else {
             this.#logger.warn('[CleanupService] No database reference — DB tables NOT cleared!');
@@ -223,37 +209,23 @@ export class CleanupService {
         this.#logger.info('[CleanupService] Starting rescanClean...');
         // 1. 清除衍生 DB 表
         if (this.#db) {
-            for (const table of RESCAN_CLEAN_TABLES) {
-                try {
-                    this.#db.exec(`DELETE FROM ${table}`);
-                    result.clearedTables.push(table);
-                }
-                catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (!msg.includes('no such table')) {
-                        result.errors.push(`Failed to clear ${table}: ${msg}`);
-                    }
-                }
-            }
+            const clearedDerived = clearTables(this.#db, RESCAN_CLEAN_TABLES);
+            result.clearedTables.push(...clearedDerived.clearedTables);
+            result.errors.push(...clearedDerived.errors);
             // 清除旧候选/废弃条目，保留活跃知识
-            try {
-                this.#db.exec(`DELETE FROM knowledge_entries WHERE lifecycle IN ('pending', 'rejected', 'deprecated')`);
+            const staleEntries = deleteKnowledgeEntriesByLifecycle(this.#db, [
+                'pending',
+                'rejected',
+                'deprecated',
+            ]);
+            if (staleEntries.cleared) {
                 result.clearedTables.push('knowledge_entries (pending/rejected/deprecated)');
             }
-            catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                result.errors.push(`Failed to clean old entries: ${msg}`);
+            else if (staleEntries.error) {
+                result.errors.push(staleEntries.error);
             }
             // 也清除 tasks 相关表
-            for (const table of ['tasks', 'task_dependencies', 'task_events']) {
-                try {
-                    this.#db.exec(`DELETE FROM ${table}`);
-                    result.clearedTables.push(table);
-                }
-                catch {
-                    /* table may not exist */
-                }
-            }
+            result.clearedTables.push(...clearTables(this.#db, ['tasks', 'task_dependencies', 'task_events']).clearedTables);
         }
         // 2. 清空 candidates/ 目录
         result.deletedFiles += this.#clearDirectory(path.join(this.#dataRoot, CANDIDATES_DIR));
@@ -294,36 +266,22 @@ export class CleanupService {
         this.#logger.info('[CleanupService] Starting forceRescanClean...');
         // 1. 清除衍生 DB 表（不含增量证据表）
         if (this.#db) {
-            for (const table of FORCE_RESCAN_CLEAN_TABLES) {
-                try {
-                    this.#db.exec(`DELETE FROM ${table}`);
-                    result.clearedTables.push(table);
-                }
-                catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (!msg.includes('no such table')) {
-                        result.errors.push(`Failed to clear ${table}: ${msg}`);
-                    }
-                }
-            }
+            const clearedDerived = clearTables(this.#db, FORCE_RESCAN_CLEAN_TABLES);
+            result.clearedTables.push(...clearedDerived.clearedTables);
+            result.errors.push(...clearedDerived.errors);
             // 清除旧候选/废弃条目，保留活跃知识
-            try {
-                this.#db.exec(`DELETE FROM knowledge_entries WHERE lifecycle IN ('pending', 'rejected', 'deprecated')`);
+            const staleEntries = deleteKnowledgeEntriesByLifecycle(this.#db, [
+                'pending',
+                'rejected',
+                'deprecated',
+            ]);
+            if (staleEntries.cleared) {
                 result.clearedTables.push('knowledge_entries (pending/rejected/deprecated)');
             }
-            catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                result.errors.push(`Failed to clean old entries: ${msg}`);
+            else if (staleEntries.error) {
+                result.errors.push(staleEntries.error);
             }
-            for (const table of ['tasks', 'task_dependencies', 'task_events']) {
-                try {
-                    this.#db.exec(`DELETE FROM ${table}`);
-                    result.clearedTables.push(table);
-                }
-                catch {
-                    /* table may not exist */
-                }
-            }
+            result.clearedTables.push(...clearTables(this.#db, ['tasks', 'task_dependencies', 'task_events']).clearedTables);
         }
         // 2. 清空 candidates/ 目录
         result.deletedFiles += this.#clearDirectory(path.join(this.#dataRoot, CANDIDATES_DIR));
@@ -353,17 +311,12 @@ export class CleanupService {
         }
         try {
             const { sql: lcFilter, params: lcParams } = lifecycleInSql(CONSUMABLE_LIFECYCLES);
-            const columns = this.#db.prepare('PRAGMA table_info(knowledge_entries)').all();
-            const hasDimensionId = columns.some((column) => column.name === 'dimensionId');
-            const rows = this.#db
-                .prepare(
-            // @escape-hatch(permanent) — dynamic lifecycle filter + json_extract
-            `SELECT id, title, trigger, ${hasDimensionId ? 'dimensionId' : "'' AS dimensionId"},
-                  category, knowledgeType, doClause,
-                  sourceFile, lifecycle, content, json_extract(reasoning, '$.sources') AS sourceRefsJson
-           FROM knowledge_entries
-           WHERE ${lcFilter}`)
-                .all(...lcParams);
+            const columns = listTableColumnNames(this.#db, 'knowledge_entries');
+            const rows = queryRecipeSnapshotRows(this.#db, {
+                hasDimensionId: columns.includes('dimensionId'),
+                lifecycleFilterSql: lcFilter,
+                lifecycleParams: lcParams,
+            });
             const entries = rows.map((r) => {
                 let parsedContent;
                 try {
@@ -527,22 +480,9 @@ export class CleanupService {
             'guard_violations',
         ];
         const snapshotPath = path.join(trashFolder, DB_SNAPSHOT_FILE);
-        let totalRows = 0;
-        const lines = [];
-        for (const table of tablesToExport) {
-            try {
-                const rows = this.#db.prepare(`SELECT * FROM ${table}`).all(); // @escape-hatch(permanent) — dynamic table name for backup export
-                for (const row of rows) {
-                    lines.push(JSON.stringify({ _table: table, ...row }));
-                    totalRows++;
-                }
-            }
-            catch {
-                // 表可能不存在，跳过
-            }
-        }
-        if (lines.length > 0) {
-            const content = `${lines.join('\n')}\n`;
+        const snapshot = exportTablesAsJsonLines(this.#db, tablesToExport);
+        if (snapshot.lines.length > 0) {
+            const content = `${snapshot.lines.join('\n')}\n`;
             if (this.#wz) {
                 const rel = snapshotPath.replace(this.#wz.dataRoot, '').replace(/^\//, '');
                 this.#wz.writeFile(this.#wz.data(rel), content);
@@ -550,9 +490,9 @@ export class CleanupService {
             else {
                 fs.writeFileSync(snapshotPath, content, 'utf-8');
             }
-            this.#logger.info(`[CleanupService] DB snapshot: ${totalRows} rows → ${DB_SNAPSHOT_FILE}`);
+            this.#logger.info(`[CleanupService] DB snapshot: ${snapshot.totalRows} rows → ${DB_SNAPSHOT_FILE}`);
         }
-        return totalRows;
+        return snapshot.totalRows;
     }
     /** 清除过期垃圾桶文件夹 */
     #purgeExpiredTrash() {
@@ -688,14 +628,4 @@ export class CleanupService {
         }
         return 0;
     }
-}
-function resolveSqliteDb(db) {
-    if (!db) {
-        return null;
-    }
-    const wrapper = db;
-    if (typeof wrapper.getDb === 'function') {
-        return wrapper.getDb();
-    }
-    return db;
 }

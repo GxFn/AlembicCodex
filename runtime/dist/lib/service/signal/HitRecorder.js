@@ -12,7 +12,7 @@
  * @module service/signal/HitRecorder
  */
 import { timerRegistry } from '@alembic/core/events';
-import { unwrapRawDb } from '@alembic/core/search';
+import { flushHitRecorderStats, resolveSqliteDb, } from '#infra/database/SqliteDatabaseAccess.js';
 /** 事件类型 → Stats JSON 字段 映射 */
 const EVENT_TO_STATS_FIELD = {
     guardHit: 'guardHits',
@@ -41,7 +41,11 @@ export class HitRecorder {
     #totalFlushed = 0;
     constructor(bus, db, config = {}) {
         this.#bus = bus;
-        this.#db = unwrapRawDb(db);
+        const rawDb = resolveSqliteDb(db);
+        if (!rawDb) {
+            throw new Error('HitRecorder requires a SQLite database connection');
+        }
+        this.#db = rawDb;
         this.#flushIntervalMs = config.flushIntervalMs ?? 30_000;
         this.#maxBufferSize = config.maxBufferSize ?? 100;
     }
@@ -124,26 +128,11 @@ export class HitRecorder {
         let flushed = 0;
         const now = Math.floor(Date.now() / 1000);
         try {
-            const stmt = this.#db.prepare(
-            // @escape-hatch(permanent) — json_set() not expressible in Drizzle
-            `UPDATE knowledge_entries
-         SET stats = json_set(
-               COALESCE(stats, '{}'),
-               '$.' || ?,
-               COALESCE(json_extract(stats, '$.' || ?), 0) + ?
-             ),
-             updatedAt = ?
-         WHERE id = ?`);
-            for (const entry of entries) {
-                const field = EVENT_TO_STATS_FIELD[entry.eventType];
-                try {
-                    stmt.run(field, field, entry.count, now, entry.recipeId);
-                    flushed += entry.count;
-                }
-                catch {
-                    // Recipe 可能已被删除，静默忽略
-                }
-            }
+            flushed = flushHitRecorderStats(this.#db, entries.map((entry) => ({
+                count: entry.count,
+                recipeId: entry.recipeId,
+                statsField: EVENT_TO_STATS_FIELD[entry.eventType],
+            })), now);
         }
         catch {
             // DB statement prepare 失败（表可能不存在），回填 buffer

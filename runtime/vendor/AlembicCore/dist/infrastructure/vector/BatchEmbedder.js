@@ -1,9 +1,9 @@
 /**
  * BatchEmbedder — 批量 embedding, 支持背压控制
  *
- * 利用 OpenAI/Gemini 的批量 embed API:
- * - OpenAI: embed(string[]) → number[][]
- * - Gemini: batchEmbedContents → 批量请求
+ * 只依赖外部注入的 embedding provider contract:
+ * - 支持批量: embed(string[]) → number[][]
+ * - 只支持单条: embed(string) → number[]
  *
  * 使用 p-limit 并发控制, 避免 API 限流:
  * - 每批 batchSize (默认 32) 条文本
@@ -15,12 +15,12 @@
  */
 import { createLimit } from '../../shared/concurrency.js';
 export class BatchEmbedder {
-    #aiProvider;
+    #embeddingProvider;
     #batchSize;
     #maxConcurrency;
-    /** @param aiProvider AI Provider (需实现 embed(text|string[]) 方法) */
-    constructor(aiProvider, options = {}) {
-        this.#aiProvider = aiProvider;
+    /** @param embeddingProvider 外部注入的 embedding provider, Core 不拥有具体 provider 或密钥 */
+    constructor(embeddingProvider, options = {}) {
+        this.#embeddingProvider = embeddingProvider;
         this.#batchSize = options.batchSize || 32;
         this.#maxConcurrency = options.maxConcurrency || 2;
     }
@@ -32,7 +32,7 @@ export class BatchEmbedder {
      * @returns id → vector
      */
     async embedAll(items, onProgress) {
-        if (!this.#aiProvider || typeof this.#aiProvider.embed !== 'function') {
+        if (!this.#embeddingProvider || typeof this.#embeddingProvider.embed !== 'function') {
             return new Map();
         }
         const results = new Map();
@@ -58,8 +58,8 @@ export class BatchEmbedder {
         try {
             // 截断过长文本 (8K 字符限制)
             const texts = items.map((item) => (item.content || '').slice(0, 8000));
-            const vectors = await this.#aiProvider.embed(texts);
-            // embed(string[]) 返回 number[][] — OpenAiProvider 已支持
+            const vectors = await this.#embeddingProvider.embed(texts);
+            // 批量 provider 返回 number[][]; 单条 provider 可能返回 number[]。
             if (Array.isArray(vectors) && Array.isArray(vectors[0])) {
                 // 批量返回
                 items.forEach((item, idx) => {
@@ -77,7 +77,7 @@ export class BatchEmbedder {
                     // provider 不支持批量, 降级到串行
                     for (const item of items) {
                         try {
-                            const vec = await this.#aiProvider.embed(item.content.slice(0, 8000));
+                            const vec = await this.#embeddingProvider.embed(item.content.slice(0, 8000));
                             if (Array.isArray(vec)) {
                                 result.set(item.id, vec);
                             }
@@ -93,7 +93,7 @@ export class BatchEmbedder {
             // 整批失败, 降级到逐条
             for (const item of items) {
                 try {
-                    const vec = await this.#aiProvider.embed(item.content.slice(0, 8000));
+                    const vec = await this.#embeddingProvider.embed(item.content.slice(0, 8000));
                     if (Array.isArray(vec)) {
                         // 可能返回 [number[]] (批量格式包装的单条)
                         const vector = Array.isArray(vec[0]) ? vec[0] : vec;

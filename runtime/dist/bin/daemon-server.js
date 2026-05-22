@@ -11,6 +11,7 @@ import Logger from '@alembic/core/logging';
 import Bootstrap from '../lib/bootstrap.js';
 import { markInterruptedDaemonJobs } from '../lib/daemon/DaemonJobRunner.js';
 import HttpServer from '../lib/http/HttpServer.js';
+import { getLatestSchemaMigrationVersion } from '../lib/infrastructure/database/SqliteDatabaseAccess.js';
 import { getServiceContainer } from '../lib/injection/ServiceContainer.js';
 import { GitDiffCheckpointService } from '../lib/service/evolution/git-diff-checkpoint/index.js';
 import { getPackageVersion } from '../lib/shared/package-assets.js';
@@ -233,16 +234,7 @@ function getListeningPort(httpServer) {
     return null;
 }
 function getSchemaMigrationVersion(db) {
-    try {
-        const rawDb = db?.getDb?.();
-        const row = rawDb
-            ?.prepare('SELECT version FROM schema_migrations ORDER BY applied_at DESC LIMIT 1')
-            .get();
-        return row?.version || null;
-    }
-    catch {
-        return null;
-    }
+    return getLatestSchemaMigrationVersion(db);
 }
 main().catch((error) => {
     const logger = Logger.getInstance();

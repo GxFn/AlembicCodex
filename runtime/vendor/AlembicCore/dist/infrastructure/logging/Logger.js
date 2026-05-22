@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import winston from 'winston';
 import pathGuard from '../../shared/PathGuard.js';
-// 系统运行标签 — 终端高亮显示
-const AGENT_TAGS = ['AgentRuntime', 'ToolRegistry', 'CircuitBreaker'];
+// Core 运行诊断标签 — 仅做终端高亮, 不表示 Core 拥有 Agent runtime 或 tool system
+const RUNTIME_HIGHLIGHT_TAGS = ['CoreRuntime', 'HostWorkflow', 'CircuitBreaker'];
 const MUTED_PREFIXES = ['Tool registered:'];
 // ANSI 颜色常量 — 保证深色终端可读性
 const C = {
@@ -41,7 +41,7 @@ const muteFilter = winston.format((info) => {
 });
 /**
  * 精简 Console 格式
- * - Agent 相关日志: 高亮 cyan/magenta，显示完整信息
+ * - Core 运行诊断日志: 高亮 cyan/magenta，显示完整信息
  * - warn/error: 醒目颜色完整显示
  * - HTTP 日志: 精简并降低视觉权重
  * - 其他 info/debug: 一行精简格式
@@ -56,10 +56,10 @@ const compactConsoleFormat = winston.format.printf(({ level, message, timestamp,
     // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape sequence stripping
     const rawLevel = level.replace(/\u001b\[\d+m/g, ''); // 去 ANSI
     const lc = LEVEL_COLORS[rawLevel] || C.gray;
-    // 判断是否为 Agent 相关日志
-    const isAgentLog = AGENT_TAGS.some((tag) => message.includes(tag) || message.startsWith(`[${tag}]`));
-    if (isAgentLog) {
-        // Agent 日志 — 高亮显示
+    // 判断是否为 Core 运行诊断日志
+    const isRuntimeDiagnosticLog = RUNTIME_HIGHLIGHT_TAGS.some((tag) => message.includes(tag) || message.startsWith(`[${tag}]`));
+    if (isRuntimeDiagnosticLog) {
+        // Core 运行诊断日志 — 高亮显示
         const metaStr = Object.keys(meta).length > 0
             ? ` ${JSON.stringify(meta, null, 0).replace(/"/g, '').replace(/,/g, ', ')}`
             : '';
