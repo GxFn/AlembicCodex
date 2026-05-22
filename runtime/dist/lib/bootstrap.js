@@ -5,10 +5,10 @@ import Logger from '@alembic/core/logging';
 import { unwrapRawDb } from '@alembic/core/search';
 import { WorkspaceSettingsStore } from '@alembic/core/shared';
 import { WorkspaceResolver } from '@alembic/core/workspace';
-import Constitution from './core/constitution/Constitution.js';
-import ConstitutionValidator from './core/constitution/ConstitutionValidator.js';
-import Gateway from './core/gateway/Gateway.js';
-import PermissionManager from './core/permission/PermissionManager.js';
+import Constitution from './governance/constitution/Constitution.js';
+import ConstitutionValidator from './governance/constitution/ConstitutionValidator.js';
+import Gateway from './governance/gateway/Gateway.js';
+import PermissionManager from './governance/permission/PermissionManager.js';
 import AuditLogger from './infrastructure/audit/AuditLogger.js';
 import AuditStore from './infrastructure/audit/AuditStore.js';
 import ConfigLoader from './infrastructure/config/AppConfigLoader.js';
@@ -64,8 +64,8 @@ export class Bootstrap {
             await this.initializeDatabase();
             // 4. 加载宪法
             await this.loadConstitution();
-            // 5. 初始化核心组件
-            await this.initializeCoreComponents();
+            // 5. 初始化 Plugin 本地请求治理组件
+            await this.initializeGovernanceComponents();
             // 6. 初始化网关
             await this.initializeGateway();
             // 7. 注册路由（稍后由各服务注册）
@@ -122,8 +122,8 @@ export class Bootstrap {
         this.components.constitution = constitution;
         this.components.logger.info('Constitution loaded', constitution.toJSON());
     }
-    /** 初始化核心组件 */
-    async initializeCoreComponents() {
+    /** 初始化 Plugin 本地请求治理组件 */
+    async initializeGovernanceComponents() {
         const { constitution, db, logger } = this.components;
         // Constitution Validator
         const constitutionValidator = new ConstitutionValidator(constitution);

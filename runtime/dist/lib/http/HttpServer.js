@@ -11,7 +11,7 @@ import { resolveDataRoot } from '@alembic/core/workspace';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import { registerGatewayActions } from '../core/gateway/GatewayActionRegistry.js';
+import { registerGatewayActions } from '../governance/gateway/GatewayActionRegistry.js';
 import { initCacheAdapter } from '../infrastructure/cache/UnifiedCacheAdapter.js';
 import { initErrorTracker } from '../infrastructure/monitoring/ErrorTracker.js';
 import { initPerformanceMonitor } from '../infrastructure/monitoring/PerformanceMonitor.js';
