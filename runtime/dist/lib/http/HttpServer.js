@@ -22,7 +22,6 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { gatewayMiddleware } from './middleware/gatewayMiddleware.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { roleResolverMiddleware } from './middleware/roleResolver.js';
-import aiRouter from './routes/ai.js';
 import auditRouter from './routes/audit.js';
 import authRouter from './routes/auth.js';
 import candidatesRouter from './routes/candidates.js';
@@ -40,7 +39,6 @@ import logsRouter from './routes/logs.js';
 import modulesRouter from './routes/modules.js';
 import monitoringRouter from './routes/monitoring.js';
 import panoramaRouter from './routes/panorama.js';
-import recipesRouter from './routes/recipes.js';
 import searchRouter from './routes/search.js';
 import signalsRouter from './routes/signals.js';
 import skillsRouter from './routes/skills.js';
@@ -247,8 +245,6 @@ export class HttpServer {
         this.app.use(`${apiPrefix}/rules`, guardRuleRouter);
         // 搜索路由
         this.app.use(`${apiPrefix}/search`, searchRouter);
-        // AI 路由
-        this.app.use(`${apiPrefix}/ai`, aiRouter);
         // 提取路由
         this.app.use(`${apiPrefix}/extract`, extractRouter);
         // 命令路由
@@ -265,8 +261,6 @@ export class HttpServer {
         this.app.use(`${apiPrefix}/violations`, violationsRouter);
         // 知识条目路由 (V3)
         this.app.use(`${apiPrefix}/knowledge`, knowledgeRouter);
-        // Recipe 操作路由（关系发现等）
-        this.app.use(`${apiPrefix}/recipes`, recipesRouter);
         // Panorama 全景路由（项目结构 + 覆盖率 + 健康度）
         this.app.use(`${apiPrefix}/panorama`, panoramaRouter);
         // 进化路由（文件变更驱动 Recipe 修复/弃用）
