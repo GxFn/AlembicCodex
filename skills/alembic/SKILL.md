@@ -58,4 +58,3 @@ Plugin uninstall never removes user data. Use `alembic_codex_cleanup` for explic
 - `alembic-create`: Candidate submission rules.
 - `alembic-guard`: Compliance checks.
 - `alembic-structure`: Project targets, files, metadata, graph, and call context.
-- `alembic-devdocs`: Wiki planning, article writing, and finalize.

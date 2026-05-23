@@ -43,7 +43,6 @@ import searchRouter from './routes/search.js';
 import signalsRouter from './routes/signals.js';
 import skillsRouter from './routes/skills.js';
 import violationsRouter from './routes/violations.js';
-import wikiRouter from './routes/wiki.js';
 export class HttpServer {
     app;
     cacheAdapter;
@@ -251,8 +250,6 @@ export class HttpServer {
         this.app.use(`${apiPrefix}/commands`, commandsRouter);
         // Skills 路由
         this.app.use(`${apiPrefix}/skills`, skillsRouter);
-        // Wiki 路由（插件 HTTP/API 调用方使用，不作为旧 UI 兼容面）
-        this.app.use(`${apiPrefix}/wiki`, wikiRouter);
         // Candidates 路由（宿主托管补齐/润色边界）
         this.app.use(`${apiPrefix}/candidates`, candidatesRouter);
         // Modules 路由（v3.2 统一多语言模块扫描）
