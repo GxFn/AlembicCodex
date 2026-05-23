@@ -30,7 +30,7 @@ const PLUGIN_OWNED_BOUNDARIES = [
     {
         id: 'marketplace-artifact',
         owner: 'AlembicPlugin',
-        pluginRole: 'Codex plugin shell, channel metadata, skills, cache sync, and marketplace package.',
+        pluginRole: 'Codex plugin shell, channel metadata, skills, cache sync, and marketplace artifact.',
         retainedInPlugin: true,
         sourceOfTruth: `plugins/${CODEX_PLUGIN_NAME}, channels/**, .agents/**`,
     },
@@ -104,7 +104,7 @@ export function buildCodexModuleBoundaryStatus(input = {}) {
     const route = input.enhancementRoute || null;
     const hostProjectAlignment = input.hostProjectAlignment || null;
     return {
-        phase: 'multi-project-control-wave-4-dashboard-plugin-consumer-handoff',
+        phase: 'capability-code-interface-cleanup-ccic-7-plugin-dashboard-handoff',
         pluginOwns: PLUGIN_OWNED_BOUNDARIES.map(copyBoundary),
         pluginDoesNotOwn: EXTERNAL_OWNED_BOUNDARIES.map(copyBoundary),
         adapters: {

@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_FOLDER_NAMES } from '@alembic/core/workspace';
 const __dirname = import.meta.dirname;
+const PLUGIN_RUNTIME_PACKAGE_NAME = 'alembic-codex-plugin-runtime';
 function findPackageRoot() {
     let dir = __dirname;
     for (let i = 0; i < 10; i++) {
@@ -15,7 +16,7 @@ function findPackageRoot() {
         if (existsSync(candidate)) {
             try {
                 const pkg = JSON.parse(readFileSync(candidate, 'utf-8'));
-                if (pkg.name === 'alembic-ai') {
+                if (pkg.name === PLUGIN_RUNTIME_PACKAGE_NAME) {
                     return dir;
                 }
             }
@@ -30,7 +31,7 @@ function findPackageRoot() {
         dir = parent;
     }
     throw new Error('[Alembic] Could not locate Plugin package root. ' +
-        'No ancestor directory contains a package.json with name "alembic-ai".');
+        `No ancestor directory contains a package.json with name "${PLUGIN_RUNTIME_PACKAGE_NAME}".`);
 }
 export const PACKAGE_ROOT = findPackageRoot();
 export function getPackageVersion() {

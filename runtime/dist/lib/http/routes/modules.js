@@ -240,7 +240,7 @@ router.post('/scan', validate(ScanTargetBody), async (req, res) => {
             });
         }
     }
-    logger.info('Module scan started via dashboard', {
+    logger.info('Module scan started via plugin HTTP API', {
         target: resolvedTarget.name,
         discoverer: resolvedTarget.discovererId,
     });

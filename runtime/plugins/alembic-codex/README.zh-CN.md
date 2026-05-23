@@ -49,7 +49,7 @@ main
 ## Runtime
 
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
-- 插件内置 Alembic 业务运行时代码在 `./runtime`；这个内置 package 是 `alembic-ai@0.2.0`。
+- 插件内置 Alembic Codex 运行时代码在 `./runtime`；这个内置 package artifact 是 `alembic-codex-plugin-runtime@0.2.0`。
 - Marketplace MCP 配置运行插件本地的 `./bin/alembic-codex-mcp-wrapper.mjs`；wrapper 会用插件专属 npm cache 和启动锁调用 `npx --package ./runtime.tgz alembic-codex-mcp`，确保复用插件本地 runtime tarball，同时避免共享 `_npx` 启动冲突。
 - Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会设置 `ALEMBIC_CHANNEL_ID=codex`；项目功能判断应使用这个稳定渠道标识。
@@ -82,7 +82,7 @@ alembic codex status --json
 
 `alembic_bootstrap` 和 `alembic_rescan` 是默认 Codex 宿主 Agent workflow。Codex 读取 Mission Briefing、分析项目、提交知识并完成维度；这条路径不要求配置 Alembic AI Provider。
 
-`alembic_codex_bootstrap` 和 `alembic_codex_rescan` 是显式 Alembic internal AI daemon job。它们需要已配置 AI Provider 凭据，并会立即返回持久 job id。Codex 重连或 Dashboard 刷新后，用 `alembic_codex_job` 携带该 id 继续检查状态。
+`alembic_codex_bootstrap` 和 `alembic_codex_rescan` 是显式 Alembic internal AI daemon job。它们需要已配置 AI Provider 凭据，并会立即返回持久 job id。Codex 重连或本地 Alembic UI 刷新后，用 `alembic_codex_job` 携带该 id 继续检查状态。
 
 如果 Alembic daemon 在活跃 internal AI job 完成前关闭或重启，下一次 daemon 生命周期会把该 job 标记为 `failed`，并记录中断原因，避免 job 永远停在 `queued` 或 `running`。需要重试时，重新启动 internal job，或改走宿主 Agent workflow。
 

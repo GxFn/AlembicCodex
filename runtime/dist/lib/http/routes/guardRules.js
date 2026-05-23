@@ -10,7 +10,7 @@ import { getServiceContainer } from '../../injection/ServiceContainer.js';
 import { validate } from '../middleware/validate.js';
 import { getContext, safeInt } from '../utils/routeHelpers.js';
 const router = express.Router();
-/** 将 Recipe 实体 → Guard 规则扁平格式（Dashboard GuardView 期望） */
+/** 将 Recipe 实体 → Guard 规则扁平格式（HTTP/UI Guard 视图使用） */
 function mapRecipeToGuardRule(r) {
     const constraints = r.constraints;
     const guards = constraints?.guards || [];

@@ -2,7 +2,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { ALEMBIC_CHANNEL_ID_ENV, ALEMBIC_CHANNEL_ID_FALLBACK_ENV, CODEX_CHANNEL_ID, } from '../../shared/channel.js';
 import { getPackageVersion, PACKAGE_ROOT } from '../../shared/package-assets.js';
 export const CODEX_PLUGIN_NAME = 'alembic-codex';
-export const CODEX_RUNTIME_PACKAGE = 'alembic-ai';
+export const CODEX_RUNTIME_PACKAGE = 'alembic-codex-plugin-runtime';
 export const CODEX_RUNTIME_BIN = 'alembic-codex-mcp';
 export const CODEX_SETUP_PROFILE = 'codex-plugin';
 export const CODEX_DEFAULT_MCP_TIER = 'agent';

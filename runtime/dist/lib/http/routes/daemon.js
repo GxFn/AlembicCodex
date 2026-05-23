@@ -2,6 +2,7 @@ import { resolveProjectRoot, WorkspaceResolver } from '@alembic/core/workspace';
 import express from 'express';
 import { getLatestSchemaMigrationVersion } from '#infra/database/SqliteDatabaseAccess.js';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
+import { CODEX_RUNTIME_PACKAGE } from '../../codex/runtime/RuntimeContext.js';
 import { getPackageVersion } from '../../shared/package-assets.js';
 const router = express.Router();
 const API_PREFIX = '/api/v1';
@@ -30,7 +31,7 @@ router.get('/health', (req, res) => {
             dashboardUrl,
             enhancement: {
                 apiVersion: 'v1',
-                packageName: 'alembic-ai',
+                packageName: CODEX_RUNTIME_PACKAGE,
                 route: 'embedded-plugin-runtime',
                 version: getPackageVersion(),
             },

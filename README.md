@@ -49,7 +49,7 @@ Enable `alembic-codex` from the plugin list after installation.
 ## Runtime
 
 - Node.js 22 or newer is required. Node 22 LTS is recommended for local development; keep the MCP shim and daemon on the same Node executable.
-- The plugin ships Alembic business runtime code in `./runtime`; that embedded package is `alembic-ai@0.2.0`.
+- The plugin ships Alembic Codex runtime code in `./runtime`; that embedded package artifact is `alembic-codex-plugin-runtime@0.2.0`.
 - The marketplace MCP config runs the plugin-local `./bin/alembic-codex-mcp-wrapper.mjs`; the wrapper invokes `npx --package ./runtime.tgz alembic-codex-mcp` with a plugin-specific npm cache and startup lock, so the plugin-local runtime tarball is reused without shared `_npx` startup races.
 - The marketplace MCP config sets `ALEMBIC_RUNTIME_MODE=plugin` as the generic plugin runtime signal and `ALEMBIC_PLUGIN_HOST=codex` as the current host signal.
 - The marketplace MCP config sets `ALEMBIC_CHANNEL_ID=codex`; project feature checks should use that stable channel id.
@@ -82,7 +82,7 @@ The normal first minute is:
 
 `alembic_bootstrap` and `alembic_rescan` are the default Codex host-agent workflows. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions. These workflows do not require an Alembic AI Provider.
 
-`alembic_codex_bootstrap` and `alembic_codex_rescan` are explicit Alembic internal AI daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the Dashboard refreshes.
+`alembic_codex_bootstrap` and `alembic_codex_rescan` are explicit Alembic internal AI daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the local Alembic UI refreshes.
 
 If the Alembic daemon shuts down or restarts before an active internal AI job completes, the next daemon lifecycle marks that job as `failed` with an interruption reason instead of leaving it stuck in `queued` or `running`. Start a new internal job or use the host-agent workflow to retry.
 

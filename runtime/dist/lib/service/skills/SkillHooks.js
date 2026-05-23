@@ -174,7 +174,7 @@ export class SkillHooks {
             .filter(([, handlers]) => handlers.length > 0)
             .map(([name]) => name);
     }
-    /** 获取 Hook Registry 信息 (用于 Dashboard / 调试) */
+    /** 获取 Hook Registry 信息 (用于诊断 / 调试) */
     static getHookRegistry() {
         return HOOK_REGISTRY;
     }

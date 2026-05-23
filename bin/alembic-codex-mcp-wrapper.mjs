@@ -5,7 +5,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const npmCache = process.env.ALEMBIC_CODEX_NPM_CACHE || join(tmpdir(), 'alembic-codex-npm-cache');
+const npmCache =
+  process.env.ALEMBIC_CODEX_NPM_CACHE || join(tmpdir(), 'alembic-codex-plugin-runtime-npm-cache');
 const lockDir = `${npmCache}.lock`;
 let lockHeld = false;
 

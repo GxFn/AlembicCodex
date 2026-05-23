@@ -26,7 +26,7 @@ resolve that package's production dependencies:
 }
 ```
 
-`./runtime/package.json` remains `alembic-ai@<version>`, and
+`./runtime/package.json` remains `alembic-codex-plugin-runtime@<version>`, and
 `./runtime.tgz` is packed from that exact directory. This package name is an
 internal portable runtime identity for the plugin artifact, not a root registry
 release contract. The tarball is what makes the wrapper install production

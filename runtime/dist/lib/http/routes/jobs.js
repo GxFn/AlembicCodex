@@ -83,7 +83,7 @@ router.post('/bootstrap', validate(BootstrapJobBody), (req, res) => {
             job: decorateJobForResponse(job, getLiveBootstrapSession(container)),
             jobId: job.id,
             statusUrl: buildJobStatusUrl(req, job.id),
-            dashboardUrl: buildJobsApiOrigin(req),
+            apiBaseUrl: buildJobsApiOrigin(req),
         },
     });
 });
@@ -108,7 +108,7 @@ router.post('/rescan', validate(RescanJobBody), (req, res) => {
             job: decorateJobForResponse(job, getLiveBootstrapSession(container)),
             jobId: job.id,
             statusUrl: buildJobStatusUrl(req, job.id),
-            dashboardUrl: buildJobsApiOrigin(req),
+            apiBaseUrl: buildJobsApiOrigin(req),
         },
     });
 });
@@ -307,7 +307,7 @@ function isRecord(value) {
     return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 function inferJobSource(req) {
-    return req.headers['x-alembic-daemon-token'] ? 'codex' : 'dashboard';
+    return req.headers['x-alembic-daemon-token'] ? 'codex' : 'http';
 }
 function rejectInvalidProvidedDaemonToken(req, res) {
     const providedHeader = req.headers['x-alembic-daemon-token'];

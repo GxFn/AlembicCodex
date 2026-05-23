@@ -377,7 +377,7 @@ export class CleanupService {
         return this.#purgeExpiredTrash();
     }
     /**
-     * 列出当前所有垃圾桶（供 Dashboard 展示）
+     * 列出当前所有垃圾桶（供 HTTP/UI 展示）
      */
     listTrashFolders() {
         const trashRoot = this.#getTrashRoot();
