@@ -14,9 +14,9 @@
  *
  * @module service/evolution/FileChangeHandler
  */
+import { assessFileImpact, extractRecipeTokens, } from '@alembic/core/evolution';
 import { isConsumable, isDegraded, rewriteRecipePaths } from '@alembic/core/knowledge';
 import Logger from '@alembic/core/logging';
-import { assessFileImpact, extractRecipeTokens, } from '@alembic/core/service/evolution/ContentImpactAnalyzer';
 /** impactLevel → quality signal 权重映射（文档 §5.3）
  *
  * v3 语义：
