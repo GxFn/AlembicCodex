@@ -6,7 +6,6 @@
  * contracts can opt into a host/Core-provided enricher later.
  */
 export class ContextualEnricher {
-    constructor(_config = {}) { }
     async enrichChunks(_document, chunks) {
         return chunks;
     }

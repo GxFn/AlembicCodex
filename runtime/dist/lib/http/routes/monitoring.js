@@ -110,7 +110,7 @@ router.get('/errors/search', (req, res) => {
             severity: severity,
             startDate: startDate,
             endDate: endDate,
-            limit: limit ? parseInt(limit) : 100,
+            limit: limit ? parseInt(limit, 10) : 100,
         });
         res.json({
             success: true,

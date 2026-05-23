@@ -269,7 +269,7 @@ router.post('/import-from-recipe', validate(ImportFromRecipeBody), async (req, r
     const container = getServiceContainer();
     const guardService = container.get('guardService');
     const context = getContext(req);
-    const importedRules = (await guardService.importRulesFromRecipe(recipeId, rules, context));
+    const importedRules = await guardService.importRulesFromRecipe(recipeId, rules, context);
     res.status(201).json({
         success: true,
         data: { importedRules, count: importedRules.length },
@@ -291,11 +291,11 @@ router.get('/compliance', async (req, res) => {
     const projectRoot = String(req.query.path || process.env.ALEMBIC_PROJECT_DIR || process.cwd());
     const report = await reporter.generate(projectRoot, {
         qualityGate: {
-            maxErrors: parseInt(req.query.maxErrors) || 0,
-            maxWarnings: parseInt(req.query.maxWarnings) || 20,
-            minScore: parseInt(req.query.minScore) || 70,
+            maxErrors: parseInt(req.query.maxErrors, 10) || 0,
+            maxWarnings: parseInt(req.query.maxWarnings, 10) || 20,
+            minScore: parseInt(req.query.minScore, 10) || 70,
         },
-        maxFiles: parseInt(req.query.maxFiles) || 500,
+        maxFiles: parseInt(req.query.maxFiles, 10) || 500,
     });
     res.json({ success: true, data: report });
 });

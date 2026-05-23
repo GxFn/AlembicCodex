@@ -14,6 +14,12 @@ import AuditStore from './infrastructure/audit/AuditStore.js';
 import ConfigLoader from './infrastructure/config/AppConfigLoader.js';
 import { SkillHooks } from './service/skills/SkillHooks.js';
 import { CONFIG_DIR, PACKAGE_ROOT } from './shared/package-assets.js';
+function requireBootstrapComponent(value, name) {
+    if (value === undefined || value === null) {
+        throw new Error(`[Bootstrap] ${name} must be initialized before this step runs.`);
+    }
+    return value;
+}
 export class Bootstrap {
     components;
     options;
@@ -59,7 +65,8 @@ export class Bootstrap {
             await this.loadConfig();
             // 2. 初始化日志系统
             await this.initializeLogger();
-            this.components.logger.info('Alembic - Starting initialization...');
+            const logger = requireBootstrapComponent(this.components.logger, 'logger');
+            logger.info('Alembic - Starting initialization...');
             // 3. 连接数据库
             await this.initializeDatabase();
             // 4. 加载宪法
@@ -71,11 +78,12 @@ export class Bootstrap {
             // 7. 注册路由（稍后由各服务注册）
             // await this.registerRoutes();
             const duration = Date.now() - startTime;
-            this.components.logger.info(`Alembic initialized successfully (${duration}ms)`);
+            logger.info(`Alembic initialized successfully (${duration}ms)`);
             return this.components;
         }
         catch (error) {
-            console.error('Failed to initialize Alembic:', error);
+            const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+            process.stderr.write(`Failed to initialize Alembic: ${message}\n`);
             throw error;
         }
     }
@@ -97,7 +105,8 @@ export class Bootstrap {
     }
     /** 初始化日志系统 */
     async initializeLogger() {
-        const config = this.components.config.get('logging');
+        const configLoader = requireBootstrapComponent(this.components.config, 'config');
+        const config = configLoader.get('logging');
         // Ghost 模式：将日志路径重定向到外置工作区
         const resolver = this.components.workspaceResolver;
         if (resolver?.ghost && config?.file) {
@@ -108,23 +117,28 @@ export class Bootstrap {
     }
     /** 初始化数据库 */
     async initializeDatabase() {
-        const dbConfig = this.components.config.get('database');
+        const config = requireBootstrapComponent(this.components.config, 'config');
+        const logger = requireBootstrapComponent(this.components.logger, 'logger');
+        const dbConfig = config.get('database');
         const db = new DatabaseConnection(dbConfig, this.components.workspaceResolver);
         await db.connect();
         await db.runMigrations();
         this.components.db = db;
-        this.components.logger.info('Database connected and migrated');
+        logger.info('Database connected and migrated');
     }
     /** 加载宪法 */
     async loadConstitution() {
         const constitutionPath = path.join(CONFIG_DIR, 'constitution.yaml');
         const constitution = new Constitution(constitutionPath);
         this.components.constitution = constitution;
-        this.components.logger.info('Constitution loaded', constitution.toJSON());
+        const logger = requireBootstrapComponent(this.components.logger, 'logger');
+        logger.info('Constitution loaded', constitution.toJSON());
     }
     /** 初始化 Plugin 本地请求治理组件 */
     async initializeGovernanceComponents() {
-        const { constitution, db, logger } = this.components;
+        const constitution = requireBootstrapComponent(this.components.constitution, 'constitution');
+        const db = requireBootstrapComponent(this.components.db, 'database');
+        const logger = requireBootstrapComponent(this.components.logger, 'logger');
         // Constitution Validator
         const constitutionValidator = new ConstitutionValidator(constitution);
         this.components.constitutionValidator = constitutionValidator;
@@ -147,8 +161,10 @@ export class Bootstrap {
     }
     /** 初始化网关 */
     async initializeGateway() {
-        const gatewayConfig = this.components.config.has('gateway')
-            ? this.components.config.get('gateway')
+        const config = requireBootstrapComponent(this.components.config, 'config');
+        const logger = requireBootstrapComponent(this.components.logger, 'logger');
+        const gatewayConfig = config.has('gateway')
+            ? config.get('gateway')
             : undefined;
         const gateway = new Gateway(gatewayConfig);
         // 注入依赖
@@ -159,7 +175,7 @@ export class Bootstrap {
             auditLogger: this.components.auditLogger,
         });
         this.components.gateway = gateway;
-        this.components.logger.info('Gateway initialized');
+        logger.info('Gateway initialized');
     }
     /**
      * 初始化 WorkspaceResolver

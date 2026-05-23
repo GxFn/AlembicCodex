@@ -13,11 +13,9 @@
  *
  * @module http/routes/evolution
  */
-import Logger from '@alembic/core/logging';
 import express from 'express';
 import { getServiceContainer } from '../../injection/ServiceContainer.js';
 const router = express.Router();
-const logger = Logger.getInstance();
 /* ════════════════════════════════════════════════════════
  *  Proposals — CRUD + 操作
  * ════════════════════════════════════════════════════════ */

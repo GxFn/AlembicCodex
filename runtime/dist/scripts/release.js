@@ -1,20 +1,16 @@
 #!/usr/bin/env node
 /**
  * Alembic 发布辅助脚本
- * 用途：自动化发布前检查、版本提交和 tag 推送
- * 使用：node dist/scripts/release.js [check|patch|minor|major]
+ * 用途：自动化 Codex 插件 artifact 发布前检查
+ * 使用：node dist/scripts/release.js check
  *
  * Codex 插件 artifact 发布由 .github/workflows/release.yml 在 v* tag 推送后完成。
  * AlembicPlugin root package 保持 private，不走 registry 发布链路。
+ * 历史 release:patch/minor/major alias 已 fail-closed，请使用 release:codex-plugin。
  */
 import { execSync } from 'node:child_process';
-import fs from 'node:fs';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { PACKAGE_ROOT } from '../lib/shared/package-assets.js';
-const require = createRequire(import.meta.url);
 // 颜色输出
-const _colors = {
+const colors = {
     reset: '\x1b[0m',
     green: '\x1b[32m',
     red: '\x1b[31m',
@@ -22,9 +18,12 @@ const _colors = {
     blue: '\x1b[36m',
     bold: '\x1b[1m',
 };
+function writeLine(message) {
+    process.stdout.write(`${message}\n`);
+}
 function log(message, color = 'reset') {
-    const code = _colors[color] ?? '';
-    console.log(`${code}${message}${_colors.reset}`);
+    const code = colors[color] ?? '';
+    writeLine(`${code}${message}${colors.reset}`);
 }
 function success(message) {
     log(`✅ ${message}`, 'green');
@@ -58,17 +57,10 @@ function exec(command, options = {}) {
         return null;
     }
 }
-function readPackageJson() {
-    return JSON.parse(fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'));
-}
 // 检查项
 class ReleaseChecker {
-    errors;
-    warnings;
-    constructor() {
-        this.errors = [];
-        this.warnings = [];
-    }
+    errors = [];
+    warnings = [];
     // 检查 Git 状态
     checkGitStatus() {
         header('Git 状态检查');
@@ -97,7 +89,7 @@ class ReleaseChecker {
                 silent: true,
                 ignoreError: true,
             })?.trim();
-            if (behind && parseInt(behind) > 0) {
+            if (behind && parseInt(behind, 10) > 0) {
                 this.warnings.push(`本地落后远程 ${behind} 个提交`);
                 warning(`需要先 pull: git pull origin ${branch}`);
             }
@@ -113,7 +105,7 @@ class ReleaseChecker {
     checkNodeEnvironment() {
         header('Node.js 环境检查');
         const nodeVersion = process.version;
-        const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
+        const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0], 10);
         if (majorVersion < 22) {
             this.errors.push(`Node.js 版本过低: ${nodeVersion} (需要 >=22)`);
             error(`Node.js: ${nodeVersion}`);
@@ -192,50 +184,6 @@ class ReleaseChecker {
         return this.errors.length === 0;
     }
 }
-// 发布流程
-function release(versionType, checker) {
-    header(`开始发布流程 (${versionType})`);
-    // 读取当前版本
-    const packageJson = readPackageJson();
-    const currentVersion = packageJson.version;
-    info(`当前版本: ${currentVersion}`);
-    // 构建产物（本地预检；GitHub Actions 会在 tag 推送后再次构建）
-    try {
-        checker.buildArtifacts();
-    }
-    catch (_err) {
-        error('构建失败，发布中止');
-        process.exit(1);
-    }
-    // 执行版本升级
-    try {
-        info(`执行 npm version ${versionType} --no-git-tag-version...`);
-        exec(`npm version ${versionType} --no-git-tag-version`, { silent: true });
-        const newVersion = `v${readPackageJson().version}`;
-        success(`版本已更新: ${currentVersion} → ${newVersion}`);
-        info('请手动编辑 CHANGELOG.md，然后按回车继续...');
-        // 等待用户输入
-        require('node:child_process').spawnSync('read', ['-p', ''], {
-            stdio: 'inherit',
-            shell: true,
-        });
-        info('提交版本文件...');
-        exec('git add package.json package-lock.json CHANGELOG.md');
-        exec(`git commit -m "chore: release ${newVersion}"`);
-        exec(`git tag ${newVersion}`);
-        success('Release commit 和 tag 已创建');
-        info('推送到 GitHub（触发 Release Action 构建并上传 Codex 插件 artifact）...');
-        exec('git push origin HEAD');
-        exec(`git push origin ${newVersion}`);
-        success('已推送到 GitHub，等待 Actions 构建、测试并上传 Codex 插件 artifact');
-        header('🎉 发布流程完成！');
-    }
-    catch (err) {
-        error('发布失败！');
-        console.error(err.message);
-        process.exit(1);
-    }
-}
 // 主函数
 function main() {
     const args = process.argv.slice(2);
@@ -252,7 +200,8 @@ function main() {
         checker.checkBuildArtifacts();
         if (checker.summary()) {
             info('\n运行 `npm run test` 来执行完整测试');
-            info('运行 `npm run release:patch/minor/major` 开始发布');
+            info('运行 `npm run release:codex-plugin` 检查 Codex 插件 artifact 发布就绪状态');
+            info('如需 daemon smoke，运行 `npm run release:codex-plugin:daemon`');
             process.exit(0);
         }
         else {
@@ -260,34 +209,12 @@ function main() {
             process.exit(1);
         }
     }
-    // 执行发布
+    // 历史 root package 版本发布 alias 已禁用，避免误以为插件走 npm registry 发布。
     if (['patch', 'minor', 'major'].includes(command)) {
-        // 先执行检查
-        const checker = new ReleaseChecker();
-        checker.checkGitStatus();
-        checker.checkNodeEnvironment();
-        checker.checkBuildArtifacts();
-        checker.runTests();
-        if (!checker.summary()) {
-            error('\n发布前检查未通过，请修复后再试');
-            process.exit(1);
-        }
-        warning(`即将发布 ${command} 版本，是否继续？(y/N)`);
-        const readline = require('node:readline').createInterface({
-            input: process.stdin,
-            output: process.stdout,
-        });
-        readline.question('> ', (answer) => {
-            readline.close();
-            if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
-                release(command, checker);
-            }
-            else {
-                info('已取消发布');
-                process.exit(0);
-            }
-        });
-        return;
+        error(`release:${command} 已禁用：AlembicPlugin root package 是 artifact-only，不走 npm registry 发布。`);
+        info('请使用 `npm run release:codex-plugin` 检查 Codex 插件 artifact。');
+        info('请使用 `npm run release:codex-channel` 检查 Codex channel metadata。');
+        process.exit(1);
     }
     // 未知命令
     error(`未知命令: ${command}`);

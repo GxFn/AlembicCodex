@@ -89,6 +89,9 @@ export class PerformanceMonitor {
             });
         }
         const endpointStats = this.metrics.endpoints.get(route);
+        if (!endpointStats) {
+            throw new Error(`Endpoint stats were not initialized for route: ${route}`);
+        }
         endpointStats.count++;
         endpointStats.totalDuration += duration;
         endpointStats.minDuration = Math.min(endpointStats.minDuration, duration);

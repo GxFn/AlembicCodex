@@ -422,9 +422,7 @@ export class WikiGenerator {
             });
         }
         // ── 3. 快速上手 (需要构建配置或入口点) ──
-        const hasEntryPoints = astInfo.overview?.entryPoints?.length
-            ? true
-            : false;
+        const hasEntryPoints = Boolean(astInfo.overview?.entryPoints?.length);
         const hasBuildSystem = projectInfo.buildSystems.length > 0 ||
             projectInfo.hasPackageSwift ||
             projectInfo.hasPodfile ||

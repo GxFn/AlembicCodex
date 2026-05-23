@@ -42,6 +42,16 @@ function mergeReports(a, b) {
         eventSource: a.eventSource ?? b.eventSource,
     };
 }
+function isReactiveEvolutionReport(value) {
+    return (value !== null &&
+        typeof value === 'object' &&
+        typeof value.fixed === 'number' &&
+        typeof value.deprecated === 'number' &&
+        typeof value.skipped === 'number' &&
+        typeof value.needsReview === 'number' &&
+        typeof value.suggestReview === 'boolean' &&
+        Array.isArray(value.details));
+}
 /** 根据批次事件统计主要来源（出现最多者；均缺省时返回 undefined）。 */
 function inferBatchSource(events) {
     const counts = new Map();
@@ -91,7 +101,7 @@ export class FileChangeDispatcher {
                 continue;
             }
             const value = result.value;
-            if (value && typeof value === 'object' && 'details' in value) {
+            if (isReactiveEvolutionReport(value)) {
                 merged = mergeReports(merged, value);
             }
         }

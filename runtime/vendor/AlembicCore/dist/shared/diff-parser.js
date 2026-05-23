@@ -22,6 +22,8 @@ export function getFileDiff(projectRoot, relativePath) {
         const output = execFileSync('git', ['diff', 'HEAD', '-U0', '--', relativePath], {
             cwd: projectRoot,
             encoding: 'utf8',
+            // 测试夹具或真实项目可能不是 git worktree；这里是可选增强路径，失败时必须安静降级。
+            stdio: ['ignore', 'pipe', 'ignore'],
             timeout: 5000,
         }).trim();
         return output || null;

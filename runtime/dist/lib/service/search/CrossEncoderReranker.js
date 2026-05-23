@@ -6,7 +6,6 @@
  */
 import { jaccardSimilarity, tokenize } from '@alembic/core/search';
 export class CrossEncoderReranker {
-    constructor(_opts = {}) { }
     async rerank(query, candidates) {
         const rerankCandidates = candidates;
         if (!candidates || candidates.length === 0) {
