@@ -125,9 +125,9 @@ async function main() {
             code: 'DAEMON_SHUTDOWN',
             container,
             logger,
-            reason: 'Alembic daemon shut down before this job completed. Start a new job to retry.',
+            reason: 'Resident or embedded runtime shut down before this job completed. Start a new job to retry.',
         });
-    }, 'daemon-jobs');
+    }, 'recoverable-job-cleanup');
 }
 function registerDaemonGitDiffCheckpoint(options) {
     const dispatcher = options.container.get('fileChangeDispatcher');

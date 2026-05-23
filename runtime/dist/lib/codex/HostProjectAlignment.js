@@ -6,8 +6,11 @@ export function buildCodexHostProjectAlignment(input) {
     const hostProject = projectFromRoot(input.projectRoot, 'codex-host');
     const runtimeControl = readProjectRuntimeControlState();
     const selectedProject = projectFromRuntimeControlTarget(runtimeControl.state.selectedProjectRoot, runtimeControl.state.selectedProjectId, 'runtime-control-state');
+    const residentServiceProject = projectFromResidentServiceScope(input.enhancementRoute);
+    const daemonBoundaryProject = projectFromDaemonBoundary(input.enhancementRoute);
     const activeRuntimeProject = projectFromRuntimeControlTarget(runtimeControl.state.activeProjectRoot, runtimeControl.state.activeProjectId, 'runtime-control-state') ||
-        projectFromDaemonBoundary(input.enhancementRoute) ||
+        residentServiceProject ||
+        daemonBoundaryProject ||
         projectFromDaemonState(input.daemonStatus);
     const hostRoot = hostProject.projectRealpath || hostProject.projectRoot;
     const selectedRoot = selectedProject?.projectRealpath || selectedProject?.projectRoot || null;
@@ -46,6 +49,7 @@ export function buildCodexHostProjectAlignment(input) {
             daemonState: input.daemonStatus.ready === true && Boolean(input.daemonStatus.state),
             projectRegistry: hostProject.registered === true,
             projectsApi: false,
+            residentServiceScope: Boolean(residentServiceProject),
             runtimeControlState: runtimeControl.summary.source === 'readable',
         },
     };
@@ -204,6 +208,24 @@ function projectFromDaemonBoundary(enhancementRoute) {
         dataRoot: workspace.dataRoot,
         dataRootSource: workspace.dataRootSource,
         projectId: workspace.projectId,
+    });
+}
+function projectFromResidentServiceScope(enhancementRoute) {
+    const status = enhancementRoute?.localAlembic.daemon.residentService?.status;
+    if (!status || status.route !== 'local-alembic-daemon' || status.owner !== 'alembic') {
+        return null;
+    }
+    const scope = status.serviceScope;
+    const projectRoot = scope.diagnosticPaths.projectRoot;
+    if (!projectRoot) {
+        return null;
+    }
+    // serviceScope 是 Alembic resident service 的当前覆盖范围摘要；这里仅用于只读 handoff
+    // 比对，不提供 project list / switch / start / stop 能力。
+    return projectFromRoot(projectRoot, 'resident-service-scope', {
+        dataRoot: scope.diagnosticPaths.dataRoot,
+        dataRootSource: scope.projectIdentity.dataRootSource,
+        projectId: scope.projectIdentity.projectId,
     });
 }
 function projectFromDaemonState(status) {
