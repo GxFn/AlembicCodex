@@ -16,12 +16,12 @@ const RELATIVE_SCORE_RATIO = 0.15;
 const GAP_DROP_RATIO = 0.25;
 // ── PrimeSearchPipeline ─────────────────────────────
 export class PrimeSearchPipeline {
-    #residentSearchClient;
+    #residentServiceClient;
     #search;
     #sessionQueries = [];
     constructor(searchEngine, options = {}) {
         this.#search = searchEngine;
-        this.#residentSearchClient = options.residentSearchClient ?? null;
+        this.#residentServiceClient = options.residentServiceClient ?? null;
     }
     /**
      * Core method: multi-query search + scenario routing + result merging.
@@ -192,11 +192,11 @@ export class PrimeSearchPipeline {
         };
     }
     async #residentSemanticSearch(query) {
-        if (!this.#residentSearchClient) {
+        if (!this.#residentServiceClient) {
             return null;
         }
         try {
-            return await this.#residentSearchClient.search({
+            return await this.#residentServiceClient.search({
                 query,
                 mode: 'semantic',
                 limit: 6,

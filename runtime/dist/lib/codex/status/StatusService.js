@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { WorkspaceSettingsStore } from '@alembic/core/shared';
 import { DEFAULT_FOLDER_NAMES, WorkspaceResolver } from '@alembic/core/workspace';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
+import { AlembicResidentServiceClient } from '../../service/resident/AlembicResidentServiceClient.js';
 import { buildCodexRuntimeDiagnostics } from '../diagnostics/Diagnostics.js';
 import { buildCodexEnhancementRouteChoice, } from '../EnhancementRoute.js';
 import { buildCodexHostProjectAlignment, } from '../HostProjectAlignment.js';
@@ -20,6 +21,9 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const daemonStatus = await supervisor.status(projectRoot);
     const knowledge = inspectCodexKnowledge(projectRoot);
     const runtime = options.runtime || resolveCodexRuntimeContext();
+    const residentService = await new AlembicResidentServiceClient({ projectRoot }).probe({
+        daemonStatus,
+    });
     const enhancementRoute = buildCodexEnhancementRouteChoice({
         daemonStatus,
         runtime,
@@ -44,6 +48,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         hostProjectAlignment,
         moduleBoundary,
         projectRootResolution,
+        residentService,
     });
     const policyInput = {
         coreTools: [],
@@ -85,6 +90,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             projectId: facts.projectId,
             expectedProjectId: facts.expectedProjectId,
         },
+        residentService,
         workspace: {
             mode: facts.mode,
             ghost: facts.ghost,

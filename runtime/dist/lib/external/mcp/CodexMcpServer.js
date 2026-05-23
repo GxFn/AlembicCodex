@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { JobStore, resolveDaemonPaths } from '@alembic/core/daemon';
+import { JobStore, resolveDaemonPaths, summarizeAlembicResidentServiceStatus, } from '@alembic/core/daemon';
 import { ProjectRegistry } from '@alembic/core/workspace';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -8,14 +8,49 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { SetupService } from '../../cli/SetupService.js';
 import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
+import { AlembicResidentServiceClient } from '../../service/resident/AlembicResidentServiceClient.js';
 import { getPackageVersion } from '../../shared/package-assets.js';
-import { buildJobQuery, callDaemonHttpEndpoint } from './codex/daemon-jobs.js';
 import { buildCodexHostProjectHandoffBlock } from './codex/host-project-handoff.js';
 import { safeProjectRootFallback } from './codex/project-root.js';
 import { attachCodexServiceBoundary, attachEnhancementRoute, failureResult, isErrorResult, } from './codex/results.js';
 import { getVisibleCodexTools } from './codex/tool-visibility.js';
 import { McpServer as EmbeddedMcpServer } from './McpServer.js';
 import { TIER_ORDER, TOOLS } from './tools.js';
+function summarizeResidentServiceResult(result) {
+    const base = {
+        ok: result.ok,
+        owner: result.owner,
+        route: result.route,
+        status: result.status ? summarizeAlembicResidentServiceStatus(result.status) : null,
+        telemetry: result.telemetry || null,
+    };
+    return result.ok
+        ? base
+        : {
+            ...base,
+            errorCode: result.errorCode || null,
+            message: result.message,
+            reason: result.reason,
+            retryable: result.retryable,
+        };
+}
+function attachResidentServiceResult(result, residentService) {
+    const summary = summarizeResidentServiceResult(residentService);
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+        return { success: true, data: { residentService: summary, value: result } };
+    }
+    const record = result;
+    const data = record.data && typeof record.data === 'object' && !Array.isArray(record.data)
+        ? record.data
+        : {};
+    return {
+        ...record,
+        data: {
+            ...data,
+            residentService: summary,
+        },
+    };
+}
 function resolveWorkspaceModeConflict(projectRoot, requestedMode) {
     if (!requestedMode) {
         return null;
@@ -38,6 +73,7 @@ export class CodexMcpServer {
     sessionId;
     sdkServer = null;
     #pluginOwnedMcpServer = null;
+    #residentServiceClient = null;
     #initPromise = null;
     #initRuntimeState = {
         attempted: false,
@@ -163,14 +199,22 @@ export class CodexMcpServer {
                 return this.buildDiagnostics();
             case 'alembic_codex_init':
                 return this.initializeWorkspace(args);
-            case 'alembic_codex_dashboard':
-                return this.openDashboard();
-            case 'alembic_codex_bootstrap':
-                return this.enqueueJob('bootstrap', args);
-            case 'alembic_codex_rescan':
-                return this.enqueueJob('rescan', args);
-            case 'alembic_codex_job':
-                return this.readJob(args);
+            case 'alembic_codex_dashboard': {
+                const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
+                return attachCodexServiceBoundary(await this.openDashboard(), serviceBoundary);
+            }
+            case 'alembic_codex_bootstrap': {
+                const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
+                return attachCodexServiceBoundary(await this.enqueueJob('bootstrap', args), serviceBoundary);
+            }
+            case 'alembic_codex_rescan': {
+                const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
+                return attachCodexServiceBoundary(await this.enqueueJob('rescan', args), serviceBoundary);
+            }
+            case 'alembic_codex_job': {
+                const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
+                return attachCodexServiceBoundary(await this.readJob(args), serviceBoundary);
+            }
             case 'alembic_codex_stop':
                 return this.stopDaemon(args);
             case 'alembic_codex_cleanup':
@@ -193,6 +237,7 @@ export class CodexMcpServer {
     }
     async buildDiagnostics() {
         const daemonStatus = await this.supervisor.status(this.projectRoot);
+        const residentService = await this.residentServiceClient().probe({ daemonStatus });
         const runtime = resolveCodexRuntimeContext();
         const enhancementRoute = buildCodexEnhancementRouteChoice({
             daemonStatus,
@@ -210,6 +255,7 @@ export class CodexMcpServer {
                 autoInit: this.#initRuntimeState,
                 enhancementRoute,
                 hostProjectAlignment,
+                residentService,
                 projectRootResolution: this.projectRootResolution,
             }),
         };
@@ -449,11 +495,12 @@ export class CodexMcpServer {
         if (blocked) {
             return blocked;
         }
-        const dashboardUrl = enhancementRoute.localAlembic.daemon.dashboardUrl;
+        const dashboardResult = await this.residentServiceClient().dashboard({ daemonStatus: daemon });
         if (enhancementRoute.selected !== 'local-alembic-daemon' ||
             !daemon.ready ||
             !daemon.state ||
-            !dashboardUrl ||
+            !dashboardResult.ok ||
+            !dashboardResult.value.url ||
             enhancementRoute.missingCapabilities.includes('dashboard')) {
             return failureResult('alembic_codex_dashboard', 'Dashboard handoff requires a local Alembic daemon that serves the Dashboard. The embedded Codex plugin runtime does not bundle or serve Dashboard frontend assets.', {
                 daemon: summarizeCodexDaemonStatus(daemon),
@@ -461,6 +508,7 @@ export class CodexMcpServer {
                 errorCode: 'CODEX_DASHBOARD_HANDOFF_UNAVAILABLE',
                 hostProjectAlignment,
                 needsUserInput: true,
+                residentService: summarizeResidentServiceResult(dashboardResult),
                 nextActions: [
                     buildCodexRecommendedAction({
                         label: 'Check workspace status',
@@ -477,6 +525,7 @@ export class CodexMcpServer {
                 ],
             });
         }
+        const dashboardUrl = dashboardResult.value.url;
         const knowledge = inspectCodexKnowledge(this.projectRoot);
         const hostAgentAction = knowledge.usable
             ? buildCodexRecommendedAction({
@@ -498,12 +547,13 @@ export class CodexMcpServer {
                 daemon: summarizeCodexDaemonStatus(daemon),
                 enhancementRoute,
                 hostProjectAlignment,
+                residentService: summarizeResidentServiceResult(dashboardResult),
                 nextActions: [
                     hostAgentAction,
                     buildCodexRecommendedAction({
                         arguments: { limit: 10 },
-                        label: 'List internal AI jobs',
-                        reason: 'Recover status for explicit Alembic internal AI daemon jobs after Codex reconnects or the Dashboard refreshes.',
+                        label: 'List recoverable jobs',
+                        reason: 'Recover status for explicit Alembic resident or embedded host-agent jobs after Codex reconnects or the Dashboard refreshes.',
                         startsDaemon: false,
                         tool: 'alembic_codex_job',
                     }),
@@ -578,11 +628,8 @@ export class CodexMcpServer {
                 ],
             });
         }
-        if (!daemon.state.token) {
-            return failureResult(`alembic_codex_${kind}`, 'Alembic daemon token is missing. Restart the daemon and retry.', { daemon: summarizeCodexDaemonStatus(daemon), enhancementRoute, hostProjectAlignment });
-        }
-        return attachEnhancementRoute(await callDaemonHttpEndpoint(daemon.state, `/api/v1/jobs/${kind}`, {
-            method: 'POST',
+        const residentResult = await this.residentServiceClient().enqueueJob(kind, {
+            daemonStatus: daemon,
             body: {
                 ...args,
                 jobContext: createCodexJobContext({
@@ -591,7 +638,17 @@ export class CodexMcpServer {
                     user: process.env.USER || undefined,
                 }),
             },
-        }, `alembic_codex_${kind}`), enhancementRoute);
+        });
+        if (!residentResult.ok) {
+            return failureResult(`alembic_codex_${kind}`, residentResult.message || 'Alembic resident job API is unavailable.', {
+                daemon: summarizeCodexDaemonStatus(daemon),
+                enhancementRoute,
+                errorCode: residentResult.errorCode || 'CODEX_RESIDENT_JOB_UNAVAILABLE',
+                hostProjectAlignment,
+                residentService: summarizeResidentServiceResult(residentResult),
+            });
+        }
+        return attachEnhancementRoute(attachResidentServiceResult(residentResult.value, residentResult), enhancementRoute);
     }
     async readJob(args) {
         const daemonResult = await this.tryReadJobFromDaemon(args);
@@ -633,13 +690,12 @@ export class CodexMcpServer {
         if (!daemon.ready || !daemon.state?.token) {
             return null;
         }
-        const jobId = typeof args.jobId === 'string' ? args.jobId : '';
-        const path = jobId
-            ? `/api/v1/jobs/${encodeURIComponent(jobId)}`
-            : `/api/v1/jobs${buildJobQuery(args)}`;
         try {
-            const result = await callDaemonHttpEndpoint(daemon.state, path, { method: 'GET' }, 'alembic_codex_job');
-            return isErrorResult(result) ? null : result;
+            const result = await this.residentServiceClient().readJob(args, { daemonStatus: daemon });
+            if (!result.ok || isErrorResult(result.value)) {
+                return null;
+            }
+            return attachResidentServiceResult(result.value, result);
         }
         catch {
             return null;
@@ -700,6 +756,14 @@ export class CodexMcpServer {
                 process.stderr.write(`[Codex MCP] failed to restore cwd after Plugin-owned tool init: ${err instanceof Error ? err.message : String(err)}\n`);
             }
         }
+    }
+    residentServiceClient() {
+        if (!this.#residentServiceClient) {
+            this.#residentServiceClient = new AlembicResidentServiceClient({
+                projectRoot: this.projectRoot,
+            });
+        }
+        return this.#residentServiceClient;
     }
     async ensureEnhancementDaemon(requirement, tool) {
         const currentDaemon = await this.supervisor.status(this.projectRoot);

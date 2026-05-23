@@ -99,6 +99,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
         autoInit: options.autoInit || null,
         hostProjectAlignment: options.hostProjectAlignment || null,
         enhancementRoute,
+        residentService: options.residentService || null,
         moduleBoundary,
         gitDiffCheckpoint: readHealthGitDiffCheckpoint(daemonStatus.health),
         plugin,
