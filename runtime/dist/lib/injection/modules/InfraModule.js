@@ -21,7 +21,6 @@ import Gateway from '../../governance/gateway/Gateway.js';
 import AuditLogger from '../../infrastructure/audit/AuditLogger.js';
 import AuditStore from '../../infrastructure/audit/AuditStore.js';
 import { getRealtimeService as _getRealtimeService } from '../../infrastructure/realtime/RealtimeService.js';
-import { AuditRepositoryImpl } from '../../repository/audit/AuditRepository.js';
 import { BootstrapTaskManager } from '../../service/bootstrap/BootstrapTaskManager.js';
 export function register(c) {
     // ═══ Infrastructure ═══
@@ -83,11 +82,6 @@ export function register(c) {
     });
     c.singleton('guardViolationRepository', (ct) => {
         return getCoreRepositories(ct).guardViolationRepository;
-    });
-    c.singleton('auditRepository', (ct) => {
-        const db = ct.get('database');
-        const drizzle = db.getDrizzle();
-        return new AuditRepositoryImpl(drizzle);
     });
     c.singleton('memoryRepository', (ct) => {
         const db = ct.get('database');
