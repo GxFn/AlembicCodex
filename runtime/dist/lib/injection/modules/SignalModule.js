@@ -8,10 +8,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { SignalBus } from '@alembic/core/events';
-import { SignalAggregator } from '@alembic/core/infrastructure/signal/SignalAggregator';
-import { SignalBridge } from '@alembic/core/infrastructure/signal/SignalBridge';
-import { SignalTraceWriter } from '@alembic/core/infrastructure/signal/SignalTraceWriter';
+import { SignalAggregator, SignalBridge, SignalBus, SignalTraceWriter, } from '@alembic/core/events';
 import { resolveDataRoot } from '@alembic/core/workspace';
 import { HitRecorder } from '../../service/signal/HitRecorder.js';
 import { shutdown } from '../../shared/shutdown.js';

@@ -9,7 +9,9 @@ import { KnowledgeRepositoryImpl } from './repository/knowledge/KnowledgeReposit
 import { MemoryRepositoryImpl, } from './repository/memory/MemoryRepository.js';
 import { SessionRepositoryImpl, } from './repository/session/SessionRepository.js';
 import { RecipeSourceRefRepositoryImpl, } from './repository/sourceref/RecipeSourceRefRepository.js';
-export { getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues };
+import { RawDbSyncAdapter } from './repository/sync/SyncRepoAdapter.js';
+import { TokenUsageStore } from './repository/token/TokenUsageStore.js';
+export { BootstrapRepositoryImpl, CodeEntityRepositoryImpl, GuardViolationRepositoryImpl, KnowledgeEdgeRepositoryImpl, KnowledgeRepositoryImpl, LifecycleEventRepository, MemoryRepositoryImpl, ProposalRepository, RawDbSyncAdapter, RecipeSourceRefRepositoryImpl, SessionRepositoryImpl, TokenUsageStore, WarningRepository, getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, };
 export const ALEMBIC_REPOSITORY_KEYS = [
     'knowledgeRepository',
     'knowledgeEdgeRepository',

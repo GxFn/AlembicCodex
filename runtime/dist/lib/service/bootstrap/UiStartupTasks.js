@@ -26,7 +26,7 @@ export async function runUiStartupTasks(ctx) {
             ? ctx.container.get('knowledgeSyncService')
             : null;
         if (!syncService) {
-            const { KnowledgeSyncService } = await import('@alembic/core/service/knowledge/KnowledgeSyncService');
+            const { KnowledgeSyncService } = await import('@alembic/core/knowledge');
             const { resolveDataRoot } = await import('@alembic/core/workspace');
             const dataRoot = resolveDataRoot(ctx.container) || ctx.projectRoot;
             const sourceRefReconciler = ctx.container.singletons.sourceRefReconciler;

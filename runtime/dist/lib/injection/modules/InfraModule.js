@@ -9,13 +9,12 @@
 import path from 'node:path';
 import { JobStore } from '@alembic/core/daemon';
 import { EventBus } from '@alembic/core/events';
-import { ReportStore } from '@alembic/core/infrastructure/report/ReportStore';
+import { ReportStore } from '@alembic/core/infrastructure/report';
 import { WriteZone } from '@alembic/core/io';
+import { KnowledgeFileWriter, KnowledgeSyncService } from '@alembic/core/knowledge';
 import Logger from '@alembic/core/logging';
 import { MemoryRepositoryImpl } from '@alembic/core/memory';
 import { createAlembicRepositories, } from '@alembic/core/repositories';
-import { KnowledgeFileWriter } from '@alembic/core/service/knowledge/KnowledgeFileWriter';
-import { KnowledgeSyncService } from '@alembic/core/service/knowledge/KnowledgeSyncService';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import Gateway from '../../governance/gateway/Gateway.js';
 import AuditLogger from '../../infrastructure/audit/AuditLogger.js';
