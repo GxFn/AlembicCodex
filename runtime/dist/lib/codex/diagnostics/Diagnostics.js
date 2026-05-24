@@ -102,6 +102,7 @@ export function buildCodexRuntimeDiagnostics(daemonStatus, context = resolveCode
         enhancementRoute,
         residentService: options.residentService || null,
         residentServiceBoundary: buildResidentServiceBoundary(options.residentService),
+        projectScopeIdentity: options.projectScopeIdentity || null,
         moduleBoundary,
         gitDiffCheckpoint: readHealthGitDiffCheckpoint(daemonStatus.health),
         plugin,

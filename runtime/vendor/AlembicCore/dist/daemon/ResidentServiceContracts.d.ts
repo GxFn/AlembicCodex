@@ -23,8 +23,9 @@ export type AlembicResidentJobFamily = 'internal-ai' | 'host-agent-recoverable';
 export type AlembicResidentJobOperation = 'bootstrap' | 'rescan';
 export type AlembicResidentSearchMode = (typeof ALEMBIC_RESIDENT_SEARCH_MODES)[number];
 export type AlembicResidentSearchResultMode = (typeof ALEMBIC_RESIDENT_SEARCH_RESULT_MODES)[number];
-export type AlembicResidentProjectIdentitySummary = Pick<AlembicRuntimeProjectIdentitySummary, 'dataRootSource' | 'projectId' | 'schemaMigrationVersion' | 'workspaceMode'>;
+export type AlembicResidentProjectIdentitySummary = Pick<AlembicRuntimeProjectIdentitySummary, 'dataRootSource' | 'projectId' | 'projectScope' | 'projectScopeId' | 'schemaMigrationVersion' | 'workspaceMode'>;
 export interface AlembicResidentDiagnosticPaths {
+    controlRoot: string | null;
     databasePath: string | null;
     dataRoot: string | null;
     projectRoot: string | null;

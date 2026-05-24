@@ -12,6 +12,7 @@
  */
 import type { AlembicFolderNames, PartialAlembicFolderNames } from './folder-names.js';
 import { type ProjectRegistryInspection, type WorkspaceMode } from './ProjectRegistry.js';
+import { type ProjectDescriptor, type ProjectScopeSummary } from './ProjectScope.js';
 export interface WorkspaceFacts {
     targetProjectRoot: string;
     projectRealpath: string;
@@ -21,6 +22,11 @@ export interface WorkspaceFacts {
     ghost: boolean;
     projectId: string | null;
     expectedProjectId: string;
+    projectScope: ProjectScopeSummary | null;
+    projectScopeId: string | null;
+    controlRoot: string | null;
+    folders: ProjectScopeSummary['folders'];
+    currentFolderId: string | null;
     dataRoot: string;
     dataRootSource: 'project-root' | 'ghost-registry';
     workspaceExists: boolean;
@@ -43,6 +49,10 @@ export declare class WorkspaceResolver {
     readonly ghost: boolean;
     /** 项目 ID（来自 ProjectRegistry） */
     readonly projectId: string | null;
+    /** 抽象 ProjectScope（多 folder 模式），为空时保持旧单根解析语义 */
+    readonly projectScope: ProjectDescriptor | null;
+    /** 当前物理 folder 在 ProjectScope 内的 ID */
+    readonly currentFolderId: string | null;
     /** 知识库目录名（如 'Alembic'） */
     readonly knowledgeBaseDir: string;
     /** 目录名约定 */
@@ -51,6 +61,8 @@ export declare class WorkspaceResolver {
         projectRoot: string;
         ghost?: boolean;
         projectId?: string;
+        projectScope?: ProjectDescriptor | null;
+        currentFolderId?: string | null;
         knowledgeBaseDir?: string;
         folderNames?: PartialAlembicFolderNames;
     });
@@ -59,7 +71,9 @@ export declare class WorkspaceResolver {
      * 自动检测项目是否为 Ghost 模式
      */
     static fromProject(projectRoot: string, opts?: {
+        currentFolderId?: string | null;
         folderNames?: PartialAlembicFolderNames;
+        projectScope?: ProjectDescriptor | null;
     }): WorkspaceResolver;
     /**
      * 生成 N0-data-location 可直接记录的路径事实。

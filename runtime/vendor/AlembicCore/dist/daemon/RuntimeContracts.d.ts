@@ -1,4 +1,5 @@
 import type { WorkspaceMode } from '../shared/ProjectRegistry.js';
+import { type ProjectScopeEndpointCapability, type ProjectScopeSummary } from '../shared/ProjectScope.js';
 import { type CanonicalFileChangeEventSource } from '../shared/source-contracts.js';
 import { type JobProcessEventEndpointCapability } from './JobProcessEventContracts.js';
 export declare const ALEMBIC_RUNTIME_API_VERSION = "v1";
@@ -32,6 +33,8 @@ export interface AlembicRuntimeProjectIdentity {
     databasePath?: string;
     projectId: string | null;
     projectRoot: string;
+    projectScope?: ProjectScopeSummary | null;
+    projectScopeId?: string | null;
     runtimeDir: string;
     schemaMigrationVersion?: string | null;
     workspaceMode?: WorkspaceMode;
@@ -81,6 +84,7 @@ export interface AlembicRuntimeCapabilities {
     fileMonitor: AlembicFileMonitorCapability;
     internalAi: AlembicInternalAiCapability;
     jobs: AlembicJobsCapability;
+    projectScope: ProjectScopeEndpointCapability;
 }
 export interface AlembicRuntimeHealthData extends AlembicRuntimeProjectIdentity {
     capabilities: AlembicRuntimeCapabilities;
@@ -104,6 +108,7 @@ export interface CreateAlembicRuntimeCapabilitiesOptions {
     jobEndpoints?: Partial<Record<keyof typeof ALEMBIC_JOB_ENDPOINTS, string>>;
     jobKinds?: readonly AlembicJobKind[];
     jobsAvailable?: boolean;
+    projectScope?: Partial<ProjectScopeEndpointCapability>;
 }
 export interface CreateAlembicRuntimeHealthDataOptions extends AlembicRuntimeProjectIdentity {
     capabilities: AlembicRuntimeCapabilities;
@@ -120,6 +125,8 @@ export interface AlembicRuntimeProjectIdentitySummary {
     databasePath: string | null;
     projectId: string | null;
     projectRoot: string | null;
+    projectScope: ProjectScopeSummary | null;
+    projectScopeId: string | null;
     runtimeDir: string | null;
     schemaMigrationVersion: string | null;
     workspaceMode: WorkspaceMode | null;
@@ -139,6 +146,10 @@ export interface AlembicRuntimeCapabilitySummary {
     jobEventSourceClasses: string[];
     jobsAvailable: boolean | null;
     jobKinds: string[];
+    projectScopeAvailable: boolean | null;
+    projectScopeEndpoint: string | null;
+    projectScopeStorageKind: string | null;
+    projectScopeSupportedOperations: string[];
 }
 export declare function createAlembicRuntimeProjectIdentity(options: AlembicRuntimeProjectIdentity): AlembicRuntimeProjectIdentity;
 export declare function createAlembicRuntimeCapabilities(options: CreateAlembicRuntimeCapabilitiesOptions): AlembicRuntimeCapabilities;

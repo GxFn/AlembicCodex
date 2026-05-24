@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { WorkspaceSettingsStore } from '@alembic/core/shared';
 import { DEFAULT_FOLDER_NAMES, WorkspaceResolver } from '@alembic/core/workspace';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
-import { AlembicResidentServiceClient } from '../../service/resident/AlembicResidentServiceClient.js';
+import { AlembicResidentServiceClient, } from '../../service/resident/AlembicResidentServiceClient.js';
 import { buildCodexRuntimeDiagnostics } from '../diagnostics/Diagnostics.js';
 import { buildCodexEnhancementRouteChoice, } from '../EnhancementRoute.js';
 import { buildCodexHostProjectAlignment, } from '../HostProjectAlignment.js';
@@ -21,9 +21,9 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
     const daemonStatus = await supervisor.status(projectRoot);
     const knowledge = inspectCodexKnowledge(projectRoot);
     const runtime = options.runtime || resolveCodexRuntimeContext();
-    const residentService = await new AlembicResidentServiceClient({ projectRoot }).probe({
-        daemonStatus,
-    });
+    const residentClient = new AlembicResidentServiceClient({ projectRoot });
+    const residentService = await residentClient.probe({ daemonStatus });
+    const projectScopeIdentity = await residentClient.resolveProjectScopeIdentity({ daemonStatus });
     const enhancementRoute = buildCodexEnhancementRouteChoice({
         daemonStatus,
         runtime,
@@ -48,6 +48,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         hostProjectAlignment,
         moduleBoundary,
         projectRootResolution,
+        projectScopeIdentity,
         residentService,
     });
     const policyInput = {
@@ -91,6 +92,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
             expectedProjectId: facts.expectedProjectId,
         },
         residentService,
+        projectScopeIdentity,
         workspace: {
             mode: facts.mode,
             ghost: facts.ghost,

@@ -237,7 +237,9 @@ export class CodexMcpServer {
     }
     async buildDiagnostics() {
         const daemonStatus = await this.supervisor.status(this.projectRoot);
-        const residentService = await this.residentServiceClient().probe({ daemonStatus });
+        const residentClient = this.residentServiceClient();
+        const residentService = await residentClient.probe({ daemonStatus });
+        const projectScopeIdentity = await residentClient.resolveProjectScopeIdentity({ daemonStatus });
         const runtime = resolveCodexRuntimeContext();
         const enhancementRoute = buildCodexEnhancementRouteChoice({
             daemonStatus,
@@ -255,6 +257,7 @@ export class CodexMcpServer {
                 autoInit: this.#initRuntimeState,
                 enhancementRoute,
                 hostProjectAlignment,
+                projectScopeIdentity,
                 residentService,
                 projectRootResolution: this.projectRootResolution,
             }),

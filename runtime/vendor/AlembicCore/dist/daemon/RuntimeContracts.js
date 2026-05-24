@@ -1,3 +1,4 @@
+import { createProjectScopeEndpointCapability, normalizeProjectScopeSummary, } from '../shared/ProjectScope.js';
 import { HOST_EDIT_SOURCE, LEGACY_IDE_EDIT_SOURCE, } from '../shared/source-contracts.js';
 import { ALEMBIC_JOB_PROCESS_EVENTS_PATH, createJobProcessEventEndpointCapability, JOB_PROCESS_EVENT_DISPLAY_POLICIES, JOB_PROCESS_EVENT_KINDS, JOB_PROCESS_EVENT_RETENTION_POLICIES, JOB_PROCESS_EVENT_SOURCE_CLASSES, } from './JobProcessEventContracts.js';
 export const ALEMBIC_RUNTIME_API_VERSION = 'v1';
@@ -39,6 +40,8 @@ export function createAlembicRuntimeProjectIdentity(options) {
         databasePath: options.databasePath,
         projectId: options.projectId,
         projectRoot: options.projectRoot,
+        projectScope: options.projectScope ?? null,
+        projectScopeId: options.projectScope?.projectScopeId ?? options.projectScopeId ?? null,
         runtimeDir: options.runtimeDir,
         schemaMigrationVersion: options.schemaMigrationVersion ?? null,
         // workspaceMode 可由 provider 显式传入；缺省时按 dataRootSource 推导，方便外层渐进接入。
@@ -74,6 +77,7 @@ export function createAlembicRuntimeCapabilities(options) {
             processEvents: createJobProcessEventEndpointCapability(options.jobProcessEvents),
             kinds: jobKinds,
         },
+        projectScope: createProjectScopeEndpointCapability(options.projectScope),
     };
 }
 export function createAlembicRuntimeHealthData(options) {
@@ -108,6 +112,8 @@ export function summarizeAlembicRuntimeCapabilities(value) {
     const internalAi = asRecord(capabilities?.internalAi);
     const jobs = asRecord(capabilities?.jobs);
     const processEvents = asRecord(jobs?.processEvents);
+    const projectScope = asRecord(capabilities?.projectScope);
+    const projectScopeEndpoints = asRecord(projectScope?.endpoints);
     return {
         apiAvailable: booleanOrNull(api?.available),
         dashboardAvailable: booleanOrNull(dashboard?.available),
@@ -131,6 +137,10 @@ export function summarizeAlembicRuntimeCapabilities(value) {
             : [],
         jobsAvailable: booleanOrNull(jobs?.available),
         jobKinds: stringArray(jobs?.kinds),
+        projectScopeAvailable: booleanOrNull(projectScope?.available),
+        projectScopeEndpoint: firstString(projectScopeEndpoints?.readScope, projectScope?.endpoint),
+        projectScopeStorageKind: firstString(projectScope?.storageKind),
+        projectScopeSupportedOperations: stringArray(projectScope?.supportedOperations),
     };
 }
 export function summarizeAlembicRuntimeProjectIdentity(value) {
@@ -141,6 +151,8 @@ export function summarizeAlembicRuntimeProjectIdentity(value) {
         databasePath: firstString(identity?.databasePath),
         projectId: nullableString(identity?.projectId),
         projectRoot: firstString(identity?.projectRoot),
+        projectScope: normalizeProjectScopeSummary(identity?.projectScope),
+        projectScopeId: nullableString(identity?.projectScopeId),
         runtimeDir: firstString(identity?.runtimeDir),
         schemaMigrationVersion: nullableString(identity?.schemaMigrationVersion),
         workspaceMode: normalizeAlembicWorkspaceMode(identity?.workspaceMode),

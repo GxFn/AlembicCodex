@@ -15,6 +15,7 @@ import path from 'node:path';
 import { resolveFolderNames } from './folder-names.js';
 import { detectKnowledgeBaseDir, SPEC_FILENAME } from './ProjectMarkers.js';
 import { getGhostWorkspaceDir, ProjectRegistry, } from './ProjectRegistry.js';
+import { resolveProjectScopeForFolder, summarizeProjectScopeDescriptor, } from './ProjectScope.js';
 export class WorkspaceResolver {
     /** 真实项目根目录（用于代码分析） */
     projectRoot;
@@ -24,18 +25,38 @@ export class WorkspaceResolver {
     ghost;
     /** 项目 ID（来自 ProjectRegistry） */
     projectId;
+    /** 抽象 ProjectScope（多 folder 模式），为空时保持旧单根解析语义 */
+    projectScope;
+    /** 当前物理 folder 在 ProjectScope 内的 ID */
+    currentFolderId;
     /** 知识库目录名（如 'Alembic'） */
     knowledgeBaseDir;
     /** 目录名约定 */
     folderNames;
     constructor(opts) {
         this.projectRoot = path.resolve(opts.projectRoot);
-        this.ghost = opts.ghost ?? false;
         this.folderNames = resolveFolderNames(opts.folderNames);
         this.knowledgeBaseDir =
             opts.knowledgeBaseDir ??
                 detectKnowledgeBaseDir(this.projectRoot, this.folderNames.project.knowledgeBase);
         const inspection = ProjectRegistry.inspect(this.projectRoot);
+        this.projectScope = opts.projectScope ?? null;
+        const scopeResolution = this.projectScope
+            ? resolveProjectScopeForFolder(this.projectScope, this.projectRoot)
+            : null;
+        this.currentFolderId =
+            opts.currentFolderId ??
+                scopeResolution?.currentFolderId ??
+                this.projectScope?.currentFolderId ??
+                null;
+        if (this.projectScope) {
+            // ProjectScope 首版固定 Ghost 写入边界；projectRoot 仍是当前源码 folder。
+            this.ghost = true;
+            this.projectId = opts.projectId ?? this.projectScope.projectId;
+            this.dataRoot = this.projectScope.dataRoot;
+            return;
+        }
+        this.ghost = opts.ghost ?? false;
         if (this.ghost) {
             // Ghost 模式：从 ProjectRegistry 查 ID 或用显式传入的 ID
             this.projectId = opts.projectId ?? inspection.projectId ?? null;
@@ -59,6 +80,8 @@ export class WorkspaceResolver {
             projectRoot,
             ghost: inspection.ghost,
             projectId: inspection.projectId ?? undefined,
+            projectScope: opts.projectScope,
+            currentFolderId: opts.currentFolderId,
             folderNames: opts.folderNames,
         });
     }
@@ -68,6 +91,9 @@ export class WorkspaceResolver {
      */
     toFacts() {
         const inspection = ProjectRegistry.inspect(this.projectRoot);
+        const projectScope = this.projectScope
+            ? summarizeProjectScopeDescriptor(this.projectScope, this.currentFolderId)
+            : null;
         return {
             targetProjectRoot: this.projectRoot,
             projectRealpath: inspection.projectRealpath,
@@ -77,6 +103,11 @@ export class WorkspaceResolver {
             ghost: this.ghost,
             projectId: this.projectId,
             expectedProjectId: inspection.expectedProjectId,
+            projectScope,
+            projectScopeId: projectScope?.projectScopeId ?? null,
+            controlRoot: projectScope?.controlRoot ?? null,
+            folders: projectScope?.folders ?? [],
+            currentFolderId: projectScope?.currentFolderId ?? null,
             dataRoot: this.dataRoot,
             dataRootSource: this.ghost ? 'ghost-registry' : 'project-root',
             workspaceExists: fs.existsSync(this.dataRoot),

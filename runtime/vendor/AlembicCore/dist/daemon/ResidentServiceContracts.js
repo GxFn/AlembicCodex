@@ -150,6 +150,7 @@ export function normalizeAlembicResidentDiagnosticPaths(value) {
     const paths = asRecord(value);
     return {
         databasePath: nullableString(paths?.databasePath),
+        controlRoot: nullableString(paths?.controlRoot),
         dataRoot: nullableString(paths?.dataRoot),
         projectRoot: nullableString(paths?.projectRoot),
         runtimeDir: nullableString(paths?.runtimeDir),
@@ -290,6 +291,8 @@ function toResidentProjectIdentity(value) {
     return {
         dataRootSource: identity.dataRootSource,
         projectId: identity.projectId,
+        projectScope: identity.projectScope,
+        projectScopeId: identity.projectScopeId,
         schemaMigrationVersion: identity.schemaMigrationVersion,
         workspaceMode: identity.workspaceMode,
     };
