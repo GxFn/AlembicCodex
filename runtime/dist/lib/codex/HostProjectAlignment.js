@@ -15,13 +15,18 @@ export function buildCodexHostProjectAlignment(input) {
     const hostRoot = hostProject.projectRealpath || hostProject.projectRoot;
     const selectedRoot = selectedProject?.projectRealpath || selectedProject?.projectRoot || null;
     const activeRoot = activeRuntimeProject?.projectRealpath || activeRuntimeProject?.projectRoot || null;
-    const selectedDiffers = Boolean(selectedRoot && !sameProjectRoot(hostRoot, selectedRoot));
-    const activeDiffers = Boolean(activeRoot && !sameProjectRoot(hostRoot, activeRoot));
+    const selectedDiffers = Boolean(selectedRoot &&
+        !sameProjectRoot(hostRoot, selectedRoot) &&
+        !sameProjectScopeRoot(input.projectScopeIdentity, hostRoot, selectedRoot));
+    const activeDiffers = Boolean(activeRoot &&
+        !sameProjectRoot(hostRoot, activeRoot) &&
+        !sameProjectScopeRoot(input.projectScopeIdentity, hostRoot, activeRoot));
     const connectionState = resolveConnectionState({
         activeDiffers,
         activeRoot,
         daemonReady: input.daemonStatus.ready === true,
         hostRoot,
+        projectScopeResidentReady: isProjectScopeResidentReady(input.projectScopeIdentity),
         runtimeControl: runtimeControl.summary,
         selectedDiffers,
         selectedRoot,
@@ -133,6 +138,9 @@ function resolveConnectionState(input) {
     }
     if (input.selectedDiffers || input.activeDiffers) {
         return 'mismatch';
+    }
+    if (input.projectScopeResidentReady) {
+        return 'connected';
     }
     if (input.daemonReady && (input.activeRoot || input.runtimeControl.source !== 'readable')) {
         return 'connected';
@@ -281,6 +289,27 @@ function sameProjectRoot(left, right) {
         return false;
     }
     return safeNormalizeProjectPath(left) === safeNormalizeProjectPath(right);
+}
+function sameProjectScopeRoot(identity, hostRoot, candidateRoot) {
+    if (!identity?.available || !hostRoot || !candidateRoot) {
+        return false;
+    }
+    const host = safeNormalizeProjectPath(hostRoot);
+    const candidate = safeNormalizeProjectPath(candidateRoot);
+    const scopeRoots = [
+        identity.controlRoot,
+        identity.currentFolderPath,
+        ...identity.folders.flatMap((folder) => [folder.path, folder.realpath ?? null]),
+    ]
+        .filter((value) => typeof value === 'string' && value.length > 0)
+        .map((value) => safeNormalizeProjectPath(value));
+    return scopeRoots.includes(host) && scopeRoots.includes(candidate);
+}
+function isProjectScopeResidentReady(identity) {
+    return (identity?.available === true &&
+        identity.mode === 'project-scope' &&
+        identity.resident.owner === 'alembic' &&
+        identity.resident.route === 'local-alembic-daemon');
 }
 function safeNormalizeProjectPath(projectRoot) {
     try {

@@ -8,7 +8,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { SetupService } from '../../cli/SetupService.js';
 import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
-import { AlembicResidentServiceClient } from '../../service/resident/AlembicResidentServiceClient.js';
+import { AlembicResidentServiceClient, } from '../../service/resident/AlembicResidentServiceClient.js';
 import { getPackageVersion } from '../../shared/package-assets.js';
 import { buildCodexHostProjectHandoffBlock } from './codex/host-project-handoff.js';
 import { safeProjectRootFallback } from './codex/project-root.js';
@@ -111,7 +111,9 @@ export class CodexMcpServer {
         }
         const server = this.sdkServer.server;
         server.setRequestHandler(ListToolsRequestSchema, async () => ({
-            tools: getVisibleCodexTools(undefined, this.projectRoot),
+            tools: getVisibleCodexTools(undefined, this.projectRoot, {
+                residentProjectScopeAvailable: await this.isResidentProjectScopeAvailable(),
+            }),
         }));
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
@@ -163,10 +165,12 @@ export class CodexMcpServer {
     }
     async handleToolCallInCurrentProject(name, args) {
         let knowledge = inspectCodexKnowledge(this.projectRoot);
+        const residentProjectScopeAvailable = await this.isResidentProjectScopeAvailable();
         const initialPreflight = preflightCodexTool({
             coreTools: TOOLS,
             knowledge,
             projectRootResolution: this.projectRootResolution,
+            residentProjectScopeAvailable,
             stage: 'before-auto-init',
             tierOrder: TIER_ORDER,
             toolName: name,
@@ -185,6 +189,7 @@ export class CodexMcpServer {
             coreTools: TOOLS,
             knowledge,
             projectRootResolution: this.projectRootResolution,
+            residentProjectScopeAvailable,
             stage: 'execute',
             tierOrder: TIER_ORDER,
             toolName: name,
@@ -249,6 +254,7 @@ export class CodexMcpServer {
         const hostProjectAlignment = buildCodexHostProjectAlignment({
             daemonStatus,
             enhancementRoute,
+            projectScopeIdentity,
             projectRoot: this.projectRoot,
         });
         return {
@@ -478,6 +484,9 @@ export class CodexMcpServer {
     }
     async openDashboard() {
         const daemon = await this.supervisor.status(this.projectRoot);
+        const projectScopeIdentity = await this.residentServiceClient().resolveProjectScopeIdentity({
+            daemonStatus: daemon,
+        });
         const enhancementRoute = buildCodexEnhancementRouteChoice({
             daemonStatus: daemon,
             runtime: resolveCodexRuntimeContext(),
@@ -486,6 +495,7 @@ export class CodexMcpServer {
         const hostProjectAlignment = buildCodexHostProjectAlignment({
             daemonStatus: daemon,
             enhancementRoute,
+            projectScopeIdentity,
             projectRoot: this.projectRoot,
         });
         const blocked = buildCodexHostProjectHandoffBlock({
@@ -768,8 +778,20 @@ export class CodexMcpServer {
         }
         return this.#residentServiceClient;
     }
+    async isResidentProjectScopeAvailable() {
+        try {
+            const identity = await this.residentServiceClient().resolveProjectScopeIdentity();
+            return isResidentProjectScopeReady(identity);
+        }
+        catch {
+            return false;
+        }
+    }
     async ensureEnhancementDaemon(requirement, tool) {
         const currentDaemon = await this.supervisor.status(this.projectRoot);
+        const currentProjectScopeIdentity = await this.residentServiceClient().resolveProjectScopeIdentity({
+            daemonStatus: currentDaemon,
+        });
         const currentEnhancementRoute = buildCodexEnhancementRouteChoice({
             daemonStatus: currentDaemon,
             runtime: resolveCodexRuntimeContext(),
@@ -778,6 +800,7 @@ export class CodexMcpServer {
         const currentHostProjectAlignment = buildCodexHostProjectAlignment({
             daemonStatus: currentDaemon,
             enhancementRoute: currentEnhancementRoute,
+            projectScopeIdentity: currentProjectScopeIdentity,
             projectRoot: this.projectRoot,
         });
         const currentBlock = buildCodexHostProjectHandoffBlock({
@@ -790,6 +813,14 @@ export class CodexMcpServer {
         if (currentBlock) {
             return {
                 blocked: currentBlock,
+                daemon: currentDaemon,
+                enhancementRoute: currentEnhancementRoute,
+                hostProjectAlignment: currentHostProjectAlignment,
+            };
+        }
+        if (isResidentProjectScopeReady(currentProjectScopeIdentity)) {
+            return {
+                blocked: null,
                 daemon: currentDaemon,
                 enhancementRoute: currentEnhancementRoute,
                 hostProjectAlignment: currentHostProjectAlignment,
@@ -820,6 +851,12 @@ export class CodexMcpServer {
     }
 }
 export { getVisibleCodexTools };
+function isResidentProjectScopeReady(identity) {
+    return (identity?.available === true &&
+        identity.mode === 'project-scope' &&
+        identity.resident.owner === 'alembic' &&
+        identity.resident.route === 'local-alembic-daemon');
+}
 export async function startCodexMcpServer() {
     const server = new CodexMcpServer();
     await server.start();

@@ -30,6 +30,14 @@ export const CODEX_HOST_AGENT_WORKFLOW_TOOL_NAMES = new Set([
 // can export or inspect generated Project Skill receipts even while bootstrap is
 // still producing the first usable knowledge base.
 export const CODEX_PROJECT_SKILL_DELIVERY_TOOL_NAMES = new Set(['alembic_project_skill']);
+// ProjectScope resident 已连通但 Project 级知识库仍为空时，Codex 仍需要看见这些
+// resident-backed 工具：prime/search 可以返回空结果和 telemetry，而不是被本地
+// single-folder knowledge gate 误判为 CODEX_ALEMBIC_KNOWLEDGE_REQUIRED。
+export const CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES = new Set([
+    'alembic_health',
+    'alembic_search',
+    'alembic_task',
+]);
 export const CODEX_INIT_ON_DEMAND_TOOL_NAMES = new Set([
     'alembic_codex_dashboard',
     'alembic_codex_bootstrap',
@@ -147,6 +155,8 @@ export function resolveCodexToolPolicy(input) {
     const maxTier = input.tierOrder[effectiveTier] ?? input.tierOrder[CODEX_DEFAULT_MCP_TIER] ?? 0;
     const localTools = CODEX_LOCAL_TOOLS.filter((tool) => allowedLocalToolNames.has(tool.name));
     const coreTools = input.coreTools.filter((tool) => (input.knowledge.usable ||
+        (input.residentProjectScopeAvailable === true &&
+            CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(tool.name)) ||
         CODEX_HOST_AGENT_WORKFLOW_TOOL_NAMES.has(tool.name) ||
         isCodexProjectSkillDeliveryToolVisible(tool.name, input.knowledge)) &&
         (input.tierOrder[tool.tier || 'agent'] ?? 0) <= maxTier);
@@ -154,7 +164,9 @@ export function resolveCodexToolPolicy(input) {
     return {
         allowedLocalToolNames,
         effectiveTier,
-        hiddenReason: input.knowledge.usable ? null : 'CODEX_ALEMBIC_KNOWLEDGE_REQUIRED',
+        hiddenReason: input.knowledge.usable || input.residentProjectScopeAvailable === true
+            ? null
+            : 'CODEX_ALEMBIC_KNOWLEDGE_REQUIRED',
         signals: buildCodexToolPolicySignals(input, state),
         state,
         visibleTools: [...localTools, ...coreTools],
