@@ -1,5 +1,6 @@
 import type { WorkspaceMode } from '../shared/ProjectRegistry.js';
 import { type CanonicalFileChangeEventSource } from '../shared/source-contracts.js';
+import { type JobProcessEventEndpointCapability } from './JobProcessEventContracts.js';
 export declare const ALEMBIC_RUNTIME_API_VERSION = "v1";
 export declare const ALEMBIC_RUNTIME_PACKAGE_NAME = "alembic-ai";
 export declare const ALEMBIC_RUNTIME_HEALTH_PATH = "/api/v1/daemon/health";
@@ -10,6 +11,7 @@ export declare const ALEMBIC_RUNTIME_DATA_ROOT_SOURCES: readonly ["project-root"
 export declare const ALEMBIC_JOB_KINDS: readonly ["bootstrap", "rescan"];
 export declare const ALEMBIC_JOB_ENDPOINTS: {
     readonly bootstrap: "/api/v1/jobs/bootstrap";
+    readonly events: "/api/v1/jobs/:jobId/events";
     readonly list: "/api/v1/jobs";
     readonly rescan: "/api/v1/jobs/rescan";
 };
@@ -66,9 +68,11 @@ export interface AlembicJobsCapability {
     available: boolean;
     endpoints: {
         bootstrap?: string;
+        events?: string;
         list?: string;
         rescan?: string;
     };
+    processEvents: JobProcessEventEndpointCapability;
     kinds: AlembicJobKind[];
 }
 export interface AlembicRuntimeCapabilities {
@@ -96,6 +100,7 @@ export interface CreateAlembicRuntimeCapabilitiesOptions {
     fileMonitorEndpoint?: string | null;
     fileMonitorMode?: AlembicFileMonitorMode;
     internalAi: AlembicInternalAiCapability;
+    jobProcessEvents?: Partial<JobProcessEventEndpointCapability>;
     jobEndpoints?: Partial<Record<keyof typeof ALEMBIC_JOB_ENDPOINTS, string>>;
     jobKinds?: readonly AlembicJobKind[];
     jobsAvailable?: boolean;
@@ -126,6 +131,12 @@ export interface AlembicRuntimeCapabilitySummary {
     fileMonitorAvailable: boolean | null;
     fileMonitorMode: AlembicFileMonitorMode | null;
     internalAiAvailable: boolean | null;
+    jobEventsAvailable: boolean | null;
+    jobEventDisplayPolicies: string[];
+    jobEventsEndpoint: string | null;
+    jobEventKinds: string[];
+    jobEventRetentionPolicies: string[];
+    jobEventSourceClasses: string[];
     jobsAvailable: boolean | null;
     jobKinds: string[];
 }

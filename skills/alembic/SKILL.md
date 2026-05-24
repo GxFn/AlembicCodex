@@ -40,6 +40,21 @@ Use `alembic_codex_job` to check explicit internal AI job status later. Job look
 
 Use `alembic_codex_dashboard` when the user needs review, candidates, or progress visualization and a local Alembic Dashboard daemon is already available for the selected project. Return its URL instead of opening a browser yourself; if the tool reports missing Dashboard handoff capability, surface that next step instead of inventing an embedded Dashboard URL.
 
+## Project Skill Delivery
+
+Use `alembic_project_skill` for Project Skill receipt, export, and Codex runtime visibility. This is the Codex-facing replacement for using `alembic_skill` as the runtime delivery surface.
+
+- `list` shows Alembic project skill storage, Plugin delivery receipts, and Codex runtime exports under the current project's `.agents/skills` root.
+- `load` prefers `.agents/skills/<name>/SKILL.md` and falls back to legacy Alembic storage when no runtime export exists.
+- `create` and `update` keep writing Alembic project skill storage, then return a Plugin route `ProjectSkillDeliveryReceipt`.
+- `export` consumes a `ProjectSkillDeliveryReceipt` and uses symlink-first delivery into `.agents/skills` only after project-scoped authorization.
+
+Set `authorizeProjectSkillExport: true` only when the user has approved making that Project Skill visible in this project. A blocked response with `authorizationStatus: "pending"` means the receipt is valid but Codex has not been authorized to write `.agents/skills`.
+
+If `conflictStatus` is `different-existing`, do not overwrite it by guessing. The target already exists and is not managed by the matching Alembic receipt, so ask for user direction or report the conflict. Managed exports write `.alembic-managed.json`; compatible managed or same-source symlink exports can be refreshed.
+
+`alembic_skill` remains for legacy Alembic storage compatibility. Prefer `alembic_project_skill` whenever the user needs runtime-visible Project Skills, receipt evidence, authorization state, conflict state, or export status.
+
 ## Permission Boundary
 
 Default Codex mode is agent tier. It may search knowledge, prime tasks, run Guard, use host-agent bootstrap/rescan, and submit candidates. Explicit daemon jobs may require Alembic resident-service configuration, but the Codex plugin does not configure third-party AI providers or store API keys.

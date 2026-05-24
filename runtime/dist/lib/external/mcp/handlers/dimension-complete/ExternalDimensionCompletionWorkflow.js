@@ -1,5 +1,5 @@
 import { dimensionTags } from '@alembic/core/dimensions';
-import { saveDimensionCheckpoint } from '@alembic/core/host-agent-workflows';
+import { saveDimensionCheckpoint, } from '@alembic/core/host-agent-workflows';
 import Logger from '@alembic/core/logging';
 import { getDeveloperIdentity } from '@alembic/core/shared';
 import { resolveDataRoot } from '@alembic/core/workspace';
@@ -38,7 +38,7 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
         dimensionId: input.value.dimensionId,
         submittedRecipeIds,
     });
-    const skillCreated = await createExternalDimensionSkill({
+    const skillResult = await createExternalDimensionSkill({
         ctx,
         dimension,
         dimensionId: input.value.dimensionId,
@@ -63,7 +63,7 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
         analysisText: input.value.analysisText,
         referencedFiles,
         submittedRecipeIds,
-        skillCreated,
+        skillCreated: skillResult.success,
         dependencies,
     });
     await persistKeyFindings({
@@ -80,7 +80,7 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
         dimension,
         dimensionId: input.value.dimensionId,
         candidateCount: input.value.candidateCount || submittedRecipeIds.length,
-        skillCreated,
+        skillCreated: skillResult.success,
         recipesBound,
         progress,
         isComplete,
@@ -119,7 +119,14 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
         data: {
             dimensionId: input.value.dimensionId,
             updated,
-            skillCreated,
+            skillCreated: skillResult.success,
+            projectSkillDelivery: skillResult.deliveryReceipt
+                ? {
+                    receipt: skillResult.deliveryReceipt,
+                    runtimeExport: skillResult.deliveryReceipt.runtimeExport,
+                    shoutSummary: skillResult.deliveryReceipt.shoutSummary,
+                }
+                : undefined,
             recipesBound,
             progress: `${progress.completed}/${progress.total}`,
             completedDimensions: progress.completedDimIds,
@@ -292,7 +299,7 @@ function parseExistingTags(tags) {
 }
 async function createExternalDimensionSkill({ ctx, dimension, dimensionId, analysisText, referencedFiles, keyFindings, submittedRecipeIds, dependencies, }) {
     if (!dimension.skillWorthy) {
-        return false;
+        return { success: false };
     }
     const effectiveAnalysis = await synthesizeSkillAnalysisIfNeeded({
         ctx,
@@ -307,7 +314,13 @@ async function createExternalDimensionSkill({ ctx, dimension, dimensionId, analy
     if (!skillResult.success) {
         logger.warn(`[DimensionComplete] Skill skipped for "${dimensionId}": ${skillResult.error}`);
     }
-    return skillResult.success;
+    return {
+        success: skillResult.success,
+        deliveryReceipt: skillResult
+            .deliveryReceipt,
+        error: skillResult.error,
+        exportResult: skillResult.exportResult,
+    };
 }
 async function synthesizeSkillAnalysisIfNeeded({ ctx, dimension, dimensionId, analysisText, keyFindings, submittedRecipeIds, }) {
     if (analysisText.length >= 500 || submittedRecipeIds.length === 0) {

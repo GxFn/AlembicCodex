@@ -1,4 +1,5 @@
 import { HOST_EDIT_SOURCE, LEGACY_IDE_EDIT_SOURCE, } from '../shared/source-contracts.js';
+import { ALEMBIC_JOB_PROCESS_EVENTS_PATH, createJobProcessEventEndpointCapability, JOB_PROCESS_EVENT_DISPLAY_POLICIES, JOB_PROCESS_EVENT_KINDS, JOB_PROCESS_EVENT_RETENTION_POLICIES, JOB_PROCESS_EVENT_SOURCE_CLASSES, } from './JobProcessEventContracts.js';
 export const ALEMBIC_RUNTIME_API_VERSION = 'v1';
 export const ALEMBIC_RUNTIME_PACKAGE_NAME = 'alembic-ai';
 export const ALEMBIC_RUNTIME_HEALTH_PATH = '/api/v1/daemon/health';
@@ -19,6 +20,7 @@ export const ALEMBIC_RUNTIME_DATA_ROOT_SOURCES = ['project-root', 'ghost-registr
 export const ALEMBIC_JOB_KINDS = ['bootstrap', 'rescan'];
 export const ALEMBIC_JOB_ENDPOINTS = {
     bootstrap: '/api/v1/jobs/bootstrap',
+    events: ALEMBIC_JOB_PROCESS_EVENTS_PATH,
     list: '/api/v1/jobs',
     rescan: '/api/v1/jobs/rescan',
 };
@@ -69,6 +71,7 @@ export function createAlembicRuntimeCapabilities(options) {
                 ...ALEMBIC_JOB_ENDPOINTS,
                 ...options.jobEndpoints,
             },
+            processEvents: createJobProcessEventEndpointCapability(options.jobProcessEvents),
             kinds: jobKinds,
         },
     };
@@ -104,6 +107,7 @@ export function summarizeAlembicRuntimeCapabilities(value) {
     const fileMonitor = asRecord(capabilities?.fileMonitor);
     const internalAi = asRecord(capabilities?.internalAi);
     const jobs = asRecord(capabilities?.jobs);
+    const processEvents = asRecord(jobs?.processEvents);
     return {
         apiAvailable: booleanOrNull(api?.available),
         dashboardAvailable: booleanOrNull(dashboard?.available),
@@ -111,6 +115,20 @@ export function summarizeAlembicRuntimeCapabilities(value) {
         fileMonitorAvailable: booleanOrNull(fileMonitor?.available),
         fileMonitorMode: normalizeAlembicFileMonitorMode(fileMonitor?.mode),
         internalAiAvailable: booleanOrNull(internalAi?.available),
+        jobEventsAvailable: booleanOrNull(processEvents?.available),
+        jobEventDisplayPolicies: processEvents
+            ? stringArray(processEvents.supportedDisplayPolicies ?? JOB_PROCESS_EVENT_DISPLAY_POLICIES)
+            : [],
+        jobEventsEndpoint: firstString(processEvents?.endpoint),
+        jobEventKinds: processEvents
+            ? stringArray(processEvents.supportedKinds ?? JOB_PROCESS_EVENT_KINDS)
+            : [],
+        jobEventRetentionPolicies: processEvents
+            ? stringArray(processEvents.supportedRetentionPolicies ?? JOB_PROCESS_EVENT_RETENTION_POLICIES)
+            : [],
+        jobEventSourceClasses: processEvents
+            ? stringArray(processEvents.supportedSourceClasses ?? JOB_PROCESS_EVENT_SOURCE_CLASSES)
+            : [],
         jobsAvailable: booleanOrNull(jobs?.available),
         jobKinds: stringArray(jobs?.kinds),
     };

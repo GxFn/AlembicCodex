@@ -4,6 +4,8 @@ import { getProjectSkillsPath } from '@alembic/core/config';
 import { pathGuard } from '@alembic/core/io';
 import Logger from '@alembic/core/logging';
 import { resolveDataRoot } from '@alembic/core/workspace';
+import { buildContentHash, buildPluginProjectSkillDeliveryReceipt, exportProjectSkillReceiptToCodexRuntime, } from '#codex/ProjectSkillDelivery.js';
+import { CODEX_HOST_AGENT_SOURCE } from '#codex/SourceBoundary.js';
 import { INJECTABLE_SKILLS_DIR } from '#shared/package-assets.js';
 const logger = Logger.getInstance();
 const MIN_ANALYSIS_LENGTH = 100;
@@ -29,8 +31,42 @@ export async function generateSkill(ctx, dim, analysisText, referencedFiles = []
             createdBy: source,
         });
         if (result.success) {
+            const sourcePath = typeof result.data?.path === 'string'
+                ? result.data.path
+                : path.join(getProjectSkillsDir(ctx), skillName, 'SKILL.md');
+            const deliveryReceipt = buildPluginProjectSkillDeliveryReceipt(ctx, {
+                skillName,
+                description: skillDescription,
+                dimensionId: dim.id,
+                sourcePath,
+                contentHash: buildContentHash(fs.readFileSync(sourcePath)),
+                evidenceRefs: referencedFiles.map((file) => ({
+                    dimensionId: dim.id,
+                    kind: 'source-file',
+                    ref: file,
+                })),
+            });
+            const exportResult = exportProjectSkillReceiptToCodexRuntime(ctx, {
+                receipt: deliveryReceipt,
+                authorize: true,
+                grantedBy: CODEX_HOST_AGENT_SOURCE,
+                overwriteManaged: true,
+            });
             logger.info(`[SkillGenerator] Skill "${skillName}" created for "${dim.id}" (${source})`);
-            return { success: true, skillName };
+            return {
+                success: exportResult.runtimeExportStatus === 'exported',
+                skillName,
+                deliveryReceipt: exportResult.receipt,
+                exportResult: {
+                    authorizationStatus: exportResult.authorizationStatus,
+                    conflictStatus: exportResult.conflictStatus,
+                    runtimeExportStatus: exportResult.runtimeExportStatus,
+                    targetPath: exportResult.targetPath,
+                },
+                ...(exportResult.runtimeExportStatus === 'exported'
+                    ? {}
+                    : { error: exportResult.receipt.runtimeExport.message ?? 'runtime export blocked' }),
+            };
         }
         const errorMsg = result.error?.message || 'createSkill returned failure';
         throw new Error(errorMsg);
@@ -71,7 +107,8 @@ function createWorkflowSkill(ctx, args) {
     const projectSkillsDir = getProjectSkillsDir(ctx ?? undefined);
     const skillDir = path.join(projectSkillsDir, name);
     const skillPath = path.join(skillDir, 'SKILL.md');
-    if (fs.existsSync(skillPath) && !overwrite) {
+    const existedBefore = fs.existsSync(skillPath);
+    if (existedBefore && !overwrite) {
         return {
             success: false,
             error: {
@@ -80,6 +117,7 @@ function createWorkflowSkill(ctx, args) {
             },
         };
     }
+    let writtenSkillPath = skillPath;
     try {
         const writeZone = getWriteZone(ctx);
         const resolvedTitle = title ||
@@ -96,8 +134,10 @@ function createWorkflowSkill(ctx, args) {
         if (writeZone) {
             const dataRelSkillDir = skillDir.replace(writeZone.dataRoot, '').replace(/^\//, '');
             const dataRelSkillPath = skillPath.replace(writeZone.dataRoot, '').replace(/^\//, '');
+            const writeTarget = writeZone.data(dataRelSkillPath);
             writeZone.ensureDir(writeZone.data(dataRelSkillDir));
-            writeZone.writeFile(writeZone.data(dataRelSkillPath), frontmatter + content);
+            writeZone.writeFile(writeTarget, frontmatter + content);
+            writtenSkillPath = writeTarget.absolute;
         }
         else {
             pathGuard.assertProjectWriteSafe(skillDir);
@@ -114,14 +154,14 @@ function createWorkflowSkill(ctx, args) {
             },
         };
     }
-    runSkillCreatedHook(ctx, { name, description, createdBy, path: skillPath });
+    runSkillCreatedHook(ctx, { name, description, createdBy, path: writtenSkillPath });
     return {
         success: true,
         data: {
             skillName: name,
-            path: skillPath,
-            overwritten: fs.existsSync(skillPath) && overwrite,
-            hint: `Skill "${name}" created. Use alembic_skill({ operation: "load", name: "${name}" }) to verify content.`,
+            path: writtenSkillPath,
+            overwritten: existedBefore && overwrite,
+            hint: `Skill "${name}" created. Use alembic_project_skill({ operation: "load", name: "${name}" }) to verify Codex runtime content.`,
         },
     };
 }
