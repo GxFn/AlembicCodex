@@ -22,6 +22,7 @@ import Logger from '@alembic/core/logging';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import { isCodexProjectScopeSummaryForFolder, readCodexProjectScopeRuntimeFromEnv, } from '../../shared/project-scope-runtime.js';
 import { envelope } from './envelope.js';
 import { wrapHandler } from './errorHandler.js';
 import { createIdleIntent } from './handlers/types.js';
@@ -111,7 +112,10 @@ export class McpServer {
             const { ProjectRegistry } = await import('@alembic/core/workspace');
             const isGhost = ProjectRegistry.isGhost(projectRoot);
             const exclusion = isExcludedProject(projectRoot);
-            if (exclusion.excluded && !isGhost) {
+            const projectScopeRuntime = readCodexProjectScopeRuntimeFromEnv();
+            const isProjectScopeGhostExecution = projectScopeRuntime?.summary.storageKind === 'ghost' &&
+                isCodexProjectScopeSummaryForFolder(projectScopeRuntime.summary, projectRoot);
+            if (exclusion.excluded && !isGhost && !isProjectScopeGhostExecution) {
                 const msg = `[MCP] projectRoot "${projectRoot}" 是排除项目（${exclusion.reason}），` +
                     `MCP server 拒绝在此目录创建运行时数据。\n` +
                     `提示: 请由插件宿主传入正确的 ALEMBIC_PROJECT_DIR。`;
