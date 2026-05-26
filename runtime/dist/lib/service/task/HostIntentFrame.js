@@ -33,6 +33,72 @@ export function prepareHostIntentInput(input) {
         degradedReasons,
     };
 }
+export function buildResidentIntentHandoff(input) {
+    const frame = input.hostIntentFrame;
+    const explicitSourceRefs = normalizeSourceRefs(input.sourceRefs);
+    const sessionHistory = normalizeSessionHistory(input.sessionHistory);
+    if (!frame || !hasResidentIntentSignal(frame, explicitSourceRefs)) {
+        return null;
+    }
+    const declared = normalizeResidentDeclaredIntent(frame.hostDeclaredIntent);
+    const sourceRefs = uniqueStrings([
+        ...normalizeSourceRefs(declared?.sourceRefs),
+        ...explicitSourceRefs,
+    ]);
+    const query = firstDefinedString(declared?.query, declared?.summary, declared?.goal, declared?.action, input.userQuery);
+    const queryHints = normalizeQueryHints(frame.extracted.queries);
+    const keywords = uniqueStrings([
+        ...(declared?.keywords ?? []),
+        ...(declared?.labels ?? []),
+        frame.extracted.module ?? '',
+    ]).filter(Boolean);
+    const language = declared?.language ?? frame.hostTurnMeta?.language ?? input.language ?? null;
+    const scenario = declared?.scenario ?? frame.extracted.scenario;
+    const degradedReason = frame.degradedReasons.join('; ') || undefined;
+    const sources = uniqueStrings([
+        frame.source,
+        ...(declared ? ['hostDeclaredIntent'] : []),
+        ...(frame.hostTurnMeta ? ['hostTurnMeta'] : []),
+    ]);
+    const intentContext = {
+        applied: true,
+        confidence: frame.confidence,
+        degraded: frame.degraded,
+        queries: queryHints,
+        queryHints,
+        searchIntent: scenario,
+        scenario,
+        sources,
+    };
+    if (query) {
+        intentContext.query = query;
+    }
+    if (keywords.length > 0) {
+        intentContext.keywords = keywords.slice(0, 12);
+    }
+    if (language) {
+        intentContext.language = language;
+    }
+    if (degradedReason) {
+        intentContext.degradedReason = degradedReason;
+    }
+    if (sourceRefs.length > 0) {
+        intentContext.sourceRefs = sourceRefs;
+    }
+    return {
+        confidence: frame.confidence,
+        degraded: frame.degraded,
+        ...(degradedReason ? { degradedReason } : {}),
+        ...(declared ? { hostDeclaredIntent: declared } : {}),
+        ...(frame.hostTurnMeta ? { hostTurnMeta: frame.hostTurnMeta } : {}),
+        intentContext,
+        ...(language ? { language } : {}),
+        scenario,
+        searchIntent: scenario,
+        ...(sessionHistory.length > 0 ? { sessionHistory } : {}),
+        ...(sourceRefs.length > 0 ? { sourceRefs } : {}),
+    };
+}
 export function buildHostIntentFrame(input, extracted) {
     return {
         source: input.source,
@@ -95,6 +161,14 @@ function normalizeHostDeclaredIntent(input) {
     const labels = normalizeStringArray(record.labels, 12, 80);
     if (labels.length > 0) {
         value.labels = labels;
+    }
+    const keywords = normalizeStringArray(record.keywords, 12, 80);
+    if (keywords.length > 0) {
+        value.keywords = keywords;
+    }
+    const sourceRefs = normalizeSourceRefs(record.sourceRefs);
+    if (sourceRefs.length > 0) {
+        value.sourceRefs = sourceRefs;
     }
     if (typeof record.confidence === 'number' && Number.isFinite(record.confidence)) {
         value.confidence = Math.max(0, Math.min(1, record.confidence));
@@ -176,6 +250,13 @@ function resolveConfidence(input) {
 function hasTurnMetaValue(value) {
     return Object.keys(value).some((key) => key !== 'redactions') || value.redactions.length > 0;
 }
+function hasResidentIntentSignal(frame, sourceRefs) {
+    return (frame.source !== 'deterministic' ||
+        Boolean(frame.hostDeclaredIntent) ||
+        Boolean(frame.hostTurnMeta) ||
+        frame.degraded ||
+        sourceRefs.length > 0);
+}
 function assignString(target, key, value, maxLength) {
     const normalized = normalizeString(value, maxLength);
     if (normalized) {
@@ -239,6 +320,50 @@ function normalizeStringArray(value, maxItems, maxLength) {
         }
     }
     return uniqueStrings(result);
+}
+function normalizeQueryHints(value) {
+    return normalizeStringArray(value, 6, 500).filter((entry) => !looksLikePrivatePath(entry));
+}
+function normalizeSourceRefs(value) {
+    return normalizeStringArray(value, 20, 200).filter((entry) => !looksLikePrivatePath(entry));
+}
+function normalizeResidentDeclaredIntent(declared) {
+    if (!declared) {
+        return undefined;
+    }
+    const sourceRefs = normalizeSourceRefs(declared.sourceRefs);
+    const normalized = {
+        ...declared,
+        ...(sourceRefs.length > 0 ? { sourceRefs } : {}),
+    };
+    if (sourceRefs.length === 0) {
+        delete normalized.sourceRefs;
+    }
+    return normalized;
+}
+function normalizeSessionHistory(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    const result = [];
+    for (const item of value) {
+        const record = asRecord(item);
+        const content = normalizeString(record?.content, 500) ?? normalizeString(item, 500);
+        if (content && !looksLikePrivatePath(content)) {
+            result.push({ content });
+        }
+        if (result.length >= 5) {
+            break;
+        }
+    }
+    return result;
+}
+function looksLikePrivatePath(value) {
+    return (value.startsWith('/') ||
+        value.startsWith('file://') ||
+        /^[A-Za-z]:[\\/]/.test(value) ||
+        value.includes('/Users/') ||
+        value.includes('\\Users\\'));
 }
 function uniqueStrings(values) {
     return [...new Set(values)];

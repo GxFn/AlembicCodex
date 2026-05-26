@@ -11,6 +11,8 @@
  * 3. 投影使用 SearchTypes.slimSearchResult()（消除 3 处重复投影）
  */
 import { groupByKind, slimSearchResult } from '@alembic/core/search';
+import { buildHostIntentFrame, buildResidentIntentHandoff, prepareHostIntentInput, } from '#service/task/HostIntentFrame.js';
+import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { envelope } from '../envelope.js';
 // ─── 工具函数 ────────────────────────────────────────────────
 /**
@@ -71,6 +73,20 @@ export async function search(ctx, args) {
     const query = args.query;
     const mode = args.mode || 'auto';
     const kind = args.kind || args.type || 'all';
+    const hostIntentInput = prepareHostIntentInput({
+        userQuery: query,
+        language: args.language,
+        hostDeclaredIntent: args.hostDeclaredIntent,
+        hostTurnMeta: args.hostTurnMeta,
+    });
+    const extractedHostIntent = extractIntent(hostIntentInput.userQuery, undefined, hostIntentInput.language);
+    const residentIntentHandoff = buildResidentIntentHandoff({
+        hostIntentFrame: buildHostIntentFrame(hostIntentInput, extractedHostIntent),
+        language: args.language,
+        sessionHistory: args.sessionHistory,
+        sourceRefs: args.sourceRefs,
+        userQuery: query,
+    });
     // ── Mode-specific 参数适配 ──
     // context 模式: 默认 limit=5, 传递 sessionHistory
     const isContext = mode === 'context';
@@ -95,6 +111,21 @@ export async function search(ctx, args) {
         mode,
         query,
         rank,
+        ...(residentIntentHandoff
+            ? {
+                confidence: residentIntentHandoff.confidence,
+                degraded: residentIntentHandoff.degraded,
+                degradedReason: residentIntentHandoff.degradedReason,
+                hostDeclaredIntent: residentIntentHandoff.hostDeclaredIntent,
+                hostTurnMeta: residentIntentHandoff.hostTurnMeta,
+                intentContext: residentIntentHandoff.intentContext,
+                language: residentIntentHandoff.language,
+                scenario: residentIntentHandoff.scenario,
+                searchIntent: residentIntentHandoff.searchIntent,
+                sessionHistory: residentIntentHandoff.sessionHistory,
+                sourceRefs: residentIntentHandoff.sourceRefs,
+            }
+            : {}),
     });
     // ── 统一调用 SearchEngine ──
     const result = residentAttempt?.meta.available && residentAttempt.items.length > 0
@@ -181,6 +212,17 @@ async function tryResidentSearch(residentServiceClient, request) {
             limit: request.limit,
             rank: request.rank,
             kind: request.kind,
+            confidence: request.confidence,
+            degraded: request.degraded,
+            degradedReason: request.degradedReason,
+            hostDeclaredIntent: request.hostDeclaredIntent,
+            hostTurnMeta: request.hostTurnMeta,
+            intentContext: request.intentContext,
+            language: request.language,
+            scenario: request.scenario,
+            searchIntent: request.searchIntent,
+            sessionHistory: request.sessionHistory,
+            sourceRefs: request.sourceRefs,
         });
         if (!result.meta.available) {
             process.stderr.write(`[MCP/Search] resident search unavailable: ${result.meta.reason}\n`);

@@ -7,6 +7,7 @@
  * @module service/task/PrimeSearchPipeline
  */
 import { slimSearchResult } from '@alembic/core/search';
+import { buildResidentIntentHandoff, } from './HostIntentFrame.js';
 // ── Constants ───────────────────────────────────────
 /** Absolute minimum score — items below this are definitely noise */
 const MIN_SCORE_THRESHOLD = 0.3;
@@ -26,18 +27,25 @@ export class PrimeSearchPipeline {
     /**
      * Core method: multi-query search + scenario routing + result merging.
      */
-    async search(intent) {
+    async search(intent, options = {}) {
         if (!intent.queries.length || !intent.queries[0]?.trim()) {
             return null;
         }
+        const sessionHistory = this.#buildSessionHistory();
+        const residentIntentHandoff = buildResidentIntentHandoff({
+            hostIntentFrame: options.hostIntentFrame,
+            language: intent.language,
+            sessionHistory,
+            userQuery: intent.raw.userQuery,
+        });
         // Build ranking context
         const context = {
-            language: intent.language ?? undefined,
-            intent: intent.scenario,
-            sessionHistory: this.#buildSessionHistory(),
+            language: residentIntentHandoff?.language ?? intent.language ?? undefined,
+            intent: residentIntentHandoff?.searchIntent ?? intent.scenario,
+            sessionHistory,
         };
         // Multi-query parallel search (auto mode + keyword mode for cross-language)
-        const searchBundle = await this.#multiQuerySearch(intent.queries, intent.keywordQueries ?? [], context);
+        const searchBundle = await this.#multiQuerySearch(intent.queries, intent.keywordQueries ?? [], context, residentIntentHandoff);
         const allResults = searchBundle.items;
         // Quality filter: absolute threshold + relative-to-best + score gap detection
         const filtered = this.#qualityFilter(allResults);
@@ -102,7 +110,7 @@ export class PrimeSearchPipeline {
      * Multi-query: uses RRF to fuse results, but weights by original score to
      * retain magnitude information.
      */
-    async #multiQuerySearch(autoQueries, keywordQueries, context) {
+    async #multiQuerySearch(autoQueries, keywordQueries, context, residentIntentHandoff) {
         // Auto-mode searches (BM25 without CoarseRanker ranking)
         // Using rank: false preserves raw BM25/FWS score magnitude,
         // which the quality filter needs for effective discrimination.
@@ -121,7 +129,7 @@ export class PrimeSearchPipeline {
         // AlembicPlugin 不再持有 embedding executor。语义增强由本地 Alembic resident service
         // 提供；不可用时保留 baseline embedded search，并把原因写入 searchMeta。
         const residentPromise = autoQueries[0]
-            ? this.#residentSemanticSearch(autoQueries[0])
+            ? this.#residentSemanticSearch(autoQueries[0], residentIntentHandoff)
             : Promise.resolve(null);
         // Keyword-mode searches (raw FWS scores — for cross-language synonym matching)
         const kwPromises = keywordQueries.map((q) => this.#search
@@ -191,7 +199,7 @@ export class PrimeSearchPipeline {
             ...(residentSearch ? { residentSearch } : {}),
         };
     }
-    async #residentSemanticSearch(query) {
+    async #residentSemanticSearch(query, residentIntentHandoff) {
         if (!this.#residentServiceClient) {
             return null;
         }
@@ -201,6 +209,21 @@ export class PrimeSearchPipeline {
                 mode: 'semantic',
                 limit: 6,
                 rank: false,
+                ...(residentIntentHandoff
+                    ? {
+                        confidence: residentIntentHandoff.confidence,
+                        degraded: residentIntentHandoff.degraded,
+                        degradedReason: residentIntentHandoff.degradedReason,
+                        hostDeclaredIntent: residentIntentHandoff.hostDeclaredIntent,
+                        hostTurnMeta: residentIntentHandoff.hostTurnMeta,
+                        intentContext: residentIntentHandoff.intentContext,
+                        language: residentIntentHandoff.language,
+                        scenario: residentIntentHandoff.scenario,
+                        searchIntent: residentIntentHandoff.searchIntent,
+                        sessionHistory: residentIntentHandoff.sessionHistory,
+                        sourceRefs: residentIntentHandoff.sourceRefs,
+                    }
+                    : {}),
             });
         }
         catch (err) {
@@ -212,6 +235,20 @@ export class PrimeSearchPipeline {
                     attempted: true,
                     available: false,
                     durationMs: 0,
+                    ...(residentIntentHandoff
+                        ? {
+                            hostIntentHandoff: {
+                                degraded: residentIntentHandoff.degraded,
+                                degradedReasons: residentIntentHandoff.degradedReason
+                                    ? [residentIntentHandoff.degradedReason]
+                                    : [],
+                                enabled: true,
+                                requestRoute: 'post-body',
+                                sessionHistoryCount: residentIntentHandoff.sessionHistory?.length ?? 0,
+                                sourceRefsCount: residentIntentHandoff.sourceRefs?.length ?? 0,
+                            },
+                        }
+                        : {}),
                     reason,
                     requestedMode: 'semantic',
                     residentVector: { available: false, reason },

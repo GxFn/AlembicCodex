@@ -47,26 +47,31 @@ export class AlembicResidentServiceClient {
         const status = resolved.status;
         const projectScopeIdentity = await this.#resolveProjectScopeIdentity(resolved, this.#projectRoot);
         const feature = residentRequestMode === 'semantic' ? 'search.semantic' : 'search.keyword';
+        const hostIntentHandoff = summarizeResidentHostIntentHandoff(request);
         const unavailable = this.#ensureFeatureAvailable(status, feature, {
             requireLocalAlembic: true,
         });
         if (unavailable) {
-            return withProjectScopeTelemetry(unavailable, projectScopeIdentity);
+            return withProjectScopeTelemetry(unavailable, projectScopeIdentity, hostIntentHandoff);
         }
         if (!resolved.state?.token) {
-            return createAlembicResidentServiceUnavailable(status, 'token-missing', 'Alembic resident service token is missing.', { retryable: true, telemetry: { feature, projectScopeIdentity } });
+            return createAlembicResidentServiceUnavailable(status, 'token-missing', 'Alembic resident service token is missing.', { retryable: true, telemetry: { feature, hostIntentHandoff, projectScopeIdentity } });
         }
         const endpoint = new URL(RESIDENT_SEARCH_PATH, status.apiBaseUrl || resolved.state.url);
-        endpoint.searchParams.set('q', request.query);
-        endpoint.searchParams.set('mode', residentRequestMode);
-        endpoint.searchParams.set('limit', String(request.limit ?? 8));
+        const requestBody = buildResidentSearchBody(request, residentRequestMode);
+        if (!requestBody) {
+            endpoint.searchParams.set('q', request.query);
+            endpoint.searchParams.set('mode', residentRequestMode);
+            endpoint.searchParams.set('limit', String(request.limit ?? 8));
+        }
         const type = normalizeResidentType(request.type ?? request.kind);
-        if (type) {
+        if (type && !requestBody) {
             endpoint.searchParams.set('type', type);
         }
         try {
             const response = await this.#fetchJson(endpoint, {
-                method: 'GET',
+                ...(requestBody ? { body: requestBody } : {}),
+                method: requestBody ? 'POST' : 'GET',
                 token: resolved.state.token,
             });
             if (!response.ok ||
@@ -77,6 +82,7 @@ export class AlembicResidentServiceClient {
                     telemetry: {
                         endpoint: endpoint.toString(),
                         feature,
+                        hostIntentHandoff,
                         projectScopeIdentity,
                         status: response.status,
                     },
@@ -91,6 +97,7 @@ export class AlembicResidentServiceClient {
                     data,
                     durationMs: Date.now() - startedAt,
                     endpoint: endpoint.toString(),
+                    hostIntentHandoff,
                     items,
                     projectScopeIdentity,
                     residentRequestMode,
@@ -98,13 +105,18 @@ export class AlembicResidentServiceClient {
                     searchMeta,
                     status,
                 }),
-            }, status, { endpoint: endpoint.toString(), feature });
+            }, status, { endpoint: endpoint.toString(), feature, hostIntentHandoff });
         }
         catch (err) {
             const reason = isTimeoutError(err) ? 'request-timeout' : 'request-failed';
             return createAlembicResidentServiceUnavailable(status, reason, err instanceof Error ? err.message : String(err), {
                 retryable: true,
-                telemetry: { endpoint: endpoint.toString(), feature, projectScopeIdentity },
+                telemetry: {
+                    endpoint: endpoint.toString(),
+                    feature,
+                    hostIntentHandoff,
+                    projectScopeIdentity,
+                },
             });
         }
     }
@@ -578,6 +590,7 @@ function buildResidentMeta(input) {
         durationMs: numberFrom(meta.durationMs) ?? input.durationMs,
         endpoint: input.endpoint,
         fallbackReason: stringFrom(meta.fallbackReason),
+        ...(input.hostIntentHandoff ? { hostIntentHandoff: input.hostIntentHandoff } : {}),
         residentRequestMode: input.residentRequestMode,
         requestedMode: input.requestedMode,
         projectScopeIdentity: input.projectScopeIdentity,
@@ -601,6 +614,7 @@ function buildResidentMeta(input) {
 function buildUnavailableSearchResult(result, request) {
     const requestedMode = normalizeRequestedMode(request.mode);
     const residentRequestMode = normalizeResidentRequestMode(requestedMode);
+    const hostIntentHandoff = summarizeResidentHostIntentHandoff(request);
     return {
         items: [],
         meta: {
@@ -611,6 +625,7 @@ function buildUnavailableSearchResult(result, request) {
             residentRequestMode,
             requestedMode,
             residentService: result.status ? residentServiceSummary(result.status) : undefined,
+            ...(hostIntentHandoff ? { hostIntentHandoff } : {}),
             projectScopeIdentity: result.telemetry?.projectScopeIdentity,
             residentVector: {
                 available: false,
@@ -622,7 +637,7 @@ function buildUnavailableSearchResult(result, request) {
         },
     };
 }
-function withProjectScopeTelemetry(result, projectScopeIdentity) {
+function withProjectScopeTelemetry(result, projectScopeIdentity, hostIntentHandoff) {
     if (result.ok) {
         return result;
     }
@@ -630,6 +645,7 @@ function withProjectScopeTelemetry(result, projectScopeIdentity) {
         ...result,
         telemetry: {
             ...(result.telemetry || {}),
+            ...(hostIntentHandoff ? { hostIntentHandoff } : {}),
             projectScopeIdentity,
         },
     };
@@ -790,6 +806,59 @@ function normalizeResidentType(type) {
     }
     const normalized = type.trim();
     return normalized && normalized !== 'all' ? normalized : null;
+}
+function buildResidentSearchBody(request, residentRequestMode) {
+    if (!summarizeResidentHostIntentHandoff(request)) {
+        return null;
+    }
+    return stripUndefined({
+        confidence: request.confidence,
+        degraded: request.degraded,
+        degradedReason: request.degradedReason,
+        hostDeclaredIntent: request.hostDeclaredIntent,
+        hostTurnMeta: request.hostTurnMeta,
+        intentContext: request.intentContext,
+        language: request.language,
+        limit: request.limit ?? 8,
+        mode: residentRequestMode,
+        query: request.query,
+        q: request.query,
+        scenario: request.scenario,
+        searchIntent: request.searchIntent,
+        sessionHistory: request.sessionHistory,
+        sourceRefs: request.sourceRefs,
+        type: normalizeResidentType(request.type ?? request.kind) ?? undefined,
+    });
+}
+function summarizeResidentHostIntentHandoff(request) {
+    const enabled = isRecord(request.intentContext) ||
+        isRecord(request.hostDeclaredIntent) ||
+        isRecord(request.hostTurnMeta) ||
+        (Array.isArray(request.sessionHistory) && request.sessionHistory.length > 0) ||
+        (Array.isArray(request.sourceRefs) && request.sourceRefs.length > 0) ||
+        request.confidence !== undefined ||
+        request.degraded === true ||
+        Boolean(request.degradedReason);
+    if (!enabled) {
+        return undefined;
+    }
+    return {
+        degraded: request.degraded === true || Boolean(request.degradedReason),
+        degradedReasons: request.degradedReason ? [request.degradedReason] : [],
+        enabled: true,
+        requestRoute: 'post-body',
+        sessionHistoryCount: request.sessionHistory?.length ?? 0,
+        sourceRefsCount: request.sourceRefs?.length ?? 0,
+    };
+}
+function stripUndefined(input) {
+    const output = {};
+    for (const [key, value] of Object.entries(input)) {
+        if (value !== undefined) {
+            output[key] = value;
+        }
+    }
+    return output;
 }
 function normalizeRequestedMode(mode) {
     if (typeof mode !== 'string') {

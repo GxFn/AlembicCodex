@@ -103,7 +103,7 @@ async function _prime(ctx, args) {
     let searchDegraded = false;
     if (pipeline && extracted.queries[0]?.trim()) {
         try {
-            searchResult = await pipeline.search(extracted);
+            searchResult = await pipeline.search(extracted, { hostIntentFrame });
             if (!searchResult) {
                 process.stderr.write('[MCP/Task] prime: pipeline.search returned null (all filtered)\n');
             }
