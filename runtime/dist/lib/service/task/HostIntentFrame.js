@@ -45,6 +45,11 @@ export function buildResidentIntentHandoff(input) {
         ...normalizeSourceRefs(declared?.sourceRefs),
         ...explicitSourceRefs,
     ]);
+    const recognizedIntentDraft = frame.recognizedIntentDraft
+        ? summarizeRecognizedIntentDraft(frame.recognizedIntentDraft, {
+            sourceRefs,
+        })
+        : undefined;
     const query = firstDefinedString(declared?.query, declared?.summary, declared?.goal, declared?.action, input.userQuery);
     const queryHints = normalizeQueryHints(frame.extracted.queries);
     const keywords = uniqueStrings([
@@ -70,6 +75,9 @@ export function buildResidentIntentHandoff(input) {
         scenario,
         sources,
     };
+    if (recognizedIntentDraft) {
+        intentContext.recognizedIntentDraft = recognizedIntentDraft;
+    }
     if (query) {
         intentContext.query = query;
     }
@@ -100,13 +108,17 @@ export function buildResidentIntentHandoff(input) {
     };
 }
 export function buildHostIntentFrame(input, extracted) {
+    const confidence = resolveConfidence(input);
+    const draft = buildRecognizedIntentDraft(input, extracted, confidence);
+    const degradedReasons = uniqueStrings([...input.degradedReasons, ...draft.degradedReasons]);
     return {
         source: input.source,
-        confidence: resolveConfidence(input),
-        degraded: input.degraded,
-        degradedReasons: input.degradedReasons,
+        confidence,
+        degraded: input.degraded || draft.degraded,
+        degradedReasons,
         ...(input.hostDeclaredIntent ? { hostDeclaredIntent: input.hostDeclaredIntent } : {}),
         ...(input.hostTurnMeta ? { hostTurnMeta: input.hostTurnMeta } : {}),
+        recognizedIntentDraft: draft,
         extracted: {
             scenario: extracted.scenario,
             language: extracted.language,
@@ -199,6 +211,62 @@ function normalizeHostTurnMeta(input) {
     value.redactions = uniqueStrings(value.redactions);
     return hasTurnMetaValue(value) ? { value, degradedReasons: [] } : { degradedReasons: [] };
 }
+function buildRecognizedIntentDraft(input, extracted, confidence) {
+    const declared = input.hostDeclaredIntent;
+    const query = firstDefinedString(declared?.query, declared?.summary, declared?.goal, declared?.action, input.userQuery, extracted.queries[0]);
+    const action = normalizeIntentAction(declared?.action) ?? classifyAction(query, extracted.scenario);
+    const target = firstDefinedString(normalizeDraftToken(declared?.module, 160), extractTargetFromQuery(query), sanitizeExtractedModule(extracted.module), activeFileName(input.activeFile));
+    const constraints = buildDraftConstraints(declared, extracted.scenario);
+    const language = declared?.language ?? input.language ?? extracted.language ?? input.hostTurnMeta?.language;
+    const sourceRefs = normalizeSourceRefs(declared?.sourceRefs);
+    const evidenceSpans = buildEvidenceSpans({
+        action,
+        constraints,
+        declared,
+        input,
+        language,
+        query,
+        target,
+    });
+    const degradedReasons = [...input.degradedReasons];
+    if (!query) {
+        degradedReasons.push('recognizedIntent.queryMissing');
+    }
+    if (confidence < 0.5) {
+        degradedReasons.push('recognizedIntent.lowConfidence');
+    }
+    const status = resolveDraftStatus(query, confidence, degradedReasons);
+    return {
+        query: query ?? '',
+        action,
+        ...(target ? { target } : {}),
+        constraints,
+        ...(language ? { language } : {}),
+        confidence,
+        source: input.source,
+        status,
+        degraded: status !== 'recognized',
+        degradedReasons: uniqueStrings(degradedReasons),
+        evidenceSpans,
+        sourceRefs,
+    };
+}
+function summarizeRecognizedIntentDraft(draft, options) {
+    return {
+        action: draft.action,
+        confidence: draft.confidence,
+        constraints: draft.constraints,
+        degraded: draft.degraded,
+        degradedReasons: draft.degradedReasons,
+        evidenceSpans: draft.evidenceSpans.slice(0, 8),
+        language: draft.language,
+        query: draft.query,
+        source: draft.source,
+        sourceRefs: uniqueStrings([...(draft.sourceRefs ?? []), ...(options.sourceRefs ?? [])]),
+        status: draft.status,
+        target: draft.target,
+    };
+}
 function mergeHostTurnMeta(requestMeta, explicitMeta) {
     if (!requestMeta && !explicitMeta) {
         return undefined;
@@ -246,6 +314,124 @@ function resolveConfidence(input) {
         return input.hostDeclaredIntent.confidence;
     }
     return input.source === 'deterministic' ? 1 : 0.75;
+}
+function resolveDraftStatus(query, confidence, degradedReasons) {
+    if (!query || degradedReasons.some((reason) => reason !== 'recognizedIntent.lowConfidence')) {
+        return 'degraded';
+    }
+    if (confidence < 0.5) {
+        return 'needs-confirmation';
+    }
+    return 'recognized';
+}
+function normalizeIntentAction(value) {
+    return normalizeDraftToken(value, 80);
+}
+function classifyAction(query, scenario) {
+    const lower = (query ?? '').toLowerCase();
+    if (/fix|bug|修复|报错|失败|失败了/.test(lower)) {
+        return 'fix';
+    }
+    if (/review|检查|审查|lint|合规|guard/.test(lower)) {
+        return 'review';
+    }
+    if (/refactor|重构|整理|收敛/.test(lower)) {
+        return 'refactor';
+    }
+    if (/implement|add|create|build|新增|实现|开发|编写|创建/.test(lower)) {
+        return 'implement';
+    }
+    if (/delete|remove|清理|删除/.test(lower)) {
+        return 'remove';
+    }
+    return scenario || 'search';
+}
+function buildDraftConstraints(declared, scenario) {
+    const constraints = uniqueStrings([
+        ...(declared?.labels ?? []),
+        ...(declared?.keywords ?? []),
+        ...(declared?.scenario ? [declared.scenario] : []),
+        scenario,
+    ])
+        .map((value) => normalizeDraftToken(value, 80))
+        .filter((value) => Boolean(value));
+    return constraints.slice(0, 12);
+}
+function buildEvidenceSpans(input) {
+    const spans = [];
+    pushEvidence(spans, {
+        container: input.input.userQuery,
+        field: 'query',
+        source: 'userQuery',
+        text: input.query,
+    });
+    pushEvidence(spans, {
+        container: firstDefinedString(input.declared?.query, input.declared?.summary, input.declared?.goal, input.declared?.action),
+        field: 'query',
+        source: 'hostDeclaredIntent',
+        text: input.query,
+    });
+    pushEvidence(spans, {
+        container: input.declared?.action ?? input.input.userQuery,
+        field: 'action',
+        source: input.declared?.action ? 'hostDeclaredIntent' : 'deterministic',
+        text: input.action,
+    });
+    pushEvidence(spans, {
+        container: input.declared?.module ?? input.input.activeFile ?? input.input.userQuery,
+        field: 'target',
+        redacted: Boolean(input.input.activeFile && input.target === activeFileName(input.input.activeFile)),
+        source: input.declared?.module
+            ? 'hostDeclaredIntent'
+            : input.input.activeFile
+                ? 'activeFile'
+                : 'deterministic',
+        text: input.target,
+    });
+    for (const constraint of input.constraints) {
+        pushEvidence(spans, {
+            container: [...(input.declared?.labels ?? []), ...(input.declared?.keywords ?? [])].join(' '),
+            field: 'constraints',
+            source: 'hostDeclaredIntent',
+            text: constraint,
+        });
+    }
+    pushEvidence(spans, {
+        container: input.declared?.language ?? input.input.language ?? input.input.hostTurnMeta?.language,
+        field: 'language',
+        source: input.declared?.language ? 'hostDeclaredIntent' : 'deterministic',
+        text: input.language ?? undefined,
+    });
+    return dedupeEvidenceSpans(spans).slice(0, 12);
+}
+function pushEvidence(spans, input) {
+    const text = normalizeEvidenceText(input.text);
+    if (!text || looksLikePrivatePath(text)) {
+        return;
+    }
+    const container = input.container ?? '';
+    const start = container ? container.indexOf(text) : -1;
+    spans.push({
+        source: input.source,
+        field: input.field,
+        text,
+        start: start >= 0 ? start : null,
+        end: start >= 0 ? start + text.length : null,
+        ...(input.redacted ? { redacted: true } : {}),
+    });
+}
+function dedupeEvidenceSpans(spans) {
+    const seen = new Set();
+    const result = [];
+    for (const span of spans) {
+        const key = `${span.source}\0${span.field}\0${span.text}`;
+        if (seen.has(key)) {
+            continue;
+        }
+        seen.add(key);
+        result.push(span);
+    }
+    return result;
 }
 function hasTurnMetaValue(value) {
     return Object.keys(value).some((key) => key !== 'redactions') || value.redactions.length > 0;
@@ -327,6 +513,38 @@ function normalizeQueryHints(value) {
 function normalizeSourceRefs(value) {
     return normalizeStringArray(value, 20, 200).filter((entry) => !looksLikePrivatePath(entry));
 }
+function normalizeDraftToken(value, maxLength) {
+    const normalized = normalizeString(value, maxLength);
+    if (!normalized || looksLikePrivatePath(normalized)) {
+        return undefined;
+    }
+    return normalized;
+}
+function normalizeEvidenceText(value) {
+    return normalizeDraftToken(value, 200);
+}
+function sanitizeExtractedModule(value) {
+    return normalizeDraftToken(value ?? undefined, 160);
+}
+function activeFileName(value) {
+    const normalized = normalizeString(value, 1600);
+    if (!normalized) {
+        return undefined;
+    }
+    const fileName = normalized.replace(/\\/g, '/').split('/').pop();
+    return normalizeDraftToken(fileName?.replace(/\.\w+$/, ''), 160);
+}
+function extractTargetFromQuery(query) {
+    if (!query) {
+        return undefined;
+    }
+    const backtick = query.match(/`([^`]{2,120})`/);
+    if (backtick?.[1]) {
+        return normalizeDraftToken(backtick[1], 120);
+    }
+    const camelCase = query.match(/\b[A-Z][a-z]+(?:[A-Z][a-z0-9]+)+\b/);
+    return normalizeDraftToken(camelCase?.[0], 120);
+}
 function normalizeResidentDeclaredIntent(declared) {
     if (!declared) {
         return undefined;
@@ -362,6 +580,7 @@ function looksLikePrivatePath(value) {
     return (value.startsWith('/') ||
         value.startsWith('file://') ||
         /^[A-Za-z]:[\\/]/.test(value) ||
+        /(^|[\\/])Users([\\/]|$)/.test(value) ||
         value.includes('/Users/') ||
         value.includes('\\Users\\'));
 }
