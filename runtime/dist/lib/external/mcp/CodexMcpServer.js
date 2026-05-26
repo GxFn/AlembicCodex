@@ -5,6 +5,7 @@ import { ProjectRegistry } from '@alembic/core/workspace';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { readHostTurnMetaFromMcpRequest, } from '#service/task/HostIntentFrame.js';
 import { SetupService } from '../../cli/SetupService.js';
 import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
@@ -120,7 +121,9 @@ export class CodexMcpServer {
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             try {
-                const result = await this.handleToolCall(name, args || {});
+                const result = await this.handleToolCall(name, args || {}, {
+                    hostTurnMeta: readHostTurnMetaFromMcpRequest(request),
+                });
                 return {
                     content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
                     isError: isErrorResult(result) ? true : undefined,
@@ -135,7 +138,7 @@ export class CodexMcpServer {
             }
         });
     }
-    async handleToolCall(name, args) {
+    async handleToolCall(name, args, options = {}) {
         const projectRootArg = args.projectRoot;
         if (projectRootArg !== undefined) {
             if (typeof projectRootArg !== 'string' || projectRootArg.trim().length === 0) {
@@ -161,11 +164,11 @@ export class CodexMcpServer {
             if (isTrustedCodexProjectRoot(scopedServer.projectRootResolution)) {
                 writeCodexSavedProjectRoot(scopedServer.projectRoot);
             }
-            return scopedServer.handleToolCallInCurrentProject(name, scopedArgs);
+            return scopedServer.handleToolCallInCurrentProject(name, scopedArgs, options);
         }
-        return this.handleToolCallInCurrentProject(name, args);
+        return this.handleToolCallInCurrentProject(name, args, options);
     }
-    async handleToolCallInCurrentProject(name, args) {
+    async handleToolCallInCurrentProject(name, args, options = {}) {
         const executionContext = await this.resolveToolExecutionContext(name);
         let knowledge = inspectCodexKnowledge(this.projectRoot);
         const residentProjectScopeAvailable = executionContext.residentProjectScopeAvailable;
@@ -229,7 +232,7 @@ export class CodexMcpServer {
                 return this.cleanupRuntime(args);
             default: {
                 const serviceBoundary = resolveCodexServiceRequestBoundary(name, args);
-                return this.callPluginOwnedTool(name, args, serviceBoundary, executionContext);
+                return this.callPluginOwnedTool(name, args, serviceBoundary, executionContext, options);
             }
         }
     }
@@ -721,7 +724,7 @@ export class CodexMcpServer {
         projectRoot: this.projectRoot,
         projectScopeIdentity: null,
         residentProjectScopeAvailable: false,
-    }) {
+    }, options = {}) {
         if (!TOOLS.some((tool) => tool.name === name)) {
             return attachCodexServiceBoundary(failureResult(name, `Unknown Alembic tool: ${name}`), serviceBoundary);
         }
@@ -735,6 +738,7 @@ export class CodexMcpServer {
                 },
                 source: { kind: 'codex', name: 'plugin-owned-codex-facing' },
                 surface: 'codex',
+                hostTurnMeta: options.hostTurnMeta,
             });
             return attachCodexExecutionContext(attachCodexServiceBoundary(result, serviceBoundary), executionContext, this.projectRoot);
         }

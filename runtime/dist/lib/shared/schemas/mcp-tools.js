@@ -15,6 +15,52 @@ import { z } from 'zod';
 // ══════════════════════════════════════════════════════
 export const HealthInput = z.object({});
 // ══════════════════════════════════════════════════════
+//  Host intent / turn metadata — Plugin-owned Codex intake
+// ══════════════════════════════════════════════════════
+const HostIntentTextField = z.string().min(1).max(1200);
+export const HostDeclaredIntentInput = z.object({
+    query: HostIntentTextField.optional().describe('Host-declared concise user intent query'),
+    summary: HostIntentTextField.optional().describe('Host-declared short intent summary'),
+    goal: z.string().min(1).max(600).optional().describe('Host-declared immediate goal'),
+    action: z.string().min(1).max(600).optional().describe('Host-declared action hint'),
+    scenario: z.string().min(1).max(80).optional().describe('Host-declared scenario label'),
+    language: z.string().min(1).max(80).optional().describe('Host-declared language hint'),
+    module: z.string().min(1).max(160).optional().describe('Host-declared module hint'),
+    labels: z
+        .array(z.string().min(1).max(80))
+        .max(12)
+        .optional()
+        .describe('Host-declared short intent labels'),
+    confidence: z.number().min(0).max(1).optional().describe('Host-declared confidence 0..1'),
+    source: z.string().min(1).max(120).optional().describe('Host source label'),
+});
+export const HostTurnMetaInput = z.object({
+    turnId: z.string().min(1).max(160).optional().describe('Host turn identifier'),
+    messageId: z.string().min(1).max(160).optional().describe('Host message identifier'),
+    threadId: z
+        .string()
+        .min(1)
+        .max(400)
+        .optional()
+        .describe('Raw host thread id; handler stores only a redacted hash'),
+    conversationId: z
+        .string()
+        .min(1)
+        .max(400)
+        .optional()
+        .describe('Raw host conversation id; handler stores only a redacted hash'),
+    sessionId: z
+        .string()
+        .min(1)
+        .max(400)
+        .optional()
+        .describe('Raw host session id; handler stores only a redacted hash'),
+    source: z.string().min(1).max(120).optional().describe('Host metadata source label'),
+    surface: z.string().min(1).max(120).optional().describe('Host surface label'),
+    timestamp: z.string().min(1).max(120).optional().describe('Host turn timestamp'),
+    language: z.string().min(1).max(80).optional().describe('Host turn language hint'),
+});
+// ══════════════════════════════════════════════════════
 //  2. alembic_search
 // ══════════════════════════════════════════════════════
 export const SearchInput = z.object({
@@ -273,6 +319,8 @@ export const TaskInput = z.object({
         .describe('User current input / prompt text for knowledge-aware search'),
     activeFile: z.string().optional().describe('Currently active file path in IDE'),
     language: z.string().optional().describe('Current programming language'),
+    hostDeclaredIntent: HostDeclaredIntentInput.optional().describe('Optional host-declared intent frame. Backward compatible with userQuery/activeFile/language.'),
+    hostTurnMeta: HostTurnMetaInput.optional().describe('Optional host turn metadata. The handler only keeps redacted allowlisted fields.'),
 });
 // ══════════════════════════════════════════════════════
 //  Admin Tools

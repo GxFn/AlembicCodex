@@ -22,6 +22,7 @@ import Logger from '@alembic/core/logging';
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import { readHostTurnMetaFromMcpRequest, } from '#service/task/HostIntentFrame.js';
 import { isCodexProjectScopeSummaryForFolder, readCodexProjectScopeRuntimeFromEnv, } from '../../shared/project-scope-runtime.js';
 import { envelope } from './envelope.js';
 import { wrapHandler } from './errorHandler.js';
@@ -176,7 +177,9 @@ export class McpServer {
             const { name, arguments: args } = request.params;
             const t0 = Date.now();
             try {
-                return await this._handleToolCall(name, args || {});
+                return await this._handleToolCall(name, args || {}, {
+                    hostTurnMeta: readHostTurnMetaFromMcpRequest(request),
+                });
             }
             catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
@@ -203,6 +206,7 @@ export class McpServer {
             },
             source,
             surface,
+            hostTurnMeta: options.hostTurnMeta,
         });
         if (isMcpToolResponse(result)) {
             return result;
@@ -218,6 +222,7 @@ export class McpServer {
             actor: runtime.actor,
             source: runtime.source,
             surface: runtime.surface,
+            hostTurnMeta: runtime.hostTurnMeta,
             gateway: this._resolveMcpGatewayMapping(name, args),
         });
         // 查找 handler 并通过 wrapHandler 统一错误处理

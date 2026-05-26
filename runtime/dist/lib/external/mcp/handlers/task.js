@@ -10,6 +10,7 @@
  *
  * Architecture: Zero DB. Pure memory (IntentState) + SignalBus → JSONL signals.
  */
+import { buildHostIntentFrame, prepareHostIntentInput } from '#service/task/HostIntentFrame.js';
 import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { envelope } from '../envelope.js';
 import { createIdleIntent } from './types.js';
@@ -85,8 +86,17 @@ async function _prime(ctx, args) {
     if (intent && intent.phase === 'active') {
         _persistIntentChain(ctx, intent, 'abandoned', 'New prime received');
     }
-    // ─── Intake: extract intent signals ───
-    const extracted = extractIntent(args.userQuery || '', args.activeFile, args.language);
+    // ─── Intake: merge Codex host hints with deterministic intent signals ───
+    const hostIntentInput = prepareHostIntentInput({
+        userQuery: args.userQuery,
+        activeFile: args.activeFile,
+        language: args.language,
+        hostDeclaredIntent: args.hostDeclaredIntent,
+        hostTurnMeta: args.hostTurnMeta,
+        requestHostTurnMeta: ctx.hostTurnMeta,
+    });
+    const extracted = extractIntent(hostIntentInput.userQuery, hostIntentInput.activeFile, hostIntentInput.language);
+    const hostIntentFrame = buildHostIntentFrame(hostIntentInput, extracted);
     // ─── Enrichment: multi-query search via PrimeSearchPipeline ───
     const pipeline = _getPipeline(ctx.container);
     let searchResult = null;
@@ -113,11 +123,12 @@ async function _prime(ctx, args) {
     // ─── Lifecycle: initialize IntentState ───
     const freshIntent = createIdleIntent();
     freshIntent.phase = 'active';
-    freshIntent.primeQuery = args.userQuery || '';
-    freshIntent.primeActiveFile = args.activeFile;
+    freshIntent.primeQuery = hostIntentInput.userQuery;
+    freshIntent.primeActiveFile = hostIntentInput.activeFile;
     freshIntent.primeLanguage = extracted.language;
     freshIntent.primeModule = extracted.module;
     freshIntent.primeScenario = extracted.scenario;
+    freshIntent.hostIntentFrame = hostIntentFrame;
     freshIntent.primeAt = Date.now();
     if (searchResult) {
         freshIntent.primeRecipeIds = [...searchResult.relatedKnowledge, ...searchResult.guardRules]
@@ -142,8 +153,9 @@ async function _prime(ctx, args) {
     const relatedCount = searchResult?.relatedKnowledge.length ?? 0;
     const ruleCount = searchResult?.guardRules.length ?? 0;
     const primeKnowledgeMaterial = _buildPrimeKnowledgeMaterial({
-        args,
+        hostIntentInput,
         extracted,
+        hostIntentFrame,
         searchResult,
         searchDegraded,
     });
@@ -197,12 +209,13 @@ function _buildPrimeKnowledgeMaterial(input) {
             : 'empty';
     const receiptId = _generatePrimeReceiptId();
     const intent = {
-        userQuery: input.args.userQuery || '',
+        userQuery: input.hostIntentInput.userQuery,
         scenario: input.searchResult?.searchMeta.scenario ?? input.extracted.scenario,
         queries: input.searchResult?.searchMeta.queries ?? input.extracted.queries,
+        hostIntentFrame: input.hostIntentFrame,
     };
-    if (input.args.activeFile) {
-        intent.activeFile = input.args.activeFile;
+    if (input.hostIntentInput.activeFile) {
+        intent.activeFile = input.hostIntentInput.activeFile;
     }
     const language = input.searchResult?.searchMeta.language ?? input.extracted.language;
     if (language) {
