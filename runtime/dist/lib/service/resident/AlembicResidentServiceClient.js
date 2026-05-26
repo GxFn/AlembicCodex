@@ -7,6 +7,8 @@ const RESIDENT_HEALTH_PATH = '/api/v1/daemon/health';
 const RESIDENT_PROJECT_SCOPE_RESOLVE_PATH = '/api/v1/project-scope/resolve-folder';
 const RESIDENT_SEARCH_PATH = '/api/v1/search';
 const RESIDENT_JOBS_PATH = '/api/v1/jobs';
+const RESIDENT_INTENT_EPISODES_PATH = '/api/v1/intent-episodes';
+const RESIDENT_INTENT_EPISODE_FEATURE = 'intent-episodes';
 const PROJECT_SCOPE_UNAVAILABLE_REASON = 'resident project scope unavailable';
 export class AlembicResidentServiceClient {
     #fetch;
@@ -120,6 +122,44 @@ export class AlembicResidentServiceClient {
             });
         }
     }
+    async startIntentEpisode(request) {
+        const resolved = await this.#resolveProbe();
+        const unavailable = this.#ensureIntentEpisodeRouteAvailable(resolved);
+        if (unavailable) {
+            return unavailable;
+        }
+        return this.#requestIntentEpisodeJson(resolved, RESIDENT_INTENT_EPISODES_PATH, {
+            body: stripUndefined(request),
+            method: 'POST',
+        });
+    }
+    async latestIntentEpisode(options = {}) {
+        const resolved = await this.#resolveProbe();
+        const unavailable = this.#ensureIntentEpisodeRouteAvailable(resolved);
+        if (unavailable) {
+            return unavailable;
+        }
+        return this.#requestIntentEpisodeJson(resolved, `${RESIDENT_INTENT_EPISODES_PATH}/latest${buildIntentEpisodeQuery(options)}`, { method: 'GET' });
+    }
+    async recentIntentEpisodes(options = {}) {
+        const resolved = await this.#resolveProbe();
+        const unavailable = this.#ensureIntentEpisodeRouteAvailable(resolved);
+        if (unavailable) {
+            return unavailable;
+        }
+        return this.#requestIntentEpisodeJson(resolved, `${RESIDENT_INTENT_EPISODES_PATH}/recent${buildIntentEpisodeQuery(options)}`, { method: 'GET' });
+    }
+    async updateIntentEpisodeOutcome(episodeId, request) {
+        const resolved = await this.#resolveProbe();
+        const unavailable = this.#ensureIntentEpisodeRouteAvailable(resolved);
+        if (unavailable) {
+            return unavailable;
+        }
+        return this.#requestIntentEpisodeJson(resolved, `${RESIDENT_INTENT_EPISODES_PATH}/${encodeURIComponent(episodeId)}`, {
+            body: stripUndefined(request),
+            method: 'PATCH',
+        });
+    }
     async enqueueJob(kind, options = {}) {
         const resolved = await this.#resolveProbe(options);
         const feature = resolveJobFeature(resolved.status, kind);
@@ -197,6 +237,62 @@ export class AlembicResidentServiceClient {
             return createAlembicResidentServiceUnavailable(resolved.status, isTimeoutError(err) ? 'request-timeout' : 'request-failed', err instanceof Error ? err.message : String(err), {
                 retryable: true,
                 telemetry: { endpoint: endpoint.toString(), feature: input.feature },
+            });
+        }
+    }
+    #ensureIntentEpisodeRouteAvailable(resolved) {
+        if (!isLocalAlembicResident(resolved.status)) {
+            return createAlembicResidentServiceUnavailable(resolved.status, resolved.status.route === 'unavailable' ? 'route-unavailable' : 'unsupported-route', 'IntentEpisode handoff requires a local Alembic resident daemon.', { telemetry: { feature: RESIDENT_INTENT_EPISODE_FEATURE } });
+        }
+        if (!resolved.state?.token) {
+            return createAlembicResidentServiceUnavailable(resolved.status, 'token-missing', 'Alembic resident service token is missing.', { retryable: true, telemetry: { feature: RESIDENT_INTENT_EPISODE_FEATURE } });
+        }
+        return null;
+    }
+    async #requestIntentEpisodeJson(resolved, path, input) {
+        if (!resolved.state?.token) {
+            return createAlembicResidentServiceUnavailable(resolved.status, 'token-missing', 'Alembic resident service token is missing.', { retryable: true, telemetry: { feature: RESIDENT_INTENT_EPISODE_FEATURE, path } });
+        }
+        const endpoint = new URL(path, resolved.status.apiBaseUrl || resolved.state.url);
+        try {
+            const response = await this.#fetchJson(endpoint, {
+                body: input.body,
+                method: input.method,
+                token: resolved.state.token,
+            });
+            if (!response.ok || response.payload?.success === false) {
+                return createAlembicResidentServiceUnavailable(resolved.status, response.ok ? 'request-failed' : reasonForHttpStatus(response.status), extractResponseError(response.payload) || `intent_episode_http_${response.status}`, {
+                    retryable: true,
+                    telemetry: {
+                        endpoint: endpoint.toString(),
+                        feature: RESIDENT_INTENT_EPISODE_FEATURE,
+                        status: response.status,
+                    },
+                });
+            }
+            const data = isRecord(response.payload?.data) ? response.payload.data : null;
+            if (!data) {
+                return createAlembicResidentServiceUnavailable(resolved.status, 'request-failed', 'IntentEpisode resident response did not include a data object.', {
+                    retryable: true,
+                    telemetry: {
+                        endpoint: endpoint.toString(),
+                        feature: RESIDENT_INTENT_EPISODE_FEATURE,
+                        status: response.status,
+                    },
+                });
+            }
+            return createAlembicResidentServiceSuccess(projectIntentEpisodeData(data), resolved.status, {
+                endpoint: endpoint.toString(),
+                feature: RESIDENT_INTENT_EPISODE_FEATURE,
+            });
+        }
+        catch (err) {
+            return createAlembicResidentServiceUnavailable(resolved.status, isTimeoutError(err) ? 'request-timeout' : 'request-failed', err instanceof Error ? err.message : String(err), {
+                retryable: true,
+                telemetry: {
+                    endpoint: endpoint.toString(),
+                    feature: RESIDENT_INTENT_EPISODE_FEATURE,
+                },
             });
         }
     }
@@ -860,6 +956,35 @@ function stripUndefined(input) {
     }
     return output;
 }
+function projectIntentEpisodeData(data) {
+    const episodes = Array.isArray(data.episodes)
+        ? data.episodes.map(toResidentIntentEpisodeRecord).filter(isResidentIntentEpisodeRecord)
+        : undefined;
+    const count = numberFrom(data.count) ?? episodes?.length;
+    return {
+        capability: isRecord(data.capability) ? data.capability : null,
+        episode: toResidentIntentEpisodeRecord(data.episode),
+        ...(episodes ? { episodes } : {}),
+        ...(count !== undefined ? { count } : {}),
+    };
+}
+function toResidentIntentEpisodeRecord(value) {
+    if (!isRecord(value)) {
+        return null;
+    }
+    const episodeId = stringFrom(value.episodeId);
+    const sessionKey = stringFrom(value.sessionKey);
+    const status = stringFrom(value.status);
+    if (!episodeId ||
+        !sessionKey ||
+        (status !== 'active' && status !== 'completed' && status !== 'failed' && status !== 'abandoned')) {
+        return null;
+    }
+    return value;
+}
+function isResidentIntentEpisodeRecord(value) {
+    return value !== null;
+}
 function normalizeRequestedMode(mode) {
     if (typeof mode !== 'string') {
         return 'auto';
@@ -896,6 +1021,17 @@ function buildJobQuery(args) {
     }
     if (typeof args.limit === 'number' && Number.isFinite(args.limit)) {
         params.set('limit', String(args.limit));
+    }
+    const query = params.toString();
+    return query ? `?${query}` : '';
+}
+function buildIntentEpisodeQuery(options) {
+    const params = new URLSearchParams();
+    if (typeof options.sessionId === 'string' && options.sessionId.trim()) {
+        params.set('sessionId', options.sessionId.trim());
+    }
+    if (typeof options.limit === 'number' && Number.isFinite(options.limit)) {
+        params.set('limit', String(Math.max(1, Math.min(100, Math.floor(options.limit)))));
     }
     const query = params.toString();
     return query ? `?${query}` : '';

@@ -10,7 +10,7 @@
  *
  * Architecture: Zero DB. Pure memory (IntentState) + SignalBus → JSONL signals.
  */
-import { buildHostIntentFrame, prepareHostIntentInput } from '#service/task/HostIntentFrame.js';
+import { buildHostIntentFrame, buildResidentIntentHandoff, prepareHostIntentInput, } from '#service/task/HostIntentFrame.js';
 import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { envelope } from '../envelope.js';
 import { createIdleIntent } from './types.js';
@@ -84,7 +84,7 @@ async function _prime(ctx, args) {
     const intent = ctx.session?.intent;
     // If there is an active intent, persist it as abandoned before starting fresh
     if (intent && intent.phase === 'active') {
-        _persistIntentChain(ctx, intent, 'abandoned', 'New prime received');
+        await _persistIntentChain(ctx, intent, 'abandoned', 'New prime received', intent.taskId);
     }
     // ─── Intake: merge Codex host hints with deterministic intent signals ───
     const hostIntentInput = prepareHostIntentInput({
@@ -145,6 +145,19 @@ async function _prime(ctx, args) {
                 : {}),
         };
     }
+    const intentEpisode = await _handoffIntentEpisode(ctx, {
+        extracted,
+        hostIntentFrame,
+        hostIntentInput,
+        intent: freshIntent,
+    });
+    if (intentEpisode.current?.episodeId) {
+        freshIntent.intentEpisode = {
+            episodeId: intentEpisode.current.episodeId,
+            sessionKey: intentEpisode.current.sessionKey,
+            startAvailable: intentEpisode.available,
+        };
+    }
     // Bind intent to session
     if (ctx.session) {
         ctx.session.intent = freshIntent;
@@ -158,6 +171,7 @@ async function _prime(ctx, args) {
         hostIntentFrame,
         searchResult,
         searchDegraded,
+        intentEpisode,
     });
     const lines = [];
     if (primeKnowledgeMaterial.status === 'degraded') {
@@ -190,6 +204,7 @@ async function _prime(ctx, args) {
                 }
                 : null,
             searchMeta: searchResult?.searchMeta ?? null,
+            intentEpisode,
             _taskRules,
         },
         message: lines.join('\n'),
@@ -215,7 +230,7 @@ function _buildPrimeKnowledgeMaterial(input) {
         hostIntentFrame: input.hostIntentFrame,
     };
     if (input.hostIntentInput.activeFile) {
-        intent.activeFile = input.hostIntentInput.activeFile;
+        intent.activeFile = _redactVisiblePath(input.hostIntentInput.activeFile);
     }
     const language = input.searchResult?.searchMeta.language ?? input.extracted.language;
     if (language) {
@@ -234,6 +249,7 @@ function _buildPrimeKnowledgeMaterial(input) {
         shoutInstruction: _buildPrimeShoutInstruction(status),
         hostResponse: _buildPrimeHostResponseInstruction(status, receiptId),
         nextActions: _buildPrimeKnowledgeNextActions(),
+        intentEpisode: input.intentEpisode,
     };
 }
 function _projectAcceptedKnowledge(item) {
@@ -385,7 +401,7 @@ async function _close(ctx, args) {
     const reason = args.reason || 'Completed';
     // Persist intent chain via SignalBus
     if (intent && intent.phase === 'active') {
-        _persistIntentChain(ctx, intent, 'completed', reason);
+        await _persistIntentChain(ctx, intent, 'completed', reason, id);
     }
     // Reset intent to idle
     if (ctx.session) {
@@ -424,7 +440,7 @@ async function _fail(ctx, args) {
     const reason = args.reason || 'Agent execution failed';
     // Persist intent chain via SignalBus
     if (intent && intent.phase === 'active') {
-        _persistIntentChain(ctx, intent, 'failed', reason);
+        await _persistIntentChain(ctx, intent, 'failed', reason, id);
     }
     // Reset intent to idle
     if (ctx.session) {
@@ -477,7 +493,7 @@ async function _recordDecision(ctx, args) {
     });
 }
 // ═══ Intent Chain Persistence (via SignalBus) ═══════════
-function _persistIntentChain(ctx, intent, outcome, reason) {
+async function _persistIntentChain(ctx, intent, outcome, reason, taskId) {
     const now = Date.now();
     const chain = {
         sessionId: ctx.session?.id || 'unknown',
@@ -514,6 +530,292 @@ function _persistIntentChain(ctx, intent, outcome, reason) {
     catch {
         // signalBus unavailable — silent failure, non-blocking
     }
+    await _updateIntentEpisodeOutcome(ctx, intent, outcome, reason, taskId);
+}
+async function _handoffIntentEpisode(ctx, input) {
+    const episodeSession = _resolveEpisodeSession(ctx, input.hostIntentFrame);
+    const request = _buildIntentEpisodeStartRequest(input, episodeSession.sessionId);
+    const requestFields = Object.keys(request).sort();
+    const unavailable = {
+        available: false,
+        current: null,
+        degraded: true,
+        latest: null,
+        recent: [],
+        read: {
+            latest: { ok: false, reason: 'residentServiceClient unavailable' },
+            recent: { ok: false, reason: 'residentServiceClient unavailable' },
+        },
+        reason: 'residentServiceClient unavailable',
+        requestFields,
+        sessionSource: episodeSession.source,
+        start: { ok: false, reason: 'residentServiceClient unavailable' },
+    };
+    const client = _getResidentServiceClient(ctx.container);
+    if (!client) {
+        return unavailable;
+    }
+    try {
+        const latestResult = await client.latestIntentEpisode({ sessionId: episodeSession.sessionId });
+        const recentResult = await client.recentIntentEpisodes({
+            limit: 3,
+            sessionId: episodeSession.sessionId,
+        });
+        const startResult = await client.startIntentEpisode(request);
+        const latest = latestResult.ok ? _projectIntentEpisodeRecord(latestResult.value.episode) : null;
+        const recent = recentResult.ok
+            ? (recentResult.value.episodes ?? [])
+                .map(_projectIntentEpisodeRecord)
+                .filter((episode) => episode !== null)
+            : [];
+        const current = startResult.ok ? _projectIntentEpisodeRecord(startResult.value.episode) : null;
+        const reason = startResult.ok
+            ? null
+            : startResult.reason || startResult.message || 'IntentEpisode start unavailable';
+        if (!startResult.ok) {
+            process.stderr.write(`[MCP/Task] intent episode start degraded: ${reason}\n`);
+        }
+        return {
+            available: startResult.ok,
+            current,
+            degraded: !startResult.ok,
+            latest,
+            recent,
+            read: {
+                latest: _summarizeResidentCall(latestResult),
+                recent: _summarizeResidentCall(recentResult),
+            },
+            reason,
+            requestFields,
+            sessionSource: episodeSession.source,
+            start: _summarizeResidentCall(startResult),
+        };
+    }
+    catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[MCP/Task] intent episode handoff error: ${reason}\n`);
+        return {
+            ...unavailable,
+            reason,
+            read: {
+                latest: { ok: false, reason },
+                recent: { ok: false, reason },
+            },
+            start: { ok: false, reason },
+        };
+    }
+}
+function _buildIntentEpisodeStartRequest(input, sessionId) {
+    const frame = input.hostIntentFrame;
+    const draft = frame.recognizedIntentDraft;
+    const sourceRefs = _collectEpisodeSourceRefs(frame, input.intent);
+    const handoff = buildResidentIntentHandoff({
+        hostIntentFrame: frame,
+        language: input.extracted.language,
+        sourceRefs,
+        userQuery: input.hostIntentInput.userQuery,
+    });
+    const hostIntent = {
+        applied: true,
+        confidence: frame.confidence,
+        degraded: frame.degraded,
+        degradedReason: frame.degradedReasons.join('; ') || undefined,
+        recognizedIntentDraft: {
+            action: draft.action,
+            confidence: draft.confidence,
+            constraints: draft.constraints,
+            degraded: draft.degraded,
+            degradedReasons: draft.degradedReasons,
+            language: draft.language,
+            query: draft.query,
+            source: draft.source,
+            sourceRefs: _uniqueStrings([...(draft.sourceRefs ?? []), ...sourceRefs]),
+            status: draft.status,
+            target: draft.target,
+        },
+        scenario: input.extracted.scenario,
+        searchIntent: input.extracted.scenario,
+        sourceRefs,
+        sources: _uniqueStrings([
+            frame.source,
+            ...(frame.hostDeclaredIntent ? ['hostDeclaredIntent'] : []),
+            ...(frame.hostTurnMeta ? ['hostTurnMeta'] : []),
+        ]),
+    };
+    if (handoff?.intentContext && _isRecord(handoff.intentContext)) {
+        Object.assign(hostIntent, handoff.intentContext);
+    }
+    if (frame.hostDeclaredIntent) {
+        hostIntent.hostDeclaredIntent = frame.hostDeclaredIntent;
+    }
+    if (frame.hostTurnMeta) {
+        hostIntent.hostTurnMeta = frame.hostTurnMeta;
+    }
+    return _stripUndefined({
+        activeFile: input.hostIntentInput.activeFile,
+        hostIntent: _stripUndefined(hostIntent),
+        language: draft.language ?? input.extracted.language ?? undefined,
+        module: draft.target ?? input.extracted.module ?? undefined,
+        query: draft.query || input.hostIntentInput.userQuery || input.extracted.queries[0],
+        scenario: input.extracted.scenario,
+        searchMeta: _projectEpisodeSearchMeta(input.intent.searchMeta, frame, sourceRefs),
+        sessionId,
+        sourceRefs,
+        turnId: frame.hostTurnMeta?.turnId ?? frame.hostTurnMeta?.messageId,
+    });
+}
+function _resolveEpisodeSession(ctx, hostIntentFrame) {
+    const turnMeta = hostIntentFrame.hostTurnMeta;
+    if (turnMeta?.threadIdHash) {
+        return { sessionId: `thread:${turnMeta.threadIdHash}`, source: 'host-thread-hash' };
+    }
+    if (turnMeta?.conversationIdHash) {
+        return {
+            sessionId: `conversation:${turnMeta.conversationIdHash}`,
+            source: 'host-conversation-hash',
+        };
+    }
+    if (turnMeta?.sessionIdHash) {
+        return { sessionId: `host-session:${turnMeta.sessionIdHash}`, source: 'host-session-hash' };
+    }
+    return { sessionId: ctx.session?.id || 'mcp-session', source: 'mcp-session' };
+}
+function _projectEpisodeSearchMeta(searchMeta, hostIntentFrame, sourceRefs) {
+    const residentSearch = _isRecord(searchMeta?.residentSearch)
+        ? searchMeta.residentSearch
+        : undefined;
+    const residentSearchMeta = _isRecord(residentSearch?.searchMeta)
+        ? residentSearch.searchMeta
+        : undefined;
+    return _stripUndefined({
+        filteredCount: searchMeta?.filteredCount,
+        hostIntentApplied: residentSearchMeta?.hostIntentApplied ?? residentSearch?.hostIntentApplied ?? true,
+        hostIntentConfidence: residentSearchMeta?.hostIntentConfidence ??
+            residentSearch?.hostIntentConfidence ??
+            hostIntentFrame.confidence,
+        hostIntentDegraded: residentSearchMeta?.hostIntentDegraded ??
+            residentSearch?.hostIntentDegraded ??
+            hostIntentFrame.degraded,
+        hostIntentDegradedReason: residentSearchMeta?.hostIntentDegradedReason ??
+            residentSearch?.hostIntentDegradedReason ??
+            (hostIntentFrame.degradedReasons.length > 0
+                ? hostIntentFrame.degradedReasons.join('; ')
+                : undefined),
+        hostIntentSourceRefs: residentSearchMeta?.hostIntentSourceRefs ??
+            residentSearch?.hostIntentSourceRefs ??
+            sourceRefs,
+        queries: searchMeta?.queries,
+        resultCount: searchMeta?.resultCount,
+    });
+}
+async function _updateIntentEpisodeOutcome(ctx, intent, outcome, reason, taskId) {
+    const episodeId = intent.intentEpisode?.episodeId;
+    if (!episodeId) {
+        return;
+    }
+    const client = _getResidentServiceClient(ctx.container);
+    if (!client) {
+        return;
+    }
+    const status = outcome === 'completed' ? 'completed' : outcome === 'failed' ? 'failed' : 'abandoned';
+    try {
+        const result = await client.updateIntentEpisodeOutcome(episodeId, {
+            reason,
+            searchMeta: intent.hostIntentFrame
+                ? _projectEpisodeSearchMeta(intent.searchMeta, intent.hostIntentFrame, _collectEpisodeSourceRefs(intent.hostIntentFrame, intent))
+                : undefined,
+            status,
+            taskId: taskId ?? intent.taskId,
+        });
+        if (!result.ok) {
+            process.stderr.write(`[MCP/Task] intent episode outcome degraded: ${result.reason || result.message}\n`);
+        }
+    }
+    catch (err) {
+        process.stderr.write(`[MCP/Task] intent episode outcome error: ${err instanceof Error ? err.message : String(err)}\n`);
+    }
+}
+function _getResidentServiceClient(container) {
+    try {
+        return container.get('residentServiceClient');
+    }
+    catch {
+        return null;
+    }
+}
+function _projectIntentEpisodeRecord(record) {
+    if (!record?.episodeId) {
+        return null;
+    }
+    return {
+        episodeId: record.episodeId,
+        ...(record.query ? { query: record.query } : {}),
+        sessionKey: record.sessionKey ?? null,
+        sourceRefs: _stringArray(record.sourceRefs).slice(0, 12),
+        status: record.status,
+    };
+}
+function _summarizeResidentCall(result) {
+    if (result.ok) {
+        return {
+            ok: true,
+            owner: result.status?.owner,
+            route: result.status?.route,
+        };
+    }
+    return {
+        ok: false,
+        owner: result.status?.owner,
+        reason: result.reason || result.message,
+        retryable: result.retryable,
+        route: result.status?.route,
+    };
+}
+function _collectEpisodeSourceRefs(frame, intent) {
+    return _uniqueStrings([
+        ...(frame.recognizedIntentDraft.sourceRefs ?? []),
+        ...(frame.hostDeclaredIntent?.sourceRefs ?? []),
+        ...(intent.primeRecipeIds ?? []).map((id) => `knowledge:${id}`),
+    ]).slice(0, 24);
+}
+function _stripUndefined(input) {
+    const output = {};
+    for (const [key, value] of Object.entries(input)) {
+        if (value !== undefined) {
+            output[key] = value;
+        }
+    }
+    return output;
+}
+function _stringArray(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((item) => typeof item === 'string' && item.trim().length > 0);
+}
+function _uniqueStrings(values) {
+    const seen = new Set();
+    const output = [];
+    for (const value of values) {
+        const trimmed = value.trim();
+        if (!trimmed || seen.has(trimmed)) {
+            continue;
+        }
+        seen.add(trimmed);
+        output.push(trimmed);
+    }
+    return output;
+}
+function _isRecord(value) {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+function _redactVisiblePath(value) {
+    if (!value.startsWith('/')) {
+        return value;
+    }
+    const normalized = value.replace(/\\/g, '/');
+    const basename = normalized.split('/').filter(Boolean).pop() || 'file';
+    return `[absolute-path]/${basename}`;
 }
 function _computeDriftScore(intent) {
     if (intent.driftEvents.length === 0) {
