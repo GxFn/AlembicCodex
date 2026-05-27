@@ -141,6 +141,9 @@ async function _prime(ctx, args) {
             ...(searchResult.searchMeta.intentEvidence
                 ? { intentEvidence: searchResult.searchMeta.intentEvidence }
                 : {}),
+            ...(searchResult.searchMeta.primeInjectionPackage
+                ? { primeInjectionPackage: searchResult.searchMeta.primeInjectionPackage }
+                : {}),
             ...(searchResult.searchMeta.residentSearch
                 ? {
                     residentSearch: searchResult.searchMeta.residentSearch,
@@ -255,6 +258,9 @@ function _buildPrimeKnowledgeMaterial(input) {
         intentEpisode: input.intentEpisode,
         ...(input.searchResult?.searchMeta.intentEvidence
             ? { intentEvidence: input.searchResult.searchMeta.intentEvidence }
+            : {}),
+        ...(input.searchResult?.searchMeta.primeInjectionPackage
+            ? { primeInjectionPackage: input.searchResult.searchMeta.primeInjectionPackage }
             : {}),
     };
 }
@@ -711,6 +717,9 @@ function _projectEpisodeSearchMeta(searchMeta, hostIntentFrame, sourceRefs) {
             residentSearch?.hostIntentSourceRefs ??
             sourceRefs,
         ...(searchMeta?.intentEvidence ? { intentEvidence: searchMeta.intentEvidence } : {}),
+        ...(searchMeta?.primeInjectionPackage
+            ? { primeInjectionPackage: searchMeta.primeInjectionPackage }
+            : {}),
         queries: searchMeta?.queries,
         resultCount: searchMeta?.resultCount,
     });

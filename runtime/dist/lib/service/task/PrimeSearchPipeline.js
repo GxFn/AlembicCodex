@@ -268,6 +268,9 @@ export class PrimeSearchPipeline {
             resultCount,
             filteredCount,
             ...(residentSearch?.intentEvidence ? { intentEvidence: residentSearch.intentEvidence } : {}),
+            ...(residentSearch?.primeInjectionPackage
+                ? { primeInjectionPackage: residentSearch.primeInjectionPackage }
+                : {}),
             ...(residentSearch ? { residentSearch } : {}),
         };
     }

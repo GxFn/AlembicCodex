@@ -662,6 +662,7 @@ function resolveJobFeature(status, kind) {
 function buildResidentMeta(input) {
     const meta = input.searchMeta;
     const intentEvidence = compactResidentIntentEvidence(meta.intentEvidence);
+    const primeInjectionPackage = compactResidentPrimeInjectionPackage(meta.primeInjectionPackage);
     const residentVector = isRecord(meta.residentVector)
         ? meta.residentVector
         : {
@@ -689,6 +690,7 @@ function buildResidentMeta(input) {
         fallbackReason: stringFrom(meta.fallbackReason),
         ...(input.hostIntentHandoff ? { hostIntentHandoff: input.hostIntentHandoff } : {}),
         ...(intentEvidence ? { intentEvidence } : {}),
+        ...(primeInjectionPackage ? { primeInjectionPackage } : {}),
         residentRequestMode: input.residentRequestMode,
         requestedMode: input.requestedMode,
         projectScopeIdentity: input.projectScopeIdentity,
@@ -700,6 +702,7 @@ function buildResidentMeta(input) {
             ...meta,
             codexRequestedMode: input.requestedMode,
             ...(intentEvidence ? { intentEvidence } : {}),
+            ...(primeInjectionPackage ? { primeInjectionPackage } : {}),
             projectScopeIdentity: input.projectScopeIdentity,
             residentRequestMode: input.residentRequestMode,
         },
@@ -981,6 +984,174 @@ export function compactResidentIntentEvidence(value) {
         topAnchorMatches: compactEvidenceRecords(value.topAnchorMatches, ['anchor', 'itemId', 'matchType', 'rank', 'score', 'sourceRefs', 'title'], 10),
         version: numberFrom(value.version) ?? 1,
     };
+}
+export function compactResidentPrimeInjectionPackage(value) {
+    if (!isRecord(value)) {
+        return undefined;
+    }
+    const injection = isRecord(value.injection) ? value.injection : {};
+    const intent = isRecord(value.intent) ? value.intent : {};
+    const relations = isRecord(value.relations) ? value.relations : {};
+    const search = isRecord(value.search) ? value.search : {};
+    const trace = isRecord(value.trace) ? value.trace : {};
+    const vector = isRecord(value.vector) ? value.vector : {};
+    return {
+        injection: {
+            degradedReasons: compactEvidenceStringArray(injection.degradedReasons, 8),
+            omittedCount: numberFrom(injection.omittedCount) ?? 0,
+            selectedCount: numberFrom(injection.selectedCount) ?? 0,
+            status: stringFrom(injection.status) ?? 'degraded',
+        },
+        intent: {
+            applied: booleanFrom(intent.applied) ?? false,
+            ...(numberFrom(intent.confidence) !== undefined
+                ? { confidence: numberFrom(intent.confidence) }
+                : {}),
+            degraded: booleanFrom(intent.degraded) ?? false,
+            degradedReasons: compactEvidenceStringArray(intent.degradedReasons, 8),
+            executableQuery: typeof intent.executableQuery === 'string'
+                ? redactEvidenceString(intent.executableQuery)
+                : null,
+            ...(stringFrom(intent.rankingProfile)
+                ? { rankingProfile: redactEvidenceString(stringFrom(intent.rankingProfile) ?? '') }
+                : {}),
+            ...(stringFrom(intent.requestedMode)
+                ? { requestedMode: redactEvidenceString(stringFrom(intent.requestedMode) ?? '') }
+                : {}),
+            sourceRefs: compactEvidenceStringArray(intent.sourceRefs, 12),
+            whySelected: compactEvidenceStringArray(intent.whySelected, 12),
+        },
+        omitted: compactPackageRecords(value.omitted, ['detail', 'itemId', 'reason', 'source'], 16),
+        relations: {
+            evidence: compactPackageRecords(relations.evidence, ['direction', 'itemId', 'relatedId', 'relatedType', 'relation', 'source'], 12),
+            omitted: compactEvidenceStringArray(relations.omitted, 8),
+        },
+        search: {
+            ...(stringFrom(search.actualMode)
+                ? { actualMode: redactEvidenceString(stringFrom(search.actualMode) ?? '') }
+                : {}),
+            ...(numberFrom(search.filteredCount) !== undefined
+                ? { filteredCount: numberFrom(search.filteredCount) }
+                : {}),
+            ...(stringFrom(search.query)
+                ? { query: redactEvidenceString(stringFrom(search.query) ?? '') }
+                : {}),
+            queries: compactEvidenceStringArray(search.queries, 8),
+            ...(stringFrom(search.requestedMode)
+                ? { requestedMode: redactEvidenceString(stringFrom(search.requestedMode) ?? '') }
+                : {}),
+            ...(numberFrom(search.resultCount) !== undefined
+                ? { resultCount: numberFrom(search.resultCount) }
+                : {}),
+        },
+        selectedKnowledge: compactPackageRecords(value.selectedKnowledge, [
+            'evidenceRefs',
+            'injectionStatus',
+            'itemId',
+            'kind',
+            'knowledgeType',
+            'rank',
+            'score',
+            'scoreBreakdown',
+            'sourceRefs',
+            'title',
+            'trigger',
+            'whySelected',
+        ], 8),
+        trace: {
+            evidenceRefs: compactEvidenceStringArray(trace.evidenceRefs, 16),
+            sourcePath: compactEvidenceStringArray(trace.sourcePath, 12),
+            sourceRefs: compactEvidenceStringArray(trace.sourceRefs, 16),
+            sources: compactEvidenceStringArray(trace.sources, 12),
+        },
+        vector: {
+            omitted: compactEvidenceStringArray(vector.omitted, 8),
+            scoreBreakdown: compactPackageRecords(vector.scoreBreakdown, [
+                'itemId',
+                'rank',
+                'finalScore',
+                'lexicalScore',
+                'relationScore',
+                'semanticScore',
+                'signals',
+                'vectorScore',
+            ], 8),
+            semanticAnchors: compactPackageRecords(vector.semanticAnchors, ['kind', 'source', 'value', 'weight'], 12),
+            ...(booleanFrom(vector.semanticUsed) !== undefined
+                ? { semanticUsed: booleanFrom(vector.semanticUsed) }
+                : {}),
+            topAnchorMatches: compactPackageRecords(vector.topAnchorMatches, ['anchor', 'itemId', 'matchType', 'rank', 'score', 'sourceRefs', 'title'], 10),
+            ...(booleanFrom(vector.vectorAvailable) !== undefined
+                ? { vectorAvailable: booleanFrom(vector.vectorAvailable) }
+                : {}),
+            ...(booleanFrom(vector.vectorUsed) !== undefined
+                ? { vectorUsed: booleanFrom(vector.vectorUsed) }
+                : {}),
+        },
+        version: numberFrom(value.version) ?? 1,
+    };
+}
+function compactPackageRecords(value, keys, limit) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    const records = [];
+    for (const item of value) {
+        if (!isRecord(item)) {
+            continue;
+        }
+        const projected = {};
+        for (const key of keys) {
+            const compactValue = compactPackageValue(key, item[key]);
+            if (compactValue !== undefined) {
+                projected[key] = compactValue;
+            }
+        }
+        if (Object.keys(projected).length > 0) {
+            records.push(projected);
+        }
+        if (records.length >= limit) {
+            break;
+        }
+    }
+    return records;
+}
+function compactPackageValue(key, value) {
+    if (['evidenceRefs', 'sourceRefs', 'signals', 'whySelected'].includes(key)) {
+        return compactEvidenceStringArray(value, 12);
+    }
+    if (key === 'scoreBreakdown') {
+        if (!isRecord(value)) {
+            return undefined;
+        }
+        const projected = {};
+        for (const scoreKey of [
+            'itemId',
+            'rank',
+            'finalScore',
+            'lexicalScore',
+            'relationScore',
+            'semanticScore',
+            'signals',
+            'vectorScore',
+        ]) {
+            const compactValue = compactPackageValue(scoreKey, value[scoreKey]);
+            if (compactValue !== undefined) {
+                projected[scoreKey] = compactValue;
+            }
+        }
+        return Object.keys(projected).length > 0 ? projected : undefined;
+    }
+    if (typeof value === 'string') {
+        return redactEvidenceString(value);
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'boolean' || value === null) {
+        return value;
+    }
+    return undefined;
 }
 function compactEvidenceRecords(value, keys, limit) {
     if (!Array.isArray(value)) {
