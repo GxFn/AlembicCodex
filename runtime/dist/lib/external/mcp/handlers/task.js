@@ -138,6 +138,9 @@ async function _prime(ctx, args) {
             queries: searchResult.searchMeta.queries,
             resultCount: searchResult.searchMeta.resultCount,
             filteredCount: searchResult.searchMeta.filteredCount,
+            ...(searchResult.searchMeta.intentEvidence
+                ? { intentEvidence: searchResult.searchMeta.intentEvidence }
+                : {}),
             ...(searchResult.searchMeta.residentSearch
                 ? {
                     residentSearch: searchResult.searchMeta.residentSearch,
@@ -250,6 +253,9 @@ function _buildPrimeKnowledgeMaterial(input) {
         hostResponse: _buildPrimeHostResponseInstruction(status, receiptId),
         nextActions: _buildPrimeKnowledgeNextActions(),
         intentEpisode: input.intentEpisode,
+        ...(input.searchResult?.searchMeta.intentEvidence
+            ? { intentEvidence: input.searchResult.searchMeta.intentEvidence }
+            : {}),
     };
 }
 function _projectAcceptedKnowledge(item) {
@@ -704,6 +710,7 @@ function _projectEpisodeSearchMeta(searchMeta, hostIntentFrame, sourceRefs) {
         hostIntentSourceRefs: residentSearchMeta?.hostIntentSourceRefs ??
             residentSearch?.hostIntentSourceRefs ??
             sourceRefs,
+        ...(searchMeta?.intentEvidence ? { intentEvidence: searchMeta.intentEvidence } : {}),
         queries: searchMeta?.queries,
         resultCount: searchMeta?.resultCount,
     });

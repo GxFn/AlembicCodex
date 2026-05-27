@@ -267,6 +267,7 @@ export class PrimeSearchPipeline {
             module: intent.module,
             resultCount,
             filteredCount,
+            ...(residentSearch?.intentEvidence ? { intentEvidence: residentSearch.intentEvidence } : {}),
             ...(residentSearch ? { residentSearch } : {}),
         };
     }

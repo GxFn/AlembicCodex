@@ -180,6 +180,9 @@ export async function search(ctx, args) {
                 : {}),
             searchMeta: {
                 ...(result?.searchMeta || {}),
+                ...(residentAttempt?.meta.intentEvidence
+                    ? { intentEvidence: residentAttempt.meta.intentEvidence }
+                    : {}),
                 ...(residentAttempt ? { residentSearch: residentAttempt.meta } : {}),
                 ...(residentAttempt ? { residentVector: residentAttempt.meta.residentVector } : {}),
             },
