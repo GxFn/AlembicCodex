@@ -1,24 +1,25 @@
 /**
- * MCP Tool Definitions — V3 Consolidated (16 agent + 2 admin = 18 tools)
+ * MCP Tool Definitions — V3 Consolidated (17 agent + 2 admin = 19 tools)
  *
  * Each tool declaration contains name, tier (agent/admin), description, and inputSchema.
  * description is the key for Agent tool selection — use bullet list to enumerate all operations and their purposes.
  * inputSchema is auto-generated from Zod Schema (zodToMcpSchema); parameter .describe() translates to JSON Schema description.
  *
- * Agent tools (16):
+ * Agent tools (17):
  *   1-7:   Query tools (health/search/knowledge/structure/graph/call_context/guard)
  *   8:     Write tool (submit_knowledge — unified pipeline, single/batch)
- *   9:     Skill management (skill)
+ *   9:     Project Skill delivery (project_skill)
  *   10-13: Workflow tools (bootstrap/rescan/evolve/consolidate)
  *   14:    Dimension completion (dimension_complete)
  *   15:    Project panorama (panorama)
  *   16:    Task management (task — 5 ops: prime/create/close/fail/record_decision)
  *
  * Admin tools (2):
- *   17-18: enrich_candidates/knowledge_lifecycle
+ *   18-19: enrich_candidates/knowledge_lifecycle
  */
 import { z } from 'zod';
-import { BootstrapInput, CallContextInput, ConsolidateInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, ProjectSkillInput, RescanInput, SearchInput, SkillInput, StructureInput, SubmitKnowledgeInput, TaskInput, } from '#shared/schemas/mcp-tools.js';
+import { BootstrapInput, CallContextInput, ConsolidateInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, ProjectSkillInput, RescanInput, SearchInput, StructureInput, SubmitKnowledgeInput, TaskInput, } from '#shared/schemas/mcp-tools.js';
+import { TOOL_GATEWAY_MAP, withPluginToolAnnotations } from './PluginToolSurfaceCatalog.js';
 import { zodToMcpSchema } from './zodToMcpSchema.js';
 // RescanInput may be undefined under certain Vitest module transforms; provide defensive fallback
 const _RescanSchema = RescanInput ??
@@ -61,134 +62,8 @@ const _ConsolidateSchema = ConsolidateInput ??
     });
 // ─── Tier Definitions ────────────────────────────────────────
 export const TIER_ORDER = { agent: 0, admin: 1 };
-function readOnlyTool(title) {
-    return {
-        title,
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-    };
-}
-function localWriteTool(title, idempotentHint = false) {
-    return {
-        title,
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint,
-        openWorldHint: false,
-    };
-}
-function aiBackedWriteTool(title) {
-    return {
-        title,
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-    };
-}
-function destructiveTool(title, idempotentHint = false) {
-    return {
-        title,
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint,
-        openWorldHint: false,
-    };
-}
-const TOOL_ANNOTATIONS = {
-    alembic_codex_status: readOnlyTool('Check Alembic Codex Status'),
-    alembic_codex_diagnostics: readOnlyTool('Run Alembic Codex Diagnostics'),
-    alembic_codex_init: localWriteTool('Initialize Alembic Codex Workspace', true),
-    alembic_codex_dashboard: localWriteTool('Start Alembic Dashboard', true),
-    alembic_codex_bootstrap: aiBackedWriteTool('Start Recoverable Bootstrap Job'),
-    alembic_codex_rescan: aiBackedWriteTool('Start Recoverable Rescan Job'),
-    alembic_codex_job: readOnlyTool('Read Recoverable Job Status'),
-    alembic_codex_stop: localWriteTool('Stop Alembic Daemon', true),
-    alembic_codex_cleanup: destructiveTool('Clean Alembic Runtime State'),
-    alembic_health: readOnlyTool('Check Alembic Health'),
-    alembic_search: readOnlyTool('Search Alembic Knowledge'),
-    alembic_knowledge: localWriteTool('Browse Or Mark Alembic Knowledge Usage'),
-    alembic_structure: readOnlyTool('Explore Project Structure'),
-    alembic_graph: readOnlyTool('Query Alembic Knowledge Graph'),
-    alembic_call_context: readOnlyTool('Query Code Call Context'),
-    alembic_guard: readOnlyTool('Run Alembic Guard Check'),
-    alembic_submit_knowledge: aiBackedWriteTool('Submit Alembic Knowledge Candidate'),
-    alembic_project_skill: localWriteTool('Deliver Alembic Project Skills To Codex'),
-    alembic_skill: localWriteTool('Legacy Alembic Skill Storage Compatibility'),
-    alembic_bootstrap: aiBackedWriteTool('Run Codex Host-Agent Bootstrap'),
-    alembic_rescan: aiBackedWriteTool('Run Codex Host-Agent Rescan'),
-    alembic_evolve: destructiveTool('Apply Alembic Evolution Decision'),
-    alembic_consolidate: localWriteTool('Review Alembic Consolidation Decision'),
-    alembic_dimension_complete: localWriteTool('Complete Alembic Dimension Analysis'),
-    alembic_panorama: localWriteTool('Query Or Refresh Alembic Panorama'),
-    alembic_task: localWriteTool('Manage Alembic Task State'),
-    alembic_enrich_candidates: readOnlyTool('Diagnose Alembic Candidate Fields'),
-    alembic_knowledge_lifecycle: localWriteTool('Request Alembic Knowledge Reactivation'),
-};
-export function withMcpToolAnnotations(tool) {
-    const annotations = TOOL_ANNOTATIONS[tool.name];
-    if (!annotations) {
-        return tool;
-    }
-    return {
-        ...tool,
-        annotations: {
-            ...annotations,
-            ...tool.annotations,
-        },
-    };
-}
-// ─── Gateway Mapping (only write operations require gating) ─
-export const TOOL_GATEWAY_MAP = {
-    // bootstrap — parameterless Mission Briefing (read-only analysis, no gating needed)
-    // alembic_bootstrap: null,
-    // rescan — incremental knowledge update (write: cleans derived data + creates decay proposals)
-    alembic_rescan: { action: 'knowledge:bootstrap', resource: 'knowledge' },
-    // dimension_complete — write operation (recipe tagging + skill creation + checkpoint)
-    alembic_dimension_complete: { action: 'knowledge:bootstrap', resource: 'knowledge' },
-    // guard write operation (files mode only)
-    alembic_guard: {
-        resolver: (args) => args?.files && Array.isArray(args.files)
-            ? { action: 'guard_rule:check_code', resource: 'guard_rules' }
-            : null, // code mode is read-only, skip Gateway
-    },
-    // skill write operations (create/update/delete)
-    alembic_project_skill: {
-        resolver: (args) => ({
-            create: { action: 'create:skills', resource: 'skills' },
-            update: { action: 'update:skills', resource: 'skills' },
-            delete: { action: 'delete:skills', resource: 'skills' },
-            export: { action: 'update:skills', resource: 'skills' },
-        })[args?.operation] || null,
-    },
-    alembic_skill: {
-        resolver: (args) => ({
-            create: { action: 'create:skills', resource: 'skills' },
-            update: { action: 'update:skills', resource: 'skills' },
-            delete: { action: 'delete:skills', resource: 'skills' },
-        })[args?.operation] || null, // list/load are read-only
-    },
-    // knowledge submission (unified pipeline)
-    alembic_submit_knowledge: { action: 'knowledge:create', resource: 'knowledge' },
-    // evolve — Recipe evolution decisions (propose/deprecate/skip)
-    alembic_evolve: { action: 'knowledge:evolve', resource: 'knowledge' },
-    // consolidate — Agent semantic review decisions for ambiguous overlaps
-    alembic_consolidate: { action: 'knowledge:consolidate', resource: 'knowledge' },
-    // task write operations (create/close/fail + record_decision)
-    alembic_task: {
-        resolver: (args) => ({
-            create: { action: 'task:create', resource: 'intent' },
-            close: { action: 'task:update', resource: 'intent' },
-            fail: { action: 'task:update', resource: 'intent' },
-            record_decision: { action: 'task:create', resource: 'intent' },
-        })[args?.operation] || null, // prime is read-only
-    },
-    // admin tools
-    alembic_enrich_candidates: { action: 'knowledge:update', resource: 'knowledge' },
-    alembic_knowledge_lifecycle: { action: 'knowledge:update', resource: 'knowledge' },
-};
+export const withMcpToolAnnotations = withPluginToolAnnotations;
+export { TOOL_GATEWAY_MAP };
 // ─── Tool Declarations ───────────────────────────────────────
 export const TOOLS = [
     // ══════════════════════════════════════════════════════
@@ -279,6 +154,7 @@ export const TOOLS = [
             '• Overlap detected → evolution proposal created automatically (merge/enhance/reorganize); system auto-executes after observation window\n' +
             '• Set skipConsolidation: true to skip consolidation check. content and reasoning must be objects.\n' +
             '• Set supersedes: "old-recipe-id" to declare the new Recipe replaces an existing one (creates a supersede proposal with observation window).\n' +
+            '• Optional unitId / analysisUnitIds / sourceRefs link submissions to Core IDEAgentAnalysisUnit progress; omit them for legacy flows.\n' +
             '⚠️ Batch rule: items in the array must NOT be cross-redundant — no highly overlapping doClause/coreCode/trigger within the same batch. ' +
             'If two entries share 80%+ content, merge into one or split into primary + extends supplementary entries.',
         inputSchema: zodToMcpSchema(SubmitKnowledgeInput),
@@ -296,13 +172,6 @@ export const TOOLS = [
             '• delete — delete Alembic-managed source/runtime projection; built-in plugin skills remain read-only',
         inputSchema: zodToMcpSchema(ProjectSkillInput),
     },
-    {
-        name: 'alembic_skill',
-        tier: 'agent',
-        description: 'Legacy compatibility alias for Project Skill operations. Prefer alembic_project_skill for Codex runtime delivery because it exposes refresh, receipt, project authorization, conflict status, and `.agents/skills` export state.\n' +
-            '• list/load/create/update/delete — routed to the unified Project Skill service; old storage writer behavior has retired',
-        inputSchema: zodToMcpSchema(SkillInput),
-    },
     // 10. Cold-Start Bootstrap
     {
         name: 'alembic_bootstrap',
@@ -310,6 +179,7 @@ export const TOOLS = [
         description: 'Cold-start — no parameters needed. Auto-analyzes the project (AST, dependency graph, Guard audit) and returns a Mission Briefing:\n' +
             '• Project metadata and language statistics\n' +
             '• Dimension task list (8 dimensions × 3 Tiers)\n' +
+            '• ideAgentAnalysis packet summary, next units, retrieval hints, and unit progress seed\n' +
             '• Execution plan and submission examples\n' +
             'After receiving the Briefing, complete all dimension analyses per the executionPlan.',
         inputSchema: zodToMcpSchema(BootstrapInput),
@@ -322,6 +192,7 @@ export const TOOLS = [
             '• Snapshots approved Recipes → cleans derived caches → full Phase 1-4 analysis\n' +
             '• Runs relevance audit (evidence check, auto-decay stale Recipes)\n' +
             '\u2022 Returns Mission Briefing with allRecipes (full content + auditHint per recipe)\n' +
+            '\u2022 Includes ideAgentAnalysis packet summary, next units, retrieval hints, and unit progress seed\n' +
             '\u2022 Per-dimension workflow: evolve (alembic_evolve) \u2192 gap-fill (submit_knowledge) \u2192 dimension_complete\n' +
             '\u2022 Optional: dimensions (filter specific dimensions), reason (rescan justification)',
         inputSchema: zodToMcpSchema(_RescanSchema),
@@ -356,7 +227,8 @@ export const TOOLS = [
         name: 'alembic_dimension_complete',
         tier: 'agent',
         description: 'Dimension analysis completion notification. Handles: Recipe linking, Skill generation (auto-synthesized from submitted candidates), Checkpoint saving, cross-dimension Hints distribution.\n' +
-            'analysisText can be brief — the system auto-synthesizes detailed content from submitted candidates for Skill generation.',
+            'analysisText can be brief — the system auto-synthesizes detailed content from submitted candidates for Skill generation.\n' +
+            'Optional unitId / analysisUnitIds / skippedAnalysisUnitIds / rejectedAnalysisUnitIds / remainingAnalysisUnitIds / deviationReason backfill IDE Agent unit progress.',
         inputSchema: zodToMcpSchema(DimensionCompleteInput),
     },
     // 13. Project Panorama
@@ -379,9 +251,11 @@ export const TOOLS = [
         name: 'alembic_task',
         tier: 'agent',
         description: 'Task and decision management (5 operations). Call prime first at the start of each conversation to load knowledge context.\n' +
+            'Visible for initialized projects even before usable Recipes exist because task close is a Codex lifecycle surface, not a Recipe/Search/Guard knowledge query.\n' +
             '• prime — load knowledge context + initialize intent lifecycle\n' +
             '• create — create task anchor (for non-trivial work: ≥2 files or ≥10 lines)\n' +
             '• close — complete task + trigger Guard compliance review\n' +
+            '• close also surfaces Plugin-only opportunistic evolution hints/proposals when Alembic resident ProjectScope cannot handle the project; it never auto-submits Recipes\n' +
             '• fail — abandon task\n' +
             '• record_decision — record user preference decision',
         inputSchema: zodToMcpSchema(TaskInput),

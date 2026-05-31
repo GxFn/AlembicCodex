@@ -3,6 +3,7 @@ import { saveDimensionCheckpoint, } from '@alembic/core/host-agent-workflows';
 import Logger from '@alembic/core/logging';
 import { getDeveloperIdentity } from '@alembic/core/shared';
 import { resolveDataRoot } from '@alembic/core/workspace';
+import { buildIDEAgentAnalysisProgressBackfill } from '#codex/ide-agent/IDEAgentAnalysisSurface.js';
 import { CODEX_HOST_AGENT_SOURCE } from '#codex/SourceBoundary.js';
 import { BootstrapEventEmitter } from '#service/bootstrap/BootstrapEventEmitter.js';
 import { runWorkflowCompletionFinalizer, } from '#workflows/capabilities/completion/WorkflowCompletionFinalizer.js';
@@ -32,6 +33,15 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
     const submittedRecipeIds = input.value.submittedRecipeIds.length > 0
         ? input.value.submittedRecipeIds
         : recoverSubmittedRecipeIds(session.value, input.value.dimensionId);
+    const ideAgentAnalysisProgress = buildIDEAgentAnalysisProgressBackfill({
+        analysisUnitIds: input.value.analysisUnitIds,
+        deviationReason: input.value.deviationReason,
+        dimensionId: input.value.dimensionId,
+        rejectedAnalysisUnitIds: input.value.rejectedAnalysisUnitIds,
+        remainingAnalysisUnitIds: input.value.remainingAnalysisUnitIds,
+        sessionId: session.value.id,
+        skippedAnalysisUnitIds: input.value.skippedAnalysisUnitIds,
+    });
     const recipesBound = await bindSubmittedRecipes({
         ctx,
         session: session.value,
@@ -64,6 +74,7 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
         referencedFiles,
         submittedRecipeIds,
         skillCreated: skillResult.success,
+        ideAgentAnalysisProgress,
         dependencies,
     });
     await persistKeyFindings({
@@ -135,6 +146,7 @@ export async function runExternalDimensionCompletionWorkflow(ctx, args, dependen
             accumulatedHints: Object.keys(accumulatedHints).length > 0 ? accumulatedHints : undefined,
             qualityFeedback,
             evidenceHints,
+            ideAgentAnalysisProgress,
             subpackageCoverageWarning,
             nextActions: isComplete ? BOOTSTRAP_COMPLETE_ACTIONS : undefined,
         },
@@ -171,6 +183,14 @@ function normalizeCompletionInput(args) {
         value: {
             sessionId: typeof args.sessionId === 'string' ? args.sessionId : undefined,
             dimensionId,
+            analysisUnitIds: uniqueStrings([
+                ...(typeof args.unitId === 'string' ? [args.unitId] : []),
+                ...stringArray(args.analysisUnitIds),
+            ]),
+            skippedAnalysisUnitIds: stringArray(args.skippedAnalysisUnitIds),
+            rejectedAnalysisUnitIds: stringArray(args.rejectedAnalysisUnitIds),
+            remainingAnalysisUnitIds: stringArray(args.remainingAnalysisUnitIds),
+            deviationReason: typeof args.deviationReason === 'string' ? args.deviationReason : undefined,
             submittedRecipeIds: submittedRecipeIds.filter((id) => typeof id === 'string'),
             analysisText,
             referencedFiles: stringArray(args.referencedFiles),
@@ -378,7 +398,7 @@ async function synthesizeSkillAnalysisIfNeeded({ ctx, dimension, dimensionId, an
     }
     return analysisText;
 }
-async function persistDimensionCheckpoint({ session, dataRoot, dimensionId, candidateCount, analysisText, referencedFiles, submittedRecipeIds, skillCreated, dependencies, }) {
+async function persistDimensionCheckpoint({ session, dataRoot, dimensionId, candidateCount, analysisText, referencedFiles, submittedRecipeIds, skillCreated, ideAgentAnalysisProgress, dependencies, }) {
     try {
         const saveCheckpoint = dependencies.saveCheckpoint ?? saveDimensionCheckpoint;
         await saveCheckpoint(dataRoot, session.id, dimensionId, {
@@ -387,6 +407,7 @@ async function persistDimensionCheckpoint({ session, dataRoot, dimensionId, cand
             referencedFiles: referencedFiles.length,
             recipeIds: submittedRecipeIds,
             skillCreated,
+            ideAgentAnalysisProgress,
         });
     }
     catch (err) {
@@ -515,6 +536,9 @@ function stringArray(value) {
     return Array.isArray(value)
         ? value.filter((item) => typeof item === 'string')
         : [];
+}
+function uniqueStrings(value) {
+    return [...new Set(value.filter((item) => item.trim().length > 0))];
 }
 function validationFailure(message, errorCode = 'VALIDATION_ERROR') {
     return {

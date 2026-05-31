@@ -10,9 +10,10 @@
  *   4. 构建 Mission Briefing（含 allRecipes + evolutionGuide）
  *   5. 返回给外部 Agent 按维度执行: evolve → gap-fill → dimension_complete
  */
-import { auditRecipesForRescan, buildExternalMissionBriefing, buildKnowledgeRescanPlan, buildKnowledgeRescanWorkflowPlan, buildRescanPrescreen, createExternalKnowledgeRescanIntent, createExternalWorkflowSession, presentExternalKnowledgeRescanEmptyProject, presentExternalKnowledgeRescanResponse, projectExternalRescanEvidencePlan, runForceRescanCleanPolicy, runRescanCleanPolicy, syncKnowledgeStoreForRescan, } from '@alembic/core/host-agent-workflows';
+import { auditRecipesForRescan, buildExternalMissionBriefing, buildIDEAgentAnalysisPacketFromSnapshot, buildKnowledgeRescanPlan, buildKnowledgeRescanWorkflowPlan, buildRescanPrescreen, createExternalKnowledgeRescanIntent, createExternalWorkflowSession, presentExternalKnowledgeRescanEmptyProject, presentExternalKnowledgeRescanResponse, projectExternalRescanEvidencePlan, runForceRescanCleanPolicy, runRescanCleanPolicy, syncKnowledgeStoreForRescan, } from '@alembic/core/host-agent-workflows';
 import { buildProjectSnapshot, ProjectIntelligenceCapability, } from '@alembic/core/project-intelligence';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
+import { buildIDEAgentAnalysisSurface } from '#codex/ide-agent/IDEAgentAnalysisSurface.js';
 import { CleanupService } from '#service/cleanup/CleanupService.js';
 // ── 主入口 ─────────────────────────────────────────────────
 export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
@@ -99,6 +100,7 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
         return presentExternalKnowledgeRescanEmptyProject({ responseTimeMs: Date.now() - t0 });
     }
     const { allFiles, primaryLang, depGraphData, langStats, astProjectSummary, codeEntityResult, callGraphResult, guardAudit, activeDimensions: allDimensions, targetsSummary, localPackageModules, langProfile, } = phaseResults;
+    const activeDimensions = Array.isArray(allDimensions) ? allDimensions : [];
     // ── Build immutable ProjectSnapshot ──
     const snapshot = buildProjectSnapshot({
         projectRoot,
@@ -119,7 +121,7 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
     const knowledgeRescanPlan = buildKnowledgeRescanPlan({
         recipeEntries: recipeSnapshot.entries,
         auditSummary,
-        dimensions: allDimensions,
+        dimensions: activeDimensions,
         requestedDimensionIds: intent.dimensionIds,
     });
     const dimensions = knowledgeRescanPlan.executionDimensions;
@@ -139,7 +141,7 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
     const session = createExternalWorkflowSession({
         container: ctx.container,
         projectRoot,
-        dimensions,
+        dimensions: Array.isArray(dimensions) ? dimensions : [],
         snapshot,
         primaryLang,
         fileCount: allFiles.length,
@@ -159,25 +161,36 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
             codeEntityResult,
             callGraphResult,
             depGraphData,
-            guardAudit,
-            targets: targetsSummary,
-            activeDimensions: dimensions,
+            guardAudit: normalizeGuardAuditForBriefing(guardAudit),
+            // Core MissionBriefingBuilder consumes a target array; generic project scans can
+            // provide a summary object, so keep the compatibility normalization in Plugin.
+            targets: Array.isArray(targetsSummary) ? targetsSummary : [],
+            activeDimensions: Array.isArray(dimensions) ? dimensions : [],
             session,
             languageStats: langStats,
             panoramaResult: snapshot.panorama,
-            localPackageModules,
+            localPackageModules: Array.isArray(localPackageModules) ? localPackageModules : [],
         },
     });
+    const ideAgentPacket = buildIDEAgentAnalysisPacketFromSnapshot(normalizeProjectSnapshotForIDEAgent(snapshot), {
+        profile: 'rescan',
+    });
+    const ideAgentAnalysis = buildIDEAgentAnalysisSurface(ideAgentPacket);
+    const briefingWithIdeAgentSurface = attachIDEAgentAnalysisSurface(briefing, ideAgentAnalysis);
     // 附加 warnings
     if (phaseResults.warnings.length > 0) {
-        briefing.meta = briefing.meta || {};
-        briefing.meta.warnings = [...(briefing.meta.warnings || []), ...phaseResults.warnings];
+        briefingWithIdeAgentSurface.meta = briefingWithIdeAgentSurface.meta || {};
+        const existingWarnings = Array.isArray(briefingWithIdeAgentSurface.meta.warnings)
+            ? briefingWithIdeAgentSurface.meta.warnings
+            : [];
+        briefingWithIdeAgentSurface.meta.warnings = [...existingWarnings, ...phaseResults.warnings];
     }
     const dimGapLog = evidencePlan.dimensionGaps
         .map((dimensionGap) => `${dimensionGap.dimensionId}(${dimensionGap.existingCount}→gap ${dimensionGap.gap}, mode ${dimensionGap.executionMode}, budget ${dimensionGap.createBudget})`)
         .join(', ');
-    ctx.logger.info(`[Rescan] Mission Briefing ready: ${allFiles.length} files, ${dimensions.length} dims, ` +
-        `preserved: ${recipeSnapshot.count}, decayed: ${evidencePlan.decayCount}, totalGap: ${evidencePlan.totalGap} — session ${session.id}`);
+    ctx.logger.info(`[Rescan] Mission Briefing ready: ${allFiles.length} files, ${Array.isArray(dimensions) ? dimensions.length : 0} dims, ` +
+        `preserved: ${recipeSnapshot.count}, decayed: ${evidencePlan.decayCount}, totalGap: ${evidencePlan.totalGap}, ` +
+        `ideUnits: ${ideAgentAnalysis.progress.totalUnits} — session ${session.id}`);
     ctx.logger.info(`[Rescan] Dimension gaps: ${dimGapLog}`);
     ctx.logger.info('[Rescan] Execution reasons', {
         executionDimensions: knowledgeRescanPlan.executionDimensions.length,
@@ -188,12 +201,73 @@ export async function runExternalKnowledgeRescanWorkflow(ctx, args) {
         recipeSnapshot,
         cleanResult,
         auditSummary,
-        briefing: briefing,
+        briefing: briefingWithIdeAgentSurface,
         evidencePlan,
         dimensions: requestedDimensions,
         reason: intent.reason,
         responseTimeMs: Date.now() - t0,
     });
+}
+function attachIDEAgentAnalysisSurface(briefing, ideAgentAnalysis) {
+    const meta = briefing.meta && typeof briefing.meta === 'object' && !Array.isArray(briefing.meta)
+        ? briefing.meta
+        : {};
+    return {
+        ...briefing,
+        ideAgentAnalysis,
+        meta: {
+            ...meta,
+            ideAgentAnalysis: {
+                packetId: ideAgentAnalysis.packetSummary.packetId,
+                profile: ideAgentAnalysis.packetSummary.profile,
+                totalUnits: ideAgentAnalysis.progress.totalUnits,
+                remainingUnits: ideAgentAnalysis.progress.remainingUnitIds.length,
+            },
+        },
+    };
+}
+function normalizeGuardAuditForBriefing(guardAudit) {
+    if (!guardAudit || typeof guardAudit !== 'object' || Array.isArray(guardAudit)) {
+        return guardAudit;
+    }
+    const record = guardAudit;
+    // Core briefing expects array fields; Plugin accepts older/newer Guard audit DTOs here.
+    return {
+        ...record,
+        files: Array.isArray(record.files) ? record.files.map(normalizeGuardAuditFile) : [],
+        crossFileViolations: Array.isArray(record.crossFileViolations)
+            ? record.crossFileViolations
+            : [],
+    };
+}
+function normalizeGuardAuditFile(file) {
+    if (!file || typeof file !== 'object' || Array.isArray(file)) {
+        return file;
+    }
+    const record = file;
+    return {
+        ...record,
+        violations: Array.isArray(record.violations) ? record.violations : [],
+    };
+}
+function normalizeProjectSnapshotForIDEAgent(snapshot) {
+    return {
+        ...snapshot,
+        guardAudit: normalizeGuardAuditForBriefing(snapshot.guardAudit),
+        panorama: normalizePanoramaForIDEAgent(snapshot.panorama),
+    };
+}
+function normalizePanoramaForIDEAgent(panorama) {
+    if (!panorama || typeof panorama !== 'object' || Array.isArray(panorama)) {
+        return panorama;
+    }
+    const record = panorama;
+    return {
+        ...record,
+        layers: Array.isArray(record.layers) ? record.layers : [],
+        couplingHotspots: Array.isArray(record.couplingHotspots) ? record.couplingHotspots : [],
+        cyclicDependencies: Array.isArray(record.cyclicDependencies) ? record.cyclicDependencies : [],
+    };
 }
 function createWorkflowCleanupService(ctx) {
     return new CleanupService({

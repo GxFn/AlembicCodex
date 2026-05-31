@@ -91,10 +91,10 @@ export function summarizeEnhancementDaemon(status) {
         ? normalizeAlembicResidentServiceStatus(data.residentService)
         : null;
     const runtimeBoundary = summarizeDaemonRuntimeBoundary(capabilities, data);
-    const capabilitySummary = mergeCapabilitySummaryWithRuntimeBoundary(mergeCapabilitySummaryWithResidentService(summarizeAlembicRuntimeCapabilities(capabilities), residentServiceStatus), runtimeBoundary);
-    const route = firstString(residentServiceStatus?.route, enhancement?.route, runtimeBoundary.route) ||
+    const capabilitySummary = mergeCapabilitySummaryWithResidentService(summarizeAlembicRuntimeCapabilities(capabilities), residentServiceStatus);
+    const route = firstString(residentServiceStatus?.route, enhancement?.route) ||
         inferRouteFromReadyDaemon(status);
-    const dashboardUrl = firstString(capabilitySummary.dashboardUrl, runtimeBoundary.dashboard.url, data?.dashboardUrl, isLocalAlembicDaemonRoute(route) && capabilitySummary.dashboardAvailable === true
+    const dashboardUrl = firstString(capabilitySummary.dashboardUrl, data?.dashboardUrl, isLocalAlembicDaemonRoute(route) && capabilitySummary.dashboardAvailable === true
         ? status.state?.dashboardUrl
         : null);
     return {
@@ -152,10 +152,10 @@ function buildEnhancementRouteReason(input) {
                 : '';
             return `Local Alembic daemon is ready and owns resident service route (${residentService.status.owner}/${residentService.status.route}).${scope}${suffix}`;
         }
-        const boundary = input.daemon.compatibility.runtimeBoundary.activeFallback
-            ? ` Runtime boundary source: ${input.daemon.runtimeBoundary.source}.`
+        const diagnostic = input.daemon.runtimeBoundary.available
+            ? ` Runtime boundary diagnostics are still reported from ${input.daemon.runtimeBoundary.source}.`
             : '';
-        return `Local Alembic daemon is ready through legacy runtime boundary compatibility.${boundary}${suffix}`;
+        return `Local Alembic daemon is ready, but its health payload did not expose canonical residentService capabilities.${diagnostic}${suffix}`;
     }
     if (input.selected === 'embedded-plugin-runtime') {
         if (input.requirement === 'dashboard') {
@@ -175,23 +175,19 @@ function buildEnhancementRouteReason(input) {
     return 'No usable Alembic enhancement route is available.';
 }
 function summarizeRuntimeBoundaryCompatibility(runtimeBoundary, residentService) {
-    const retained = runtimeBoundary.available;
+    const reported = runtimeBoundary.available;
     const canonicalResidentServicePresent = residentService !== null;
     return {
-        activeFallback: retained && !canonicalResidentServicePresent,
+        activeFallback: false,
         canonicalResidentServicePresent,
-        consumer: retained
-            ? 'EnhancementRoute capability fallback, HostProjectAlignment legacy project fallback, and ModuleBoundary diagnostics'
-            : null,
-        deletionCondition: retained
-            ? 'Remove after all supported Alembic daemon health producers expose data.residentService and downstream status/dashboard handoff no longer needs runtimeBoundary fallback.'
-            : null,
-        reason: retained
+        consumer: null,
+        deletionCondition: null,
+        reason: reported
             ? canonicalResidentServicePresent
-                ? 'Retained only as backward-compatible diagnostics; residentService is the canonical capability source.'
-                : 'Older daemon health payload did not expose residentService, so runtimeBoundary remains the compatibility source.'
+                ? 'runtimeBoundary is retained only as diagnostics; residentService is the canonical capability source.'
+                : 'runtimeBoundary is reported only as diagnostics; Plugin capability decisions require residentService or explicit capability sections.'
             : null,
-        retained,
+        retained: false,
         source: runtimeBoundary.source,
     };
 }
@@ -253,19 +249,6 @@ function summarizeDaemonRuntimeBoundary(capabilities, data) {
         },
     };
 }
-function mergeCapabilitySummaryWithRuntimeBoundary(summary, runtimeBoundary) {
-    return {
-        ...summary,
-        apiAvailable: summary.apiAvailable,
-        dashboardAvailable: summary.dashboardAvailable ?? (runtimeBoundary.dashboard.url ? true : null),
-        dashboardUrl: summary.dashboardUrl ?? runtimeBoundary.dashboard.url,
-        fileMonitorAvailable: summary.fileMonitorAvailable ?? runtimeBoundary.fileMonitor.available,
-        fileMonitorMode: summary.fileMonitorMode ?? runtimeBoundary.fileMonitor.mode,
-        internalAiAvailable: summary.internalAiAvailable ?? runtimeBoundary.internalAi.available,
-        jobsAvailable: summary.jobsAvailable ?? (runtimeBoundary.jobs.kinds.length > 0 ? true : null),
-        jobKinds: summary.jobKinds.length > 0 ? summary.jobKinds : runtimeBoundary.jobs.kinds,
-    };
-}
 function mergeCapabilitySummaryWithResidentService(summary, residentService) {
     if (!residentService) {
         return summary;
@@ -311,7 +294,7 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
             : null;
     return {
         ...summary,
-        // residentService 是 Phase 4 后的 canonical capability 输入；旧 capabilities/runtimeBoundary 只补空缺。
+        // residentService 是 canonical capability 输入；runtimeBoundary 保留为诊断字段，不补能力空缺。
         apiAvailable: statusAvailable ?? summary.apiAvailable,
         dashboardAvailable: dashboardAvailable ?? summary.dashboardAvailable,
         dashboardUrl: summary.dashboardUrl,

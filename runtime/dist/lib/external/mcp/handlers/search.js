@@ -28,7 +28,13 @@ function getSearchEngine(ctx) {
         return null;
     }
 }
-function getResidentServiceClient(ctx) {
+function getResidentSearchClient(ctx) {
+    try {
+        return ctx.container.get('residentSearchClient');
+    }
+    catch {
+        // Test and HTTP compatibility contexts may still expose the older internal key.
+    }
     try {
         return ctx.container.get('residentServiceClient');
     }
@@ -69,7 +75,7 @@ function filterByKind(items, kind) {
 export async function search(ctx, args) {
     const t0 = Date.now();
     const engine = getSearchEngine(ctx) || (await getFallbackEngine(ctx));
-    const residentServiceClient = getResidentServiceClient(ctx);
+    const residentSearchClient = getResidentSearchClient(ctx);
     const query = args.query;
     const mode = args.mode || 'auto';
     const kind = args.kind || args.type || 'all';
@@ -105,7 +111,7 @@ export async function search(ctx, args) {
     const recallLimit = kind !== 'all' ? limit * 2 : limit;
     // semantic 模式也过采样 2x（向量搜索可能有噪声）
     const engineLimit = mode === 'semantic' ? recallLimit * 2 : recallLimit;
-    const residentAttempt = await tryResidentSearch(residentServiceClient, {
+    const residentAttempt = await tryResidentSearch(residentSearchClient, {
         kind,
         limit: engineLimit,
         mode,
@@ -207,12 +213,12 @@ export async function search(ctx, args) {
         meta: { tool: toolName, source, responseTimeMs: elapsed },
     });
 }
-async function tryResidentSearch(residentServiceClient, request) {
-    if (!residentServiceClient || !shouldAskResidentSearch(request.mode)) {
+async function tryResidentSearch(residentSearchClient, request) {
+    if (!residentSearchClient || !shouldAskResidentSearch(request.mode)) {
         return null;
     }
     try {
-        const result = await residentServiceClient.search({
+        const result = await residentSearchClient.search({
             query: request.query,
             mode: request.mode,
             limit: request.limit,

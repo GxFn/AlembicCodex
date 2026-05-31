@@ -563,7 +563,7 @@ async function _handoffIntentEpisode(ctx, input) {
         sessionSource: episodeSession.source,
         start: { ok: false, reason: 'residentServiceClient unavailable' },
     };
-    const client = _getResidentServiceClient(ctx.container);
+    const client = _getResidentIntentEpisodeClient(ctx.container);
     if (!client) {
         return unavailable;
     }
@@ -729,7 +729,7 @@ async function _updateIntentEpisodeOutcome(ctx, intent, outcome, reason, taskId)
     if (!episodeId) {
         return;
     }
-    const client = _getResidentServiceClient(ctx.container);
+    const client = _getResidentIntentEpisodeClient(ctx.container);
     if (!client) {
         return;
     }
@@ -751,7 +751,14 @@ async function _updateIntentEpisodeOutcome(ctx, intent, outcome, reason, taskId)
         process.stderr.write(`[MCP/Task] intent episode outcome error: ${err instanceof Error ? err.message : String(err)}\n`);
     }
 }
-function _getResidentServiceClient(container) {
+function _getResidentIntentEpisodeClient(container) {
+    try {
+        return container.get('residentIntentEpisodeClient');
+    }
+    catch {
+        // Older in-process containers still expose a compatibility facade while the
+        // Codex-facing route split rolls through the package.
+    }
     try {
         return container.get('residentServiceClient');
     }

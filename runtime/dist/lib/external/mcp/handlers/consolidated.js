@@ -148,70 +148,11 @@ export async function consolidatedGuard(ctx, args) {
     // review 模式内部处理 files 参数和自动检测
     return guardHandlers.guardReview(ctx, args);
 }
-// ─── alembic_skill (整合 6 → 1) ─────────────────────────
-/**
- * Skill 管理：根据 operation 参数路由
- *   list    → listSkills()
- *   load    → loadSkill()
- *   create  → ProjectSkillService.upsert()
- *   update  → ProjectSkillService.upsert()
- *   delete  → ProjectSkillService.delete()
- *
- * @deprecated Prefer alembic_project_skill. This compatibility route now uses
- * the same ProjectSkillService instead of the retired legacy storage writer.
- */
-export async function consolidatedSkill(ctx, args) {
-    const op = args.operation;
-    if (!op) {
-        throw new Error('Missing required parameter: operation. Expected: list, load, create, update, delete');
-    }
-    // loadSkill expects { skillName }, map from { name }
-    if (args.name && !args.skillName) {
-        args.skillName = args.name;
-    }
-    switch (op) {
-        case 'list':
-            return withLegacySkillReplacement(skillHandlers.listSkills(ctx));
-        case 'load':
-            return withLegacySkillReplacement(skillHandlers.loadSkill(ctx, args));
-        case 'create':
-            return withLegacySkillReplacement(skillHandlers.createSkill(ctx, args));
-        case 'update':
-            return withLegacySkillReplacement(skillHandlers.updateSkill(ctx, args));
-        case 'delete':
-            return withLegacySkillReplacement(skillHandlers.deleteSkill(ctx, args));
-        default:
-            throw new Error(`Unknown skill operation: ${op}. Expected: list, load, create, update, delete`);
-    }
-}
 export async function consolidatedProjectSkill(ctx, args) {
     if (args.name && !args.skillName) {
         args.skillName = args.name;
     }
     return skillHandlers.projectSkill(ctx, args);
-}
-function withLegacySkillReplacement(value) {
-    if (typeof value !== 'string') {
-        return value;
-    }
-    try {
-        const parsed = JSON.parse(value);
-        const data = parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)
-            ? parsed.data
-            : {};
-        return JSON.stringify({
-            ...parsed,
-            data: {
-                ...data,
-                legacyCompatibility: true,
-                replacementTool: 'alembic_project_skill',
-                replacementReason: 'Codex Project Skill runtime delivery now uses the unified ProjectSkillService with dataRoot source storage and .agents/skills symlink export.',
-            },
-        });
-    }
-    catch {
-        return value;
-    }
 }
 // ─── alembic_submit_knowledge (unified pipeline) ──────────────────────
 /**
@@ -349,6 +290,13 @@ export async function enhancedSubmitKnowledge(ctx, args) {
     };
     if (gatewayResult.created.length > 0) {
         data.ids = gatewayResult.created.map((c) => c.id);
+    }
+    const ideAgentAnalysisLinkage = buildIDEAgentAnalysisLinkage(items, gatewayResult.created);
+    if (ideAgentAnalysisLinkage.length > 0) {
+        data.ideAgentAnalysisLinkage = {
+            links: ideAgentAnalysisLinkage,
+            message: 'Optional IDEAgentAnalysisUnit linkage was accepted for host-agent progress backfill; submissions without unitId remain valid.',
+        };
     }
     if (gatewayResult.rejected.length > 0) {
         const rejectedItems = gatewayResult.rejected.map((r) => ({
@@ -513,6 +461,40 @@ function _buildPendingSemanticReviewDecision(review) {
         action: 'keep',
         reasoning: review.reason,
     };
+}
+function buildIDEAgentAnalysisLinkage(items, created) {
+    const createdByTitle = new Map(created.map((entry) => [entry.title, entry]));
+    const links = [];
+    for (const item of items) {
+        const title = typeof item.title === 'string' ? item.title : '';
+        const createdRecipe = createdByTitle.get(title);
+        if (!createdRecipe) {
+            continue;
+        }
+        const analysisUnitIds = uniqueStrings([
+            ...(typeof item.unitId === 'string' ? [item.unitId] : []),
+            ...stringArray(item.analysisUnitIds),
+        ]);
+        const sourceRefs = stringArray(item.sourceRefs);
+        if (analysisUnitIds.length === 0 && sourceRefs.length === 0) {
+            continue;
+        }
+        links.push({
+            recipeId: createdRecipe.id,
+            title: createdRecipe.title,
+            analysisUnitIds,
+            sourceRefs,
+        });
+    }
+    return links;
+}
+function stringArray(value) {
+    return Array.isArray(value)
+        ? value.filter((item) => typeof item === 'string')
+        : [];
+}
+function uniqueStrings(value) {
+    return [...new Set(value.filter((item) => item.trim().length > 0))];
 }
 function _resolvePendingSemanticReviewRecipeId(review) {
     // Core 生产侧保证 newRecipeId；createdRecipe.id 是同一生产侧给出的稳定 created item 引用。

@@ -1,3 +1,4 @@
+import { CODEX_EMBEDDED_RUNTIME_REQUIRED_FILES, CODEX_EMBEDDED_RUNTIME_REQUIRED_ROUTES, CODEX_EMBEDDED_RUNTIME_RETAINED_DAEMON_ENTRY, } from './runtime/EmbeddedRuntimeContract.js';
 import { CODEX_EMBEDDED_RUNTIME_SPECIFIER, CODEX_PLUGIN_NAME, CODEX_RUNTIME_BIN, CODEX_RUNTIME_PACKAGE, } from './runtime/RuntimeContext.js';
 export const CODEX_DASHBOARD_ARTIFACT_BOUNDARY = {
     artifactPath: null,
@@ -133,19 +134,22 @@ export function buildCodexModuleBoundaryStatus(input = {}) {
             embeddedRuntime: {
                 artifact: CODEX_EMBEDDED_RUNTIME_SPECIFIER,
                 packageName: CODEX_RUNTIME_PACKAGE,
+                requiredFiles: [...CODEX_EMBEDDED_RUNTIME_REQUIRED_FILES],
                 role: 'Plugin-owned portable adapter that launches compiled daemon-server.js for Codex delivery, not the long-term Alembic daemon source of truth.',
                 startCommand: CODEX_RUNTIME_BIN,
             },
             runtimeContract: {
-                capabilitySummarySource: '@alembic/core/daemon#residentService with legacy capability fallback',
+                capabilitySummarySource: '@alembic/core/daemon#residentService and explicit capability sections',
                 compatibilityRuntimeBoundaryConsumer: runtimeBoundaryCompatibility?.consumer ?? null,
                 compatibilityRuntimeBoundaryDeletionCondition: runtimeBoundaryCompatibility?.deletionCondition ?? null,
                 compatibilityRuntimeBoundarySource: runtimeBoundaryCompatibility?.source ?? null,
                 fileMonitorMode: route?.localAlembic.daemon.capabilities.fileMonitorMode ?? null,
                 healthPath: '/api/v1/daemon/health',
+                requiredRoutes: [...CODEX_EMBEDDED_RUNTIME_REQUIRED_ROUTES],
                 residentServiceOwner: residentService?.owner ?? null,
                 residentServiceRoute: residentService?.route ?? null,
                 residentServiceScopeKind: residentService?.serviceScope.kind ?? null,
+                retainedDaemonEntryPoint: CODEX_EMBEDDED_RUNTIME_RETAINED_DAEMON_ENTRY,
                 runtimeBoundaryAvailable: route?.localAlembic.daemon.runtimeBoundary.available ?? false,
                 runtimeBoundarySource: route?.localAlembic.daemon.runtimeBoundary.source ?? null,
             },
@@ -153,7 +157,7 @@ export function buildCodexModuleBoundaryStatus(input = {}) {
         dashboard: { ...CODEX_DASHBOARD_ARTIFACT_BOUNDARY },
         nextWaveGaps: [
             'Ask Alembic/AlembicDashboard to guarantee a stable local Dashboard URL contract for Codex handoff; do not reintroduce Plugin-packaged frontend assets.',
-            'Delete runtimeBoundary compatibility fallback after all supported Alembic daemon health producers expose data.residentService.',
+            'Keep runtimeBoundary as diagnostics only; Plugin capability and project decisions must not fall back to it.',
             'Do not add Alembic projects API consumption to Plugin; handoff remains read-only and uses resident service scope plus runtime-control state.',
             'Keep git-diff checkpoint and JobStore usage marked as embedded runtime compatibility until Alembic daemon contracts can fully cover them.',
         ],

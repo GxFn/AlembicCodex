@@ -19,6 +19,7 @@ const child = spawn('npx', ['-y', '--offline', '--package', './runtime.tgz', 'al
     npm_config_cache: npmCache,
     npm_config_fund: 'false',
     npm_config_audit: 'false',
+    npm_config_ignore_scripts: 'true',
     npm_config_offline: 'true',
   },
   stdio: ['inherit', 'pipe', 'pipe'],

@@ -8,9 +8,10 @@
  * 本文件只返回外部 Agent Mission Briefing；插件侧不启动本地 AI pipeline。
  * Phase 1-4 分析逻辑由 ProjectIntelligenceRunner 执行。
  */
-import { buildColdStartWorkflowPlan, buildExternalMissionBriefing, createExternalColdStartIntent, createExternalWorkflowSession, getActiveExternalWorkflowSession, presentExternalColdStartEmptyProject, presentExternalColdStartResponse, runFullResetPolicy, } from '@alembic/core/host-agent-workflows';
+import { buildColdStartWorkflowPlan, buildExternalMissionBriefing, buildIDEAgentAnalysisPacketFromSnapshot, createExternalColdStartIntent, createExternalWorkflowSession, getActiveExternalWorkflowSession, presentExternalColdStartEmptyProject, presentExternalColdStartResponse, runFullResetPolicy, } from '@alembic/core/host-agent-workflows';
 import { buildProjectSnapshot, ProjectIntelligenceCapability, } from '@alembic/core/project-intelligence';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
+import { buildIDEAgentAnalysisSurface } from '#codex/ide-agent/IDEAgentAnalysisSurface.js';
 import { CleanupService } from '#service/cleanup/CleanupService.js';
 // ── 主入口 ─────────────────────────────────────────────────────
 /**
@@ -59,6 +60,7 @@ export async function runExternalColdStartWorkflow(ctx) {
         return presentExternalColdStartEmptyProject({ responseTimeMs: Date.now() - t0 });
     }
     const { allFiles, primaryLang, depGraphData, langStats, astProjectSummary, codeEntityResult, callGraphResult, guardAudit, activeDimensions: dimensions, targetsSummary, localPackageModules, langProfile, } = phaseResults;
+    const briefingDimensions = Array.isArray(dimensions) ? dimensions : [];
     // ── Build immutable ProjectSnapshot ──
     const snapshot = buildProjectSnapshot({
         projectRoot,
@@ -72,7 +74,7 @@ export async function runExternalColdStartWorkflow(ctx) {
     const session = createExternalWorkflowSession({
         container: ctx.container,
         projectRoot,
-        dimensions,
+        dimensions: briefingDimensions,
         snapshot,
         primaryLang,
         fileCount: allFiles.length,
@@ -91,26 +93,37 @@ export async function runExternalColdStartWorkflow(ctx) {
             codeEntityResult,
             callGraphResult,
             depGraphData,
-            guardAudit,
-            targets: targetsSummary,
-            activeDimensions: dimensions,
+            guardAudit: normalizeGuardAuditForBriefing(guardAudit),
+            // Core MissionBriefingBuilder expects an array target list. ProjectIntelligence
+            // may expose a summary object for generic projects, so Plugin normalizes at the
+            // adapter boundary instead of teaching Codex a private schema.
+            targets: Array.isArray(targetsSummary) ? targetsSummary : [],
+            activeDimensions: briefingDimensions,
             session,
             languageStats: langStats,
             panoramaResult: snapshot.panorama,
-            localPackageModules,
+            localPackageModules: Array.isArray(localPackageModules) ? localPackageModules : [],
         },
     });
+    const ideAgentPacket = buildIDEAgentAnalysisPacketFromSnapshot(normalizeProjectSnapshotForIDEAgent(snapshot), {
+        profile: 'cold-start',
+    });
+    const ideAgentAnalysis = buildIDEAgentAnalysisSurface(ideAgentPacket);
+    const briefingWithIdeAgentSurface = attachIDEAgentAnalysisSurface(briefing, ideAgentAnalysis);
     // 附加 warnings
     if (phaseResults.warnings.length > 0) {
-        briefing.meta = briefing.meta || {};
-        briefing.meta.warnings = [...(briefing.meta.warnings || []), ...phaseResults.warnings];
+        briefingWithIdeAgentSurface.meta = briefingWithIdeAgentSurface.meta || {};
+        const existingWarnings = Array.isArray(briefingWithIdeAgentSurface.meta.warnings)
+            ? briefingWithIdeAgentSurface.meta.warnings
+            : [];
+        briefingWithIdeAgentSurface.meta.warnings = [...existingWarnings, ...phaseResults.warnings];
     }
-    ctx.logger.info(`[BootstrapExternal] Mission Briefing ready: ${allFiles.length} files, ${dimensions.length} dims, ` +
-        `${briefing.meta?.responseSizeKB || '?'}KB — session ${session.id}`);
+    ctx.logger.info(`[BootstrapExternal] Mission Briefing ready: ${allFiles.length} files, ${briefingDimensions.length} dims, ` +
+        `${briefingWithIdeAgentSurface.meta?.responseSizeKB || '?'}KB — session ${session.id}`);
     return presentExternalColdStartResponse({
         cleanupResult,
-        briefing,
-        dimensionCount: dimensions.length,
+        briefing: briefingWithIdeAgentSurface,
+        dimensionCount: briefingDimensions.length,
         responseTimeMs: Date.now() - t0,
     });
 }
@@ -121,3 +134,61 @@ export async function runExternalColdStartWorkflow(ctx) {
  * 仍然返回该 session（支持新 bootstrap 创建后旧 session 的 dimension_complete 继续工作）。
  */
 export { getActiveExternalWorkflowSession as getActiveSession };
+function attachIDEAgentAnalysisSurface(briefing, ideAgentAnalysis) {
+    return {
+        ...briefing,
+        ideAgentAnalysis,
+        meta: {
+            ...(briefing.meta || {}),
+            ideAgentAnalysis: {
+                packetId: ideAgentAnalysis.packetSummary.packetId,
+                profile: ideAgentAnalysis.packetSummary.profile,
+                totalUnits: ideAgentAnalysis.progress.totalUnits,
+                remainingUnits: ideAgentAnalysis.progress.remainingUnitIds.length,
+            },
+        },
+    };
+}
+function normalizeGuardAuditForBriefing(guardAudit) {
+    if (!guardAudit || typeof guardAudit !== 'object' || Array.isArray(guardAudit)) {
+        return guardAudit;
+    }
+    const record = guardAudit;
+    // Core briefing expects array fields; Plugin accepts older/newer Guard audit DTOs here.
+    return {
+        ...record,
+        files: Array.isArray(record.files) ? record.files.map(normalizeGuardAuditFile) : [],
+        crossFileViolations: Array.isArray(record.crossFileViolations)
+            ? record.crossFileViolations
+            : [],
+    };
+}
+function normalizeGuardAuditFile(file) {
+    if (!file || typeof file !== 'object' || Array.isArray(file)) {
+        return file;
+    }
+    const record = file;
+    return {
+        ...record,
+        violations: Array.isArray(record.violations) ? record.violations : [],
+    };
+}
+function normalizeProjectSnapshotForIDEAgent(snapshot) {
+    return {
+        ...snapshot,
+        guardAudit: normalizeGuardAuditForBriefing(snapshot.guardAudit),
+        panorama: normalizePanoramaForIDEAgent(snapshot.panorama),
+    };
+}
+function normalizePanoramaForIDEAgent(panorama) {
+    if (!panorama || typeof panorama !== 'object' || Array.isArray(panorama)) {
+        return panorama;
+    }
+    const record = panorama;
+    return {
+        ...record,
+        layers: Array.isArray(record.layers) ? record.layers : [],
+        couplingHotspots: Array.isArray(record.couplingHotspots) ? record.couplingHotspots : [],
+        cyclicDependencies: Array.isArray(record.cyclicDependencies) ? record.cyclicDependencies : [],
+    };
+}

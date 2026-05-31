@@ -7,4 +7,4 @@ export * from './infrastructure/index.js';
 export { KnowledgeRepositoryImpl } from './repository/knowledge/index.js';
 export * from './service/index.js';
 export * from './shared/index.js';
-export { ProjectIntelligenceCapability } from './workflows/capabilities/project-intelligence/index.js';
+export { buildIDEAgentAnalysisPacket, buildIDEAgentAnalysisPacketFromSnapshot, createIDEAgentAnalysisProgressSeed, createIDEAgentAnalysisUnitKey, createIDEAgentAnalysisUnitProgress, ProjectIntelligenceCapability, } from './workflows/capabilities/project-intelligence/index.js';

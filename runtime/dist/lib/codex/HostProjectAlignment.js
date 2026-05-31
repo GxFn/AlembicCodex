@@ -7,10 +7,8 @@ export function buildCodexHostProjectAlignment(input) {
     const runtimeControl = readProjectRuntimeControlState();
     const selectedProject = projectFromRuntimeControlTarget(runtimeControl.state.selectedProjectRoot, runtimeControl.state.selectedProjectId, 'runtime-control-state');
     const residentServiceProject = projectFromResidentServiceScope(input.enhancementRoute);
-    const daemonBoundaryProject = projectFromDaemonBoundary(input.enhancementRoute);
     const activeRuntimeProject = projectFromRuntimeControlTarget(runtimeControl.state.activeProjectRoot, runtimeControl.state.activeProjectId, 'runtime-control-state') ||
         residentServiceProject ||
-        daemonBoundaryProject ||
         projectFromDaemonState(input.daemonStatus);
     const hostRoot = hostProject.projectRealpath || hostProject.projectRoot;
     const selectedRoot = selectedProject?.projectRealpath || selectedProject?.projectRoot || null;
@@ -50,7 +48,7 @@ export function buildCodexHostProjectAlignment(input) {
         runtimeControlState: runtimeControl.summary,
         selectedProject,
         sources: {
-            daemonRuntimeBoundary: Boolean(input.enhancementRoute?.localAlembic.daemon.runtimeBoundary.available),
+            daemonRuntimeBoundary: false,
             daemonState: input.daemonStatus.ready === true && Boolean(input.daemonStatus.state),
             projectRegistry: hostProject.registered === true,
             projectsApi: false,
@@ -206,17 +204,6 @@ function buildAlignmentNextActions(state) {
     return [
         'Select and start this project from Alembic or Dashboard, then rerun alembic_codex_status.',
     ];
-}
-function projectFromDaemonBoundary(enhancementRoute) {
-    const workspace = enhancementRoute?.localAlembic.daemon.runtimeBoundary.workspace;
-    if (!workspace?.projectRoot) {
-        return null;
-    }
-    return projectFromRoot(workspace.projectRoot, 'daemon-runtime-boundary', {
-        dataRoot: workspace.dataRoot,
-        dataRootSource: workspace.dataRootSource,
-        projectId: workspace.projectId,
-    });
 }
 function projectFromResidentServiceScope(enhancementRoute) {
     const status = enhancementRoute?.localAlembic.daemon.residentService?.status;

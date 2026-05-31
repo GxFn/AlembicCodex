@@ -44,7 +44,7 @@ Use `alembic_codex_dashboard` when the user needs review, candidates, or progres
 
 ## Project Skill Delivery
 
-Use `alembic_project_skill` for Project Skill source storage, refresh, receipt, export, and Codex runtime visibility. This is the Codex-facing replacement for using `alembic_skill` as the runtime delivery surface.
+Use `alembic_project_skill` for Project Skill source storage, refresh, receipt, export, and Codex runtime visibility. The old Codex-facing `alembic_skill` alias has been removed from the Plugin tool surface.
 
 - `list` shows built-in skills, dataRoot source skills, Plugin delivery receipts, Codex runtime exports, and the effective winner.
 - `load` prefers `.agents/skills/<name>/SKILL.md`, then dataRoot source storage, then built-in plugin skills.
@@ -57,7 +57,7 @@ Set `authorizeProjectSkillExport: true` only when the user has approved making t
 
 If `conflictStatus` is `different-existing`, do not overwrite it by guessing. The target already exists and is not managed by the matching Alembic receipt, so ask for user direction or report the conflict. Managed exports write `.alembic-managed.json`; compatible managed or same-source symlink exports can be refreshed.
 
-`alembic_skill` is only a compatibility alias and now routes through the same Project Skill service. Prefer `alembic_project_skill` whenever the user needs runtime-visible Project Skills, refresh, receipt evidence, authorization state, conflict state, or export status.
+Use `alembic_project_skill` whenever the user needs runtime-visible Project Skills, refresh, receipt evidence, authorization state, conflict state, or export status.
 
 ## Permission Boundary
 

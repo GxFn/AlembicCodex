@@ -221,13 +221,26 @@ export const SubmitKnowledgeItemSchema = z.object({
     moduleName: z.string().optional(),
     includeHeaders: z.boolean().optional(),
     source: z.string().optional(),
+    unitId: z
+        .string()
+        .optional()
+        .describe('IDEAgentAnalysisUnit.unitId linkage; optional for backwards compatibility'),
+    analysisUnitIds: z
+        .array(z.string())
+        .optional()
+        .describe('One or more IDEAgentAnalysisUnit ids covered by this knowledge item'),
+    sourceRefs: z
+        .array(z.string())
+        .optional()
+        .describe('Source references used as evidence for IDE Agent unit linkage'),
 });
 export const SubmitKnowledgeInput = z.object({
     items: z
         .array(z.record(z.string(), z.unknown()))
         .min(1)
         .describe('知识条目数组（1~N 条）。单条与批量统一处理，所有条目严格校验 + 融合分析。' +
-        '每条字段: title, language, content(对象), kind, doClause, dontClause, whenClause, coreCode, category(业务/组件分类), trigger, description, headers, usageGuide, knowledgeType(知识类型), reasoning(对象), dimensionId(维度归属)。'),
+        '每条字段: title, language, content(对象), kind, doClause, dontClause, whenClause, coreCode, category(业务/组件分类), trigger, description, headers, usageGuide, knowledgeType(知识类型), reasoning(对象), dimensionId(维度归属)。' +
+        '可选 unitId / analysisUnitIds / sourceRefs 用于 IDE Agent packet linkage，不传时沿用既有路径。'),
     target_name: z.string().optional().describe('来源标识，如 network-module-scan'),
     source: z.string().optional().describe('来源标记，默认 mcp'),
     skipConsolidation: z
@@ -243,20 +256,8 @@ export const SubmitKnowledgeInput = z.object({
         .describe('声明新 Recipe 替代旧 Recipe 的 ID。提交后系统将创建 supersede 提案，观察窗口内对比新旧表现后自动执行。'),
 });
 // ══════════════════════════════════════════════════════
-//  10. alembic_skill
+//  10. alembic_project_skill
 // ══════════════════════════════════════════════════════
-export const SkillInput = z.object({
-    operation: z
-        .enum(['list', 'load', 'create', 'update', 'delete'])
-        .describe('legacy compatibility: list/load/create/update/delete all route to the unified Project Skill service'),
-    name: z.string().optional().describe('Skill 名称（kebab-case，如 alembic-create）'),
-    skillName: z.string().optional().describe('name 的别名，与 name 等价'),
-    section: z.string().optional().describe('load 时过滤指定章节'),
-    description: z.string().optional().describe('create/update 时的简短描述'),
-    content: z.string().optional().describe('create/update 时的 Markdown 内容'),
-    overwrite: z.boolean().default(false),
-    createdBy: z.enum(['manual', 'user-ai', 'system-ai', 'external-ai']).default('external-ai'),
-});
 export const ProjectSkillInput = z.object({
     operation: z
         .enum(['list', 'load', 'export', 'create', 'update', 'upsert', 'delete', 'refresh'])
@@ -300,6 +301,27 @@ export const DimensionCompleteInput = z.object({
     sessionId: z.string().optional(),
     dimensionId: z.string().min(1, 'dimensionId is required'),
     submittedRecipeIds: z.array(z.string()).optional(),
+    unitId: z.string().optional().describe('单个 IDEAgentAnalysisUnit id；兼容 analysisUnitIds 简写'),
+    analysisUnitIds: z
+        .array(z.string())
+        .optional()
+        .describe('本次完成覆盖的 IDEAgentAnalysisUnit ids'),
+    skippedAnalysisUnitIds: z
+        .array(z.string())
+        .optional()
+        .describe('本次显式跳过的 IDEAgentAnalysisUnit ids'),
+    rejectedAnalysisUnitIds: z
+        .array(z.string())
+        .optional()
+        .describe('本次拒绝或无法完成的 IDEAgentAnalysisUnit ids'),
+    remainingAnalysisUnitIds: z
+        .array(z.string())
+        .optional()
+        .describe('宿主仍需继续处理的 IDEAgentAnalysisUnit ids'),
+    deviationReason: z
+        .string()
+        .optional()
+        .describe('跳过、拒绝或偏离 Core completionContract 的原因'),
     analysisText: z
         .string()
         .min(1, 'analysisText is required')
@@ -439,7 +461,6 @@ export const TOOL_SCHEMAS = {
     alembic_guard: GuardInput,
     alembic_submit_knowledge: SubmitKnowledgeInput,
     alembic_project_skill: ProjectSkillInput,
-    alembic_skill: SkillInput,
     alembic_bootstrap: BootstrapInput,
     alembic_rescan: RescanInput,
     alembic_dimension_complete: DimensionCompleteInput,
