@@ -9,6 +9,7 @@ import { readHostTurnMetaFromMcpRequest, } from '#service/task/HostIntentFrame.j
 import { SetupService } from '../../cli/SetupService.js';
 import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, writeCodexSavedProjectRoot, } from '../../codex/index.js';
 import { DaemonSupervisor } from '../../daemon/DaemonSupervisor.js';
+import { resetServiceContainer } from '../../injection/ServiceContainer.js';
 import { AlembicResidentServiceClient, } from '../../service/resident/AlembicResidentServiceClient.js';
 import { getPackageVersion } from '../../shared/package-assets.js';
 import { ALEMBIC_CODEX_PROJECT_SCOPE_SUMMARY_ENV, serializeCodexProjectScopeSummary, } from '../../shared/project-scope-runtime.js';
@@ -67,6 +68,19 @@ function resolveWorkspaceModeConflict(projectRoot, requestedMode) {
     }
     return { existingMode, projectId: entry.id, requestedMode };
 }
+let sharedPluginOwnedMcpServer = null;
+let sharedPluginOwnedMcpServerKey = null;
+async function resetPluginOwnedMcpServer() {
+    const server = sharedPluginOwnedMcpServer;
+    sharedPluginOwnedMcpServer = null;
+    sharedPluginOwnedMcpServerKey = null;
+    try {
+        await server?.shutdown();
+    }
+    finally {
+        resetServiceContainer();
+    }
+}
 export class CodexMcpServer {
     projectRoot;
     projectRootResolution;
@@ -74,8 +88,6 @@ export class CodexMcpServer {
     waitUntilReadyMs;
     sessionId;
     sdkServer = null;
-    #pluginOwnedMcpServer = null;
-    #pluginOwnedMcpServerKey = null;
     #residentServiceClient = null;
     #initPromise = null;
     #initRuntimeState = {
@@ -103,10 +115,7 @@ export class CodexMcpServer {
         if (this.sdkServer) {
             await this.sdkServer.close();
         }
-        if (this.#pluginOwnedMcpServer) {
-            await this.#pluginOwnedMcpServer.shutdown();
-            this.#pluginOwnedMcpServer = null;
-        }
+        await resetPluginOwnedMcpServer();
     }
     registerHandlers() {
         if (!this.sdkServer) {
@@ -753,14 +762,10 @@ export class CodexMcpServer {
             executionContext.projectScopeIdentity?.projectScopeId ?? 'single-folder',
             executionContext.projectScopeIdentity?.currentFolderId ?? '',
         ].join('\0');
-        if (this.#pluginOwnedMcpServer && this.#pluginOwnedMcpServerKey === scopeKey) {
-            return this.#pluginOwnedMcpServer;
+        if (sharedPluginOwnedMcpServer && sharedPluginOwnedMcpServerKey === scopeKey) {
+            return sharedPluginOwnedMcpServer;
         }
-        if (this.#pluginOwnedMcpServer) {
-            await this.#pluginOwnedMcpServer.shutdown();
-            this.#pluginOwnedMcpServer = null;
-            this.#pluginOwnedMcpServerKey = null;
-        }
+        await resetPluginOwnedMcpServer();
         const previousProjectDir = process.env.ALEMBIC_PROJECT_DIR;
         const previousProjectScopeSummary = process.env[ALEMBIC_CODEX_PROJECT_SCOPE_SUMMARY_ENV];
         const previousCwd = safeProjectRootFallback();
@@ -781,9 +786,19 @@ export class CodexMcpServer {
             // Plugin-owned Codex tools use the embedded Plugin handler tree. Alembic daemon can still
             // serve resident capabilities, but it must not replace Codex-facing task payload ownership.
             await server.initialize();
-            this.#pluginOwnedMcpServer = server;
-            this.#pluginOwnedMcpServerKey = scopeKey;
+            sharedPluginOwnedMcpServer = server;
+            sharedPluginOwnedMcpServerKey = scopeKey;
             return server;
+        }
+        catch (err) {
+            try {
+                await server.shutdown();
+            }
+            catch {
+                // Ignore shutdown errors while preserving the original initialization failure.
+            }
+            resetServiceContainer();
+            throw err;
         }
         finally {
             if (previousProjectDir === undefined) {
@@ -914,6 +929,9 @@ export class CodexMcpServer {
         });
         return { blocked: block, daemon, enhancementRoute, hostProjectAlignment };
     }
+}
+export async function resetCodexPluginOwnedMcpServerForTests() {
+    await resetPluginOwnedMcpServer();
 }
 export { getVisibleCodexTools };
 function isResidentProjectScopeReady(identity) {

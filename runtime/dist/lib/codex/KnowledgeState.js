@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { WorkspaceResolver } from '@alembic/core/workspace';
 import { readCodexSnapshotState, readCodexSourceRefState, } from '#infra/database/SqliteDatabaseAccess.js';
+import { countProjectSkillKnowledgeEntries } from '../repository/skills/ProjectSkillKnowledgeRepository.js';
 export const EMPTY_CODEX_KNOWLEDGE_STATE = {
     freshness: {
         checkedAt: new Date(0).toISOString(),
@@ -79,12 +80,13 @@ export function inspectCodexKnowledge(projectRoot) {
     const skillScan = scanSkillFiles(resolver.skillsDir);
     const recipeCount = recipeScan.count;
     const skillCount = skillScan.count;
-    const hasKnowledge = recipeCount > 0 || skillCount > 0;
+    const databaseEntryCount = countProjectSkillKnowledgeEntries(resolver.dataRoot);
+    const hasKnowledge = recipeCount > 0 || skillCount > 0 || databaseEntryCount > 0;
     const usable = initialized && hasKnowledge;
     const jobs = inspectCodexJobActivity(resolver);
     const sourceRefs = inspectCodexSourceRefs(resolver);
     const snapshots = inspectCodexSnapshots(resolver);
-    const latestKnowledgeMtimeMs = Math.max(recipeScan.latestMtimeMs, skillScan.latestMtimeMs, 0);
+    const latestKnowledgeMtimeMs = Math.max(recipeScan.latestMtimeMs, skillScan.latestMtimeMs, databaseEntryCount > 0 ? safeExistingMtimeMs(resolver.databasePath) : 0, 0);
     const freshness = buildCodexKnowledgeFreshness({
         jobs,
         latestKnowledgeAt: latestKnowledgeMtimeMs > 0 ? new Date(latestKnowledgeMtimeMs).toISOString() : null,
@@ -99,6 +101,7 @@ export function inspectCodexKnowledge(projectRoot) {
         usable,
     });
     return {
+        databaseEntryCount,
         freshness,
         hasKnowledge,
         initialized,
