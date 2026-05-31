@@ -248,7 +248,7 @@ export const SubmitKnowledgeInput = z.object({
 export const SkillInput = z.object({
     operation: z
         .enum(['list', 'load', 'create', 'update', 'delete'])
-        .describe('list=列表 | load=加载内容(name) | create=创建 | update=更新 | delete=删除'),
+        .describe('legacy compatibility: list/load/create/update/delete all route to the unified Project Skill service'),
     name: z.string().optional().describe('Skill 名称（kebab-case，如 alembic-create）'),
     skillName: z.string().optional().describe('name 的别名，与 name 等价'),
     section: z.string().optional().describe('load 时过滤指定章节'),
@@ -259,8 +259,8 @@ export const SkillInput = z.object({
 });
 export const ProjectSkillInput = z.object({
     operation: z
-        .enum(['list', 'load', 'export', 'create', 'update', 'delete'])
-        .describe('list=列表 | load=从 Codex runtime 或 Alembic storage 加载 | export=按 receipt 导出到 .agents/skills | create/update/delete=项目级 Skill storage + receipt'),
+        .enum(['list', 'load', 'export', 'create', 'update', 'upsert', 'delete', 'refresh'])
+        .describe('list=列表 | load=从 Codex runtime 或 source 加载 | upsert/create/update=写入 dataRoot source + receipt | refresh=有知识库时刷新知识 skill | export=导出 .agents/skills symlink | delete=删除 Alembic-managed source/runtime'),
     name: z.string().optional().describe('Project Skill 名称（kebab-case）'),
     skillName: z.string().optional().describe('name 的别名，与 name 等价'),
     receiptId: z.string().optional().describe('export 时可按 workflow report 中的 receipt id 查找'),

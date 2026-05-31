@@ -1,11 +1,13 @@
 ---
 name: alembic
-description: Use Alembic from Codex. Start here for status, initialization, project priming, Guard checks, Codex host-agent bootstrap/rescan workflows, explicit internal AI jobs, Dashboard handoff, and permission boundaries.
+description: Use Alembic setup/status/diagnostics/bootstrap/rescan when the user explicitly asks for Alembic. Use Recipes, Guard, project knowledge, or priming proactively only when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base.
 ---
 
 # Alembic Codex Workflow
 
-Use this skill when the user asks Codex to work with project conventions, local knowledge, Guard checks, Codex host-agent bootstrap/rescan workflows, explicit internal AI jobs, or Alembic itself.
+Use this skill when the user explicitly asks Codex to work with Alembic setup, status, diagnostics, bootstrap/rescan workflows, local knowledge, Guard checks, or Alembic itself.
+
+Knowledge-dependent Alembic behavior is project-scoped. Use Recipes, Guard, project knowledge, structure, priming, or knowledge search proactively only when the current project has a project-level Alembic knowledge skill in `.agents/skills` or a local Alembic knowledge base. Empty or uninitialized projects should not trigger proactive knowledge work unless the user explicitly asks for Alembic setup, status, diagnostics, bootstrap, rescan, Guard, or knowledge operations.
 
 ## First Move
 
@@ -42,18 +44,20 @@ Use `alembic_codex_dashboard` when the user needs review, candidates, or progres
 
 ## Project Skill Delivery
 
-Use `alembic_project_skill` for Project Skill receipt, export, and Codex runtime visibility. This is the Codex-facing replacement for using `alembic_skill` as the runtime delivery surface.
+Use `alembic_project_skill` for Project Skill source storage, refresh, receipt, export, and Codex runtime visibility. This is the Codex-facing replacement for using `alembic_skill` as the runtime delivery surface.
 
-- `list` shows Alembic project skill storage, Plugin delivery receipts, and Codex runtime exports under the current project's `.agents/skills` root.
-- `load` prefers `.agents/skills/<name>/SKILL.md` and falls back to legacy Alembic storage when no runtime export exists.
-- `create` and `update` keep writing Alembic project skill storage, then return a Plugin route `ProjectSkillDeliveryReceipt`.
-- `export` consumes a `ProjectSkillDeliveryReceipt` and uses symlink-first delivery into `.agents/skills` only after project-scoped authorization.
+- `list` shows built-in skills, dataRoot source skills, Plugin delivery receipts, Codex runtime exports, and the effective winner.
+- `load` prefers `.agents/skills/<name>/SKILL.md`, then dataRoot source storage, then built-in plugin skills.
+- `upsert`, `create`, and `update` write source to `dataRoot/Alembic/skills/<name>/`, return a Plugin route `ProjectSkillDeliveryReceipt`, and optionally export.
+- `refresh` generates or updates knowledge-dependent same-name Project Skills only when the current dataRoot has `knowledge_entries`, `candidates`, or `recipes`.
+- `export` uses symlink-first delivery into `.agents/skills` only after project-scoped authorization.
+- `delete` removes Alembic-managed source/runtime projection only; built-in plugin skills remain read-only.
 
 Set `authorizeProjectSkillExport: true` only when the user has approved making that Project Skill visible in this project. A blocked response with `authorizationStatus: "pending"` means the receipt is valid but Codex has not been authorized to write `.agents/skills`.
 
 If `conflictStatus` is `different-existing`, do not overwrite it by guessing. The target already exists and is not managed by the matching Alembic receipt, so ask for user direction or report the conflict. Managed exports write `.alembic-managed.json`; compatible managed or same-source symlink exports can be refreshed.
 
-`alembic_skill` remains for legacy Alembic storage compatibility. Prefer `alembic_project_skill` whenever the user needs runtime-visible Project Skills, receipt evidence, authorization state, conflict state, or export status.
+`alembic_skill` is only a compatibility alias and now routes through the same Project Skill service. Prefer `alembic_project_skill` whenever the user needs runtime-visible Project Skills, refresh, receipt evidence, authorization state, conflict state, or export status.
 
 ## Permission Boundary
 

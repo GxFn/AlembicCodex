@@ -95,6 +95,7 @@ export async function runPhase1_FileCollection(projectRoot, logger, options = {}
     const allTargets = await discoverer.listTargets();
     const seenPaths = new Set();
     const allFiles = [];
+    const warnings = [];
     for (const t of allTargets) {
         const isTestTarget = typeof t === 'object' && /^test/i.test(t.type || '');
         try {
@@ -119,16 +120,19 @@ export async function runPhase1_FileCollection(projectRoot, logger, options = {}
                         isTest: isTestTarget || LanguageService.isTestFile(fp),
                     });
                 }
-                catch {
-                    /* skip unreadable */
+                catch (err) {
+                    const reason = err instanceof Error ? err.message : String(err);
+                    warnings.push(`File collection skipped unreadable file ${fp}: ${reason}`);
                 }
                 if (allFiles.length >= maxFiles) {
                     break;
                 }
             }
         }
-        catch {
-            /* skip target */
+        catch (err) {
+            const targetName = typeof t === 'string' ? t : t.name;
+            const reason = err instanceof Error ? err.message : String(err);
+            warnings.push(`File collection skipped target ${targetName}: ${reason}`);
         }
         if (allFiles.length >= maxFiles) {
             break;
@@ -152,6 +156,7 @@ export async function runPhase1_FileCollection(projectRoot, logger, options = {}
         discoverer: discoverer,
         langStats,
         truncated,
+        warnings,
     };
 }
 // ── Phase 1.5: AST 代码结构分析 ────────────────────────────
@@ -187,7 +192,11 @@ export async function runPhase1_5_AstAnalysis(allFiles, langStats, logger, optio
     }
     // Phase 1.5b: AST 分析
     const primaryLangEarly = detectPrimaryLanguage(langStats);
-    if (astIsAvailable() && primaryLangEarly) {
+    const isAstAvailable = options.isAstAvailable ?? astIsAvailable;
+    const astAvailable = isAstAvailable();
+    const analyzeProjectFn = options.analyzeProject ?? analyzeProject;
+    const generateContextForAgentFn = options.generateContextForAgent ?? generateContextForAgent;
+    if (astAvailable && primaryLangEarly) {
         try {
             const astFiles = allFiles.map((f) => ({
                 name: f.name,
@@ -208,13 +217,13 @@ export async function runPhase1_5_AstAnalysis(allFiles, langStats, logger, optio
             catch {
                 /* Enhancement 未加载 */
             }
-            astProjectSummary = analyzeProject(astFiles, primaryLangEarly, {
+            astProjectSummary = analyzeProjectFn(astFiles, primaryLangEarly, {
                 preprocessFile: sfcPreprocessor,
             });
             // 内部 Agent 专用: 生成 astContext 文本
             if (options.generateAstContext) {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- astProjectSummary flows from analyzeProject return
-                astContext = generateContextForAgent(astProjectSummary);
+                astContext = generateContextForAgentFn(astProjectSummary);
             }
             logger.info(`[Bootstrap] AST: ${astProjectSummary.classes.length} classes, ` +
                 `${astProjectSummary.protocols.length} protocols` +
@@ -231,7 +240,7 @@ export async function runPhase1_5_AstAnalysis(allFiles, langStats, logger, optio
         }
     }
     else {
-        logger.info(`[Bootstrap] AST skipped: tree-sitter ${astIsAvailable() ? 'available' : 'not available'}, lang=${primaryLangEarly}`);
+        logger.info(`[Bootstrap] AST skipped: tree-sitter ${astAvailable ? 'available' : 'not available'}, lang=${primaryLangEarly}`);
     }
     return { astProjectSummary, astContext, warnings };
 }
@@ -711,6 +720,7 @@ export async function runAllPhases(projectRoot, ctx, options = {}) {
     const p1Start = Date.now();
     const phase1 = await runPhase1_FileCollection(projectRoot, ctx.logger, options);
     const { allFiles, allTargets, discoverer, langStats, truncated } = phase1;
+    warnings.push(...phase1.warnings);
     if (truncated) {
         warnings.push(`File collection truncated at ${options.maxFiles || 500} files. Analysis may be incomplete.`);
     }

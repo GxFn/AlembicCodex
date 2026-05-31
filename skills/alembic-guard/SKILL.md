@@ -1,11 +1,11 @@
 ---
 name: alembic-guard
-description: Check code against Alembic Recipe standards with `alembic_guard`. Trigger for audits, lint-like review, diff checks, compliance checks, and "does this follow our conventions?" questions.
+description: Check code against Alembic Recipe standards with `alembic_guard` proactively only when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. For empty projects, use only on explicit Alembic Guard requests.
 ---
 
 # Alembic Guard
 
-Guard checks code against project Recipes. Use it after edits and whenever the user asks whether code follows local standards.
+Guard checks code against project Recipes. Use it after edits only when this project has a local Alembic knowledge base or project-level Alembic knowledge skill. For empty projects, call Guard only when the user explicitly asks for Alembic Guard or compliance checking.
 
 ## Tool
 

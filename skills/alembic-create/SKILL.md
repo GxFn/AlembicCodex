@@ -1,11 +1,11 @@
 ---
 name: alembic-create
-description: Submit new Alembic knowledge candidates from Codex. Covers `alembic_submit_knowledge`, required V3 fields, batch rules, and review boundaries.
+description: Submit new Alembic knowledge candidates from Codex when the user explicitly asks, or proactively only when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. Covers `alembic_submit_knowledge`, V3 fields, batch rules, and review boundaries.
 ---
 
 # Alembic Create
 
-Use this skill when the user asks to add knowledge, create a Recipe, save a convention, or when implementation reveals a reusable pattern worth preserving.
+Use this skill when the user explicitly asks to add knowledge, create a Recipe, or save a convention. Proactively preserve reusable patterns only when this project has a local Alembic knowledge base or project-level Alembic knowledge skill.
 
 Submitted entries become candidates. Users review and publish them later through the Dashboard or an explicit admin workflow.
 

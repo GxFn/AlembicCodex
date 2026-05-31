@@ -1,11 +1,11 @@
 ---
 name: alembic-structure
-description: Discover Alembic project structure, targets, files, metadata, dependency relationships, and Recipe graph context.
+description: Discover Alembic project structure and Recipe graph context proactively only when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. For empty projects, use on explicit Alembic structure requests.
 ---
 
 # Alembic Structure
 
-Use this skill when the user asks about module structure, targets, dependencies, call relationships, or how Recipes relate to each other.
+Use this skill when the user asks about Alembic module structure, targets, dependencies, call relationships, or how Recipes relate to each other. Use it proactively for project knowledge graph work only when this project has a local Alembic knowledge base or project-level Alembic knowledge skill.
 
 ## Project Structure Tools
 

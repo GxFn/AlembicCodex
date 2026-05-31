@@ -1,5 +1,6 @@
 import type { DimensionDef, MissionBriefingResult, ProjectSnapshot } from '../../types/project-snapshot.js';
 import type { CleanupResult } from '../capabilities/RecipeSnapshotTypes.js';
+import type { ColdStartSelectionSummary } from './ColdStartPlan.js';
 export type ColdStartTargetFileMap = Record<string, Array<Record<string, unknown>>>;
 export declare function presentInternalColdStartEmptyProject({ report, responseTimeMs, }: {
     report: unknown;
@@ -93,13 +94,14 @@ export interface InternalColdStartResponseInput {
     targetFileMap: ColdStartTargetFileMap;
     dimensions: DimensionDef[];
     cachedSessionId: string | null;
+    selectionSummary?: ColdStartSelectionSummary | null;
     taskCount: number;
     bootstrapSession: {
         toJSON(): Record<string, unknown>;
     } | null;
     responseTimeMs: number;
 }
-export declare function presentInternalColdStartResponse({ cleanupResult, snapshot, report, targetFileMap, dimensions, cachedSessionId, taskCount, bootstrapSession, responseTimeMs, }: InternalColdStartResponseInput): {
+export declare function presentInternalColdStartResponse({ cleanupResult, snapshot, report, targetFileMap, dimensions, cachedSessionId, selectionSummary, taskCount, bootstrapSession, responseTimeMs, }: InternalColdStartResponseInput): {
     success: boolean;
     errorCode: string | null;
     message: string;

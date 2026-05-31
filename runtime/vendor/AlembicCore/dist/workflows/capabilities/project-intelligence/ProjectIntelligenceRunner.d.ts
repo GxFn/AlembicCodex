@@ -15,6 +15,7 @@
  *   Phase 4   → 维度条件化过滤 + Enhancement Pack + 语言画像
  */
 import type { ProjectAnalysisResult } from '../../../core/AstAnalyzer.js';
+import { analyzeProject, isAvailable as astIsAvailable, generateContextForAgent } from '../../../core/AstAnalyzer.js';
 import type { CallGraphResult as CallGraphAnalysisResult } from '../../../core/analysis/CallGraphAnalyzer.js';
 import type { GuardAudit } from '../../../types/project-snapshot.js';
 import { type BaseDimension } from '../planning/dimensions/BaseDimensions.js';
@@ -100,8 +101,17 @@ interface Phase1Options {
     [key: string]: unknown;
 }
 /** Phase 1.5 AST analysis options */
+type AstProjectAnalyzer = typeof analyzeProject;
+type AstAvailabilityProbe = typeof astIsAvailable;
+type AstContextGenerator = typeof generateContextForAgent;
 interface AstAnalysisOptions {
     generateAstContext?: boolean;
+    /** 测试夹具专用：默认仍使用真实 analyzeProject，保持外部行为不变。 */
+    analyzeProject?: AstProjectAnalyzer;
+    /** 测试夹具专用：允许确定性触发 AST degraded 分支，不依赖本机 grammar 状态。 */
+    isAstAvailable?: AstAvailabilityProbe;
+    /** 测试夹具专用：只在 generateAstContext=true 时替换上下文生成器。 */
+    generateContextForAgent?: AstContextGenerator;
     [key: string]: unknown;
 }
 /** Phase 1.7 incremental call graph options */
@@ -187,6 +197,7 @@ export declare function runPhase1_FileCollection(projectRoot: string, logger: Ph
     discoverer: DiscovererLike;
     langStats: Record<string, number>;
     truncated: boolean;
+    warnings: string[];
 }>;
 /**
  * Phase 1.5: tree-sitter AST 分析

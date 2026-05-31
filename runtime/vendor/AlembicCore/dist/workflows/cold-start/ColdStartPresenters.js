@@ -75,7 +75,7 @@ export function buildInternalColdStartReport({ snapshot, maxFiles, skipGuard, })
         },
     };
 }
-export function presentInternalColdStartResponse({ cleanupResult, snapshot, report, targetFileMap, dimensions, cachedSessionId, taskCount, bootstrapSession, responseTimeMs, }) {
+export function presentInternalColdStartResponse({ cleanupResult, snapshot, report, targetFileMap, dimensions, cachedSessionId, selectionSummary, taskCount, bootstrapSession, responseTimeMs, }) {
     const responseData = {
         cleanup: presentFullResetCleanup(cleanupResult),
         report,
@@ -91,6 +91,7 @@ export function presentInternalColdStartResponse({ cleanupResult, snapshot, repo
         guardViolationFiles: presentGuardViolationFiles(snapshot),
         analysisFramework: {
             dimensions,
+            dimensionSelection: selectionSummary ?? null,
             skillWorthyDimensions: dimensions
                 .filter((dimension) => dimension.skillWorthy)
                 .map((d) => d.id),
@@ -126,6 +127,7 @@ export function presentInternalColdStartResponse({ cleanupResult, snapshot, repo
         localPackageModules: snapshot.localPackageModules.length > 0 ? snapshot.localPackageModules : null,
         warnings: snapshot.warnings.length > 0 ? snapshot.warnings : undefined,
         nextSteps: buildInternalNextSteps(dimensions),
+        dimensionSelection: selectionSummary ?? null,
         bootstrapSession: bootstrapSession ? bootstrapSession.toJSON() : null,
         bootstrapCandidates: { created: 0, failed: 0, errors: [], status: 'filling' },
         autoSkills: { created: 0, failed: 0, skills: [], errors: [], status: 'filling' },

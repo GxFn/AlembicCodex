@@ -1,11 +1,11 @@
 ---
 name: alembic-recipes
-description: Use Alembic Recipes as the project's curated source of truth for conventions, code patterns, facts, and Guard standards. Trigger when answering questions about project standards or when implementation should follow local knowledge.
+description: Use Alembic Recipes proactively only when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. For empty projects, use only when the user explicitly asks for Alembic Recipes or setup/status.
 ---
 
 # Alembic Recipes
 
-Recipes are Alembic's curated project knowledge: code patterns, usage guides, rules, and structural facts. Prefer Recipe content over raw code search when both are available.
+Recipes are Alembic's curated project knowledge: code patterns, usage guides, rules, and structural facts. Prefer Recipe content over raw code search only when this project has a local Alembic knowledge base or project-level Alembic knowledge skill. Empty projects should not trigger proactive Recipe lookup unless the user explicitly asks for Alembic Recipes, setup, status, bootstrap, rescan, or knowledge work.
 
 ## Knowledge Base Shape
 
