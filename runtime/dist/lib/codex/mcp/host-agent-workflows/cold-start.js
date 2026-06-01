@@ -64,7 +64,7 @@ export async function runHostAgentColdStartWorkflow(ctx) {
     // ── Build immutable ProjectSnapshot ──
     const snapshot = buildProjectSnapshot({
         projectRoot,
-        sourceTag: 'bootstrap-host-agent',
+        sourceTag: 'codex-host-bootstrap',
         ...phaseResults,
         report: phaseResults.report,
     });

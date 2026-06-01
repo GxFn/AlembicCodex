@@ -6,10 +6,10 @@
  *   - confirm_deprecation → gateway.submit({ action: 'deprecate' })
  *   - skip → gateway.submit({ action: 'valid' }) 或直接 skip
  *
- * @module handlers/evolve-host-agent
+ * @module handlers/host-agent/evolve
  */
+import { envelope } from '#codex/mcp/envelope.js';
 import { CODEX_HOST_AGENT_SOURCE } from '#codex/SourceBoundary.js';
-import { envelope } from '../envelope.js';
 // ── 主入口 ─────────────────────────────────────────────────
 export async function evolveForHostAgent(ctx, args) {
     const t0 = Date.now();

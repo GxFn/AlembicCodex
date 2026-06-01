@@ -104,7 +104,7 @@ export async function runHostAgentKnowledgeRescanWorkflow(ctx, args) {
     // ── Build immutable ProjectSnapshot ──
     const snapshot = buildProjectSnapshot({
         projectRoot,
-        sourceTag: 'rescan-host-agent',
+        sourceTag: 'codex-host-rescan',
         ...phaseResults,
         report: phaseResults.report,
     });

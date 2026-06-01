@@ -146,7 +146,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_health: catalogEntry({
         name: 'alembic_health',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'HealthInput',
         annotations: readOnlyTool('Check Alembic Health'),
@@ -157,7 +157,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_search: catalogEntry({
         name: 'alembic_search',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'SearchInput',
         annotations: readOnlyTool('Search Alembic Knowledge'),
@@ -168,7 +168,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_knowledge: catalogEntry({
         name: 'alembic_knowledge',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'KnowledgeInput',
         annotations: localWriteTool('Browse Or Mark Alembic Knowledge Usage'),
@@ -179,7 +179,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_structure: catalogEntry({
         name: 'alembic_structure',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'StructureInput',
         annotations: readOnlyTool('Explore Project Structure'),
@@ -190,7 +190,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_graph: catalogEntry({
         name: 'alembic_graph',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'GraphInput',
         annotations: readOnlyTool('Query Alembic Knowledge Graph'),
@@ -201,7 +201,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_call_context: catalogEntry({
         name: 'alembic_call_context',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'CallContextInput',
         annotations: readOnlyTool('Query Code Call Context'),
@@ -212,7 +212,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_guard: catalogEntry({
         name: 'alembic_guard',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'GuardInput',
         annotations: readOnlyTool('Run Alembic Guard Check'),
@@ -227,7 +227,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_submit_knowledge: catalogEntry({
         name: 'alembic_submit_knowledge',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'SubmitKnowledgeInput',
         annotations: aiBackedWriteTool('Submit Alembic Knowledge Candidate'),
@@ -238,7 +238,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_project_skill: catalogEntry({
         name: 'alembic_project_skill',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.consolidated',
+        handlerOwner: 'McpServer.tool-router',
         tier: 'agent',
         schema: 'ProjectSkillInput',
         annotations: localWriteTool('Deliver Alembic Project Skills To Codex'),
@@ -256,7 +256,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_bootstrap: catalogEntry({
         name: 'alembic_bootstrap',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.bootstrap-host-agent',
+        handlerOwner: 'McpServer.host-agent-bootstrap',
         tier: 'agent',
         schema: 'BootstrapInput',
         annotations: aiBackedWriteTool('Run Codex Host-Agent Bootstrap'),
@@ -267,7 +267,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_rescan: catalogEntry({
         name: 'alembic_rescan',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.bootstrap-host-agent',
+        handlerOwner: 'McpServer.host-agent-rescan',
         tier: 'agent',
         schema: 'RescanInput',
         annotations: aiBackedWriteTool('Run Codex Host-Agent Rescan'),
@@ -278,7 +278,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_evolve: catalogEntry({
         name: 'alembic_evolve',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.evolution',
+        handlerOwner: 'McpServer.host-agent-evolution',
         tier: 'agent',
         schema: 'EvolveInput',
         annotations: destructiveTool('Apply Alembic Evolution Decision'),
@@ -289,7 +289,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_consolidate: catalogEntry({
         name: 'alembic_consolidate',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.evolution',
+        handlerOwner: 'McpServer.knowledge-consolidation',
         tier: 'agent',
         schema: 'ConsolidateInput',
         annotations: localWriteTool('Review Alembic Consolidation Decision'),
@@ -300,7 +300,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_dimension_complete: catalogEntry({
         name: 'alembic_dimension_complete',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.dimension-complete',
+        handlerOwner: 'McpServer.host-agent-dimension-completion',
         tier: 'agent',
         schema: 'DimensionCompleteInput',
         annotations: localWriteTool('Complete Alembic Dimension Analysis'),
