@@ -60,6 +60,7 @@ export function createAlembicRuntimeCapabilities(options) {
             available: options.dashboardAvailable,
             url: options.dashboardUrl,
         },
+        apiAi: options.apiAi,
         fileMonitor: {
             acceptedEventSources: [...ALEMBIC_FILE_MONITOR_EVENT_SOURCES],
             available: options.fileMonitorAvailable ?? false,
@@ -67,7 +68,6 @@ export function createAlembicRuntimeCapabilities(options) {
             endpoint: options.fileMonitorEndpoint ?? ALEMBIC_FILE_CHANGES_PATH,
             mode: options.fileMonitorMode ?? 'disabled',
         },
-        internalAi: options.internalAi,
         jobs: {
             available: options.jobsAvailable ?? true,
             endpoints: {
@@ -107,20 +107,20 @@ export function createAlembicRuntimeEnhancementIdentity(input) {
 export function summarizeAlembicRuntimeCapabilities(value) {
     const capabilities = asRecord(value);
     const api = asRecord(capabilities?.api);
+    const apiAi = asRecord(capabilities?.apiAi);
     const dashboard = asRecord(capabilities?.dashboard);
     const fileMonitor = asRecord(capabilities?.fileMonitor);
-    const internalAi = asRecord(capabilities?.internalAi);
     const jobs = asRecord(capabilities?.jobs);
     const processEvents = asRecord(jobs?.processEvents);
     const projectScope = asRecord(capabilities?.projectScope);
     const projectScopeEndpoints = asRecord(projectScope?.endpoints);
     return {
         apiAvailable: booleanOrNull(api?.available),
+        apiAiAvailable: booleanOrNull(apiAi?.available),
         dashboardAvailable: booleanOrNull(dashboard?.available),
         dashboardUrl: firstString(dashboard?.url),
         fileMonitorAvailable: booleanOrNull(fileMonitor?.available),
         fileMonitorMode: normalizeAlembicFileMonitorMode(fileMonitor?.mode),
-        internalAiAvailable: booleanOrNull(internalAi?.available),
         jobEventsAvailable: booleanOrNull(processEvents?.available),
         jobEventDisplayPolicies: processEvents
             ? stringArray(processEvents.supportedDisplayPolicies ?? JOB_PROCESS_EVENT_DISPLAY_POLICIES)

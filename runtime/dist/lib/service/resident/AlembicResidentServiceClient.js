@@ -506,7 +506,7 @@ export class AlembicResidentServiceClient {
     #ensureAnyJobFeatureAvailable(status) {
         const features = status.route === 'embedded-plugin-runtime'
             ? ['jobs.host-agent-recoverable.bootstrap', 'jobs.host-agent-recoverable.rescan']
-            : ['jobs.internal-ai.bootstrap', 'jobs.internal-ai.rescan'];
+            : ['jobs.api-ai.bootstrap', 'jobs.api-ai.rescan'];
         if (features.some((feature) => status.capabilities[feature]?.available)) {
             return null;
         }
@@ -568,8 +568,8 @@ function embeddedPluginStatus(state) {
                 owner: 'alembic-plugin',
                 route: 'embedded-plugin-runtime',
             },
-            'jobs.internal-ai.bootstrap': unavailableCapability('jobs.internal-ai.bootstrap', 'unsupported-route', 'Alembic internal AI jobs require a local Alembic resident daemon.'),
-            'jobs.internal-ai.rescan': unavailableCapability('jobs.internal-ai.rescan', 'unsupported-route', 'Alembic internal AI jobs require a local Alembic resident daemon.'),
+            'jobs.api-ai.bootstrap': unavailableCapability('jobs.api-ai.bootstrap', 'unsupported-route', 'Alembic API AI jobs require a local Alembic resident daemon.'),
+            'jobs.api-ai.rescan': unavailableCapability('jobs.api-ai.rescan', 'unsupported-route', 'Alembic API AI jobs require a local Alembic resident daemon.'),
             'search.keyword': unavailableCapability('search.keyword', 'unsupported-route'),
             'search.semantic': unavailableCapability('search.semantic', 'unsupported-route'),
             'status.health': {
@@ -657,7 +657,7 @@ function resolveJobFeature(status, kind) {
     if (status.route === 'embedded-plugin-runtime') {
         return `jobs.host-agent-recoverable.${kind}`;
     }
-    return `jobs.internal-ai.${kind}`;
+    return `jobs.api-ai.${kind}`;
 }
 function buildResidentMeta(input) {
     const meta = input.searchMeta;

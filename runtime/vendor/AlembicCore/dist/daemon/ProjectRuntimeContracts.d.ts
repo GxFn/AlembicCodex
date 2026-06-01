@@ -5,10 +5,10 @@ import type { AlembicRuntimeDataRootSource } from './RuntimeContracts.js';
 export declare const PROJECT_RUNTIME_CONTROL_STATE_SCHEMA_VERSION = 1;
 export declare const PROJECT_CONNECTION_STATES: readonly ["ready", "stopped", "starting", "stale", "failed", "missing", "unavailable"];
 export declare const PROJECT_RUNTIME_DAEMON_STATUSES: readonly ["ready", "starting", "stopped", "stale", "failed", "not-checked"];
-export declare const PROJECT_RUNTIME_INTERNAL_AI_CONFIG_SOURCES: readonly ["empty", "process-env", "workspace-settings", "unavailable"];
+export declare const PROJECT_RUNTIME_API_AI_CONFIG_SOURCES: readonly ["empty", "process-env", "workspace-settings", "unavailable"];
 export type ProjectConnectionState = (typeof PROJECT_CONNECTION_STATES)[number];
 export type ProjectRuntimeDaemonStatus = (typeof PROJECT_RUNTIME_DAEMON_STATUSES)[number];
-export type ProjectRuntimeInternalAiConfigSource = (typeof PROJECT_RUNTIME_INTERNAL_AI_CONFIG_SOURCES)[number];
+export type ProjectRuntimeApiAiConfigSource = (typeof PROJECT_RUNTIME_API_AI_CONFIG_SOURCES)[number];
 export type ProjectRuntimeTarget = {
     projectId: string;
     projectRoot?: never;
@@ -47,9 +47,9 @@ export interface ProjectRuntimeFileMonitorSummary {
     endpoint: string | null;
     mode: string;
 }
-export interface ProjectRuntimeInternalAiSummary {
+export interface ProjectRuntimeApiAiSummary {
     available: boolean;
-    configSource: ProjectRuntimeInternalAiConfigSource;
+    configSource: ProjectRuntimeApiAiConfigSource;
     model: string | null;
     provider: string | null;
 }
@@ -93,7 +93,7 @@ export interface ProjectRuntimeScopeSummary {
     flags: ProjectRuntimeFlags;
     ghost: boolean;
     initializedBy: 'project-registry';
-    internalAi: ProjectRuntimeInternalAiSummary;
+    apiAi: ProjectRuntimeApiAiSummary;
     jobs: ProjectRuntimeJobsSummary;
     mode: WorkspaceMode;
     projectExists: boolean;

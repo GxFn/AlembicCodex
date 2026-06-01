@@ -45,7 +45,7 @@ router.get('/health', (req, res) => {
                     available: dashboardAvailable,
                     url: dashboardUrl,
                 },
-                internalAi: getInternalAiCapability(),
+                apiAi: getApiAiCapability(),
                 jobs: {
                     available: true,
                     endpoints: {
@@ -59,7 +59,7 @@ router.get('/health', (req, res) => {
         },
     });
 });
-function getInternalAiCapability() {
+function getApiAiCapability() {
     return {
         available: false,
         configSource: null,

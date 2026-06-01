@@ -26,7 +26,7 @@ export type AlembicEnhancementRoute = 'local-alembic';
 export type AlembicFileMonitorMode = (typeof ALEMBIC_FILE_MONITOR_MODES)[number];
 export type AlembicRuntimeDataRootSource = (typeof ALEMBIC_RUNTIME_DATA_ROOT_SOURCES)[number];
 export type AlembicJobKind = (typeof ALEMBIC_JOB_KINDS)[number];
-export type AlembicInternalAiConfigSource = 'empty' | 'process-env' | 'runtime-overrides' | 'workspace-settings';
+export type AlembicApiAiConfigSource = 'empty' | 'process-env' | 'runtime-overrides' | 'workspace-settings';
 export interface AlembicRuntimeProjectIdentity {
     dataRoot: string;
     dataRootSource: AlembicRuntimeDataRootSource;
@@ -61,9 +61,9 @@ export interface AlembicFileMonitorCapability {
     endpoint: typeof ALEMBIC_FILE_CHANGES_PATH | string | null;
     mode: AlembicFileMonitorMode;
 }
-export interface AlembicInternalAiCapability {
+export interface AlembicApiAiCapability {
     available: boolean;
-    configSource: AlembicInternalAiConfigSource;
+    configSource: AlembicApiAiConfigSource;
     model: string | null;
     provider: string | null;
 }
@@ -80,9 +80,9 @@ export interface AlembicJobsCapability {
 }
 export interface AlembicRuntimeCapabilities {
     api: AlembicApiCapability;
+    apiAi: AlembicApiAiCapability;
     dashboard: AlembicDashboardCapability;
     fileMonitor: AlembicFileMonitorCapability;
-    internalAi: AlembicInternalAiCapability;
     jobs: AlembicJobsCapability;
     projectScope: ProjectScopeEndpointCapability;
 }
@@ -103,7 +103,7 @@ export interface CreateAlembicRuntimeCapabilitiesOptions {
     fileMonitorAvailable?: boolean;
     fileMonitorEndpoint?: string | null;
     fileMonitorMode?: AlembicFileMonitorMode;
-    internalAi: AlembicInternalAiCapability;
+    apiAi: AlembicApiAiCapability;
     jobProcessEvents?: Partial<JobProcessEventEndpointCapability>;
     jobEndpoints?: Partial<Record<keyof typeof ALEMBIC_JOB_ENDPOINTS, string>>;
     jobKinds?: readonly AlembicJobKind[];
@@ -133,11 +133,11 @@ export interface AlembicRuntimeProjectIdentitySummary {
 }
 export interface AlembicRuntimeCapabilitySummary {
     apiAvailable: boolean | null;
+    apiAiAvailable: boolean | null;
     dashboardAvailable: boolean | null;
     dashboardUrl: string | null;
     fileMonitorAvailable: boolean | null;
     fileMonitorMode: AlembicFileMonitorMode | null;
-    internalAiAvailable: boolean | null;
     jobEventsAvailable: boolean | null;
     jobEventDisplayPolicies: string[];
     jobEventsEndpoint: string | null;

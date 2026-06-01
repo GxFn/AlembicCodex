@@ -14,7 +14,7 @@ export function buildCodexEnhancementRouteChoice(input) {
     const daemon = summarizeEnhancementDaemon(input.daemonStatus);
     const localInstall = input.localInstall || probeLocalAlembicInstall();
     const missingCapabilities = findMissingCapabilities(requirement, daemon);
-    const internalAiProvider = summarizeInternalAiProvider(input.daemonStatus.health);
+    const apiAiProvider = summarizeApiAiProvider(input.daemonStatus.health);
     const embeddedRuntime = {
         artifact: runtime.embeddedRuntimeSpecifier,
         available: true,
@@ -35,7 +35,7 @@ export function buildCodexEnhancementRouteChoice(input) {
             source: HOST_AGENT_SOURCE,
             tools: CODEX_HOST_AGENT_ROUTE_TOOLS,
         },
-        internalAiProvider,
+        apiAiProvider,
         localAlembic: {
             daemon,
             install: localInstall,
@@ -202,7 +202,7 @@ function summarizeDaemonRuntimeBoundary(capabilities, data) {
     const daemon = asRecord(source?.daemon);
     const dashboard = asRecord(source?.dashboard);
     const fileMonitor = asRecord(source?.fileMonitor);
-    const internalAi = asRecord(source?.internalAi);
+    const apiAi = asRecord(source?.apiAi);
     const jobs = asRecord(source?.jobs);
     return {
         available: Boolean(source),
@@ -237,10 +237,10 @@ function summarizeDaemonRuntimeBoundary(capabilities, data) {
             mode: normalizeAlembicFileMonitorMode(fileMonitor?.mode) ||
                 normalizeAlembicFileMonitorMode(fileMonitor?.source),
         },
-        internalAi: {
-            available: booleanOrNull(internalAi?.available),
-            owner: firstString(internalAi?.owner),
-            runtimeOwner: firstString(internalAi?.runtimeOwner),
+        apiAi: {
+            available: booleanOrNull(apiAi?.available),
+            owner: firstString(apiAi?.owner),
+            runtimeOwner: firstString(apiAi?.runtimeOwner),
         },
         jobs: {
             kinds: stringArray(jobs?.kinds),
@@ -256,11 +256,10 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
     const available = (feature) => residentService.capabilities[feature]?.available === true;
     const unavailable = (feature) => residentService.capabilities[feature]?.available === false;
     const jobKinds = [
-        ...(available('jobs.internal-ai.bootstrap') ||
-            available('jobs.host-agent-recoverable.bootstrap')
+        ...(available('jobs.api-ai.bootstrap') || available('jobs.host-agent-recoverable.bootstrap')
             ? ['bootstrap']
             : []),
-        ...(available('jobs.internal-ai.rescan') || available('jobs.host-agent-recoverable.rescan')
+        ...(available('jobs.api-ai.rescan') || available('jobs.host-agent-recoverable.rescan')
             ? ['rescan']
             : []),
     ];
@@ -274,9 +273,9 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
         : unavailable('file-monitor.git-worktree')
             ? false
             : null;
-    const internalAiAvailable = available('jobs.internal-ai.bootstrap') || available('jobs.internal-ai.rescan')
+    const apiAiAvailable = available('jobs.api-ai.bootstrap') || available('jobs.api-ai.rescan')
         ? true
-        : unavailable('jobs.internal-ai.bootstrap') && unavailable('jobs.internal-ai.rescan')
+        : unavailable('jobs.api-ai.bootstrap') && unavailable('jobs.api-ai.rescan')
             ? false
             : null;
     const statusAvailable = available('status.health')
@@ -286,8 +285,8 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
             : null;
     const jobsAvailable = jobKinds.length > 0
         ? true
-        : unavailable('jobs.internal-ai.bootstrap') &&
-            unavailable('jobs.internal-ai.rescan') &&
+        : unavailable('jobs.api-ai.bootstrap') &&
+            unavailable('jobs.api-ai.rescan') &&
             unavailable('jobs.host-agent-recoverable.bootstrap') &&
             unavailable('jobs.host-agent-recoverable.rescan')
             ? false
@@ -300,7 +299,7 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
         dashboardUrl: summary.dashboardUrl,
         fileMonitorAvailable: fileMonitorAvailable ?? summary.fileMonitorAvailable,
         fileMonitorMode: summary.fileMonitorMode,
-        internalAiAvailable: internalAiAvailable ?? summary.internalAiAvailable,
+        apiAiAvailable: apiAiAvailable ?? summary.apiAiAvailable,
         jobsAvailable: jobsAvailable ?? summary.jobsAvailable,
         jobKinds: jobKinds.length > 0 ? jobKinds : summary.jobKinds,
     };
@@ -332,16 +331,16 @@ function findMissingCapabilities(requirement, daemon) {
     }
     return missing;
 }
-function summarizeInternalAiProvider(health) {
+function summarizeApiAiProvider(health) {
     const data = asRecord(health?.data);
     const capabilities = asRecord(data?.capabilities);
-    const internalAi = asRecord(capabilities?.internalAi);
-    if (internalAi) {
+    const apiAi = asRecord(capabilities?.apiAi);
+    if (apiAi) {
         return {
-            available: internalAi.available === true,
-            configSource: readConfigSource(internalAi.configSource),
-            model: firstString(internalAi.model),
-            provider: firstString(internalAi.provider),
+            available: apiAi.available === true,
+            configSource: readConfigSource(apiAi.configSource),
+            model: firstString(apiAi.model),
+            provider: firstString(apiAi.provider),
         };
     }
     return {

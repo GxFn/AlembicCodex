@@ -5,10 +5,10 @@ export declare const ALEMBIC_RESIDENT_ROUTE_KINDS: readonly ["local-alembic-daem
 export declare const ALEMBIC_RESIDENT_SERVICE_OWNERS: readonly ["alembic", "alembic-plugin"];
 export declare const ALEMBIC_RESIDENT_SERVICE_SCOPE_KINDS: readonly ["current-project", "workspace", "runtime-only", "unknown"];
 export declare const ALEMBIC_RESIDENT_SERVICE_UNAVAILABLE_REASONS: readonly ["not-installed", "not-running", "token-missing", "capability-unavailable", "route-unavailable", "request-timeout", "request-failed", "unsupported-route", "unknown"];
-export declare const ALEMBIC_RESIDENT_FEATURES: readonly ["status.health", "search.keyword", "search.semantic", "jobs.internal-ai.bootstrap", "jobs.internal-ai.rescan", "jobs.host-agent-recoverable.bootstrap", "jobs.host-agent-recoverable.rescan", "dashboard.handoff", "file-monitor.git-worktree"];
-export declare const ALEMBIC_RESIDENT_INTERNAL_AI_JOB_FEATURES: readonly ["jobs.internal-ai.bootstrap", "jobs.internal-ai.rescan"];
+export declare const ALEMBIC_RESIDENT_FEATURES: readonly ["status.health", "search.keyword", "search.semantic", "jobs.api-ai.bootstrap", "jobs.api-ai.rescan", "jobs.host-agent-recoverable.bootstrap", "jobs.host-agent-recoverable.rescan", "dashboard.handoff", "file-monitor.git-worktree"];
+export declare const ALEMBIC_RESIDENT_API_AI_JOB_FEATURES: readonly ["jobs.api-ai.bootstrap", "jobs.api-ai.rescan"];
 export declare const ALEMBIC_RESIDENT_HOST_AGENT_RECOVERABLE_JOB_FEATURES: readonly ["jobs.host-agent-recoverable.bootstrap", "jobs.host-agent-recoverable.rescan"];
-export declare const ALEMBIC_RESIDENT_JOB_FEATURES: readonly ["jobs.internal-ai.bootstrap", "jobs.internal-ai.rescan", "jobs.host-agent-recoverable.bootstrap", "jobs.host-agent-recoverable.rescan"];
+export declare const ALEMBIC_RESIDENT_JOB_FEATURES: readonly ["jobs.api-ai.bootstrap", "jobs.api-ai.rescan", "jobs.host-agent-recoverable.bootstrap", "jobs.host-agent-recoverable.rescan"];
 export declare const ALEMBIC_RESIDENT_SEARCH_MODES: readonly ["auto", "keyword", "semantic"];
 export declare const ALEMBIC_RESIDENT_SEARCH_RESULT_MODES: readonly ["keyword", "semantic", "hybrid", "baseline"];
 export type AlembicResidentRouteKind = AlembicRuntimeRouteKind;
@@ -16,10 +16,10 @@ export type AlembicResidentServiceOwner = (typeof ALEMBIC_RESIDENT_SERVICE_OWNER
 export type AlembicResidentServiceScopeKind = (typeof ALEMBIC_RESIDENT_SERVICE_SCOPE_KINDS)[number];
 export type AlembicResidentServiceUnavailableReason = (typeof ALEMBIC_RESIDENT_SERVICE_UNAVAILABLE_REASONS)[number];
 export type AlembicResidentFeature = (typeof ALEMBIC_RESIDENT_FEATURES)[number];
-export type AlembicResidentInternalAiJobFeature = (typeof ALEMBIC_RESIDENT_INTERNAL_AI_JOB_FEATURES)[number];
+export type AlembicResidentApiAiJobFeature = (typeof ALEMBIC_RESIDENT_API_AI_JOB_FEATURES)[number];
 export type AlembicResidentHostAgentRecoverableJobFeature = (typeof ALEMBIC_RESIDENT_HOST_AGENT_RECOVERABLE_JOB_FEATURES)[number];
 export type AlembicResidentJobFeature = (typeof ALEMBIC_RESIDENT_JOB_FEATURES)[number];
-export type AlembicResidentJobFamily = 'internal-ai' | 'host-agent-recoverable';
+export type AlembicResidentJobFamily = 'api-ai' | 'host-agent-recoverable';
 export type AlembicResidentJobOperation = 'bootstrap' | 'rescan';
 export type AlembicResidentSearchMode = (typeof ALEMBIC_RESIDENT_SEARCH_MODES)[number];
 export type AlembicResidentSearchResultMode = (typeof ALEMBIC_RESIDENT_SEARCH_RESULT_MODES)[number];
@@ -198,5 +198,5 @@ export declare function normalizeAlembicResidentServiceUnavailableReason(value: 
 export declare function isAlembicResidentFeature(value: unknown): value is AlembicResidentFeature;
 export declare function normalizeAlembicResidentFeature(value: unknown): AlembicResidentFeature | null;
 export declare function isAlembicResidentJobFeature(value: unknown): value is AlembicResidentJobFeature;
-export declare function isAlembicResidentInternalAiJobFeature(value: unknown): value is AlembicResidentInternalAiJobFeature;
+export declare function isAlembicResidentApiAiJobFeature(value: unknown): value is AlembicResidentApiAiJobFeature;
 export declare function isAlembicResidentHostAgentRecoverableJobFeature(value: unknown): value is AlembicResidentHostAgentRecoverableJobFeature;

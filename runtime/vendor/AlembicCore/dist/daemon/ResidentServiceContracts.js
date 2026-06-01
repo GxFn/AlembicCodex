@@ -23,23 +23,23 @@ export const ALEMBIC_RESIDENT_FEATURES = [
     'status.health',
     'search.keyword',
     'search.semantic',
-    'jobs.internal-ai.bootstrap',
-    'jobs.internal-ai.rescan',
+    'jobs.api-ai.bootstrap',
+    'jobs.api-ai.rescan',
     'jobs.host-agent-recoverable.bootstrap',
     'jobs.host-agent-recoverable.rescan',
     'dashboard.handoff',
     'file-monitor.git-worktree',
 ];
-export const ALEMBIC_RESIDENT_INTERNAL_AI_JOB_FEATURES = [
-    'jobs.internal-ai.bootstrap',
-    'jobs.internal-ai.rescan',
+export const ALEMBIC_RESIDENT_API_AI_JOB_FEATURES = [
+    'jobs.api-ai.bootstrap',
+    'jobs.api-ai.rescan',
 ];
 export const ALEMBIC_RESIDENT_HOST_AGENT_RECOVERABLE_JOB_FEATURES = [
     'jobs.host-agent-recoverable.bootstrap',
     'jobs.host-agent-recoverable.rescan',
 ];
 export const ALEMBIC_RESIDENT_JOB_FEATURES = [
-    ...ALEMBIC_RESIDENT_INTERNAL_AI_JOB_FEATURES,
+    ...ALEMBIC_RESIDENT_API_AI_JOB_FEATURES,
     ...ALEMBIC_RESIDENT_HOST_AGENT_RECOVERABLE_JOB_FEATURES,
 ];
 export const ALEMBIC_RESIDENT_SEARCH_MODES = ['auto', 'keyword', 'semantic'];
@@ -214,8 +214,8 @@ export function createAlembicResidentServiceUnavailable(status, reason, message,
     };
 }
 export function classifyAlembicResidentJobFeature(feature) {
-    if (isAlembicResidentInternalAiJobFeature(feature)) {
-        return 'internal-ai';
+    if (isAlembicResidentApiAiJobFeature(feature)) {
+        return 'api-ai';
     }
     if (isAlembicResidentHostAgentRecoverableJobFeature(feature)) {
         return 'host-agent-recoverable';
@@ -237,7 +237,7 @@ export function resolveAlembicResidentRouteOwner(route) {
 }
 export function resolveAlembicResidentFeatureOwner(feature, route = 'unavailable', fallbackOwner = resolveAlembicResidentRouteOwner(route)) {
     const family = classifyAlembicResidentJobFeature(feature);
-    if (family === 'internal-ai') {
+    if (family === 'api-ai') {
         return 'alembic';
     }
     if (family === 'host-agent-recoverable') {
@@ -279,8 +279,8 @@ export function normalizeAlembicResidentFeature(value) {
 export function isAlembicResidentJobFeature(value) {
     return typeof value === 'string' && ALEMBIC_RESIDENT_JOB_FEATURES.includes(value);
 }
-export function isAlembicResidentInternalAiJobFeature(value) {
-    return (typeof value === 'string' && ALEMBIC_RESIDENT_INTERNAL_AI_JOB_FEATURES.includes(value));
+export function isAlembicResidentApiAiJobFeature(value) {
+    return typeof value === 'string' && ALEMBIC_RESIDENT_API_AI_JOB_FEATURES.includes(value);
 }
 export function isAlembicResidentHostAgentRecoverableJobFeature(value) {
     return (typeof value === 'string' &&

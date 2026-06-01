@@ -16,7 +16,7 @@ export const PROJECT_RUNTIME_DAEMON_STATUSES = [
     'failed',
     'not-checked',
 ];
-export const PROJECT_RUNTIME_INTERNAL_AI_CONFIG_SOURCES = [
+export const PROJECT_RUNTIME_API_AI_CONFIG_SOURCES = [
     'empty',
     'process-env',
     'workspace-settings',

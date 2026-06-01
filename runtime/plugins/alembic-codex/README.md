@@ -1,6 +1,6 @@
 # Alembic Codex Plugin
 
-Alembic for Codex gives Codex local project memory without turning every chat into a setup session. It starts with a lightweight MCP shim, reports diagnostics and workspace status without initializing the database, initializes in Ghost mode by default, then starts or connects to the per-workspace daemon only when project knowledge, Guard, Dashboard, Codex host-agent bootstrap/rescan, or explicit internal AI jobs are requested.
+Alembic for Codex gives Codex local project memory without turning every chat into a setup session. It starts with a lightweight MCP shim, reports diagnostics and workspace status without initializing the database, initializes in Ghost mode by default, then starts or connects to the per-workspace daemon only when project knowledge, Guard, Dashboard, Codex host-agent bootstrap/rescan, or explicit API AI jobs are requested.
 
 Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
@@ -82,9 +82,9 @@ The normal first minute is:
 
 `alembic_bootstrap` and `alembic_rescan` are the default Codex host-agent workflows. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions. These workflows do not require an Alembic AI Provider.
 
-`alembic_codex_bootstrap` and `alembic_codex_rescan` are explicit Alembic internal AI daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the local Alembic UI refreshes.
+`alembic_codex_bootstrap` and `alembic_codex_rescan` are explicit Alembic API AI daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the local Alembic UI refreshes.
 
-If the Alembic daemon shuts down or restarts before an active internal AI job completes, the next daemon lifecycle marks that job as `failed` with an interruption reason instead of leaving it stuck in `queued` or `running`. Start a new internal job or use the host-agent workflow to retry.
+If the Alembic daemon shuts down or restarts before an active API AI job completes, the next daemon lifecycle marks that job as `failed` with an interruption reason instead of leaving it stuck in `queued` or `running`. Start a new API AI job or use the host-agent workflow to retry.
 
 ## Release Verification
 
