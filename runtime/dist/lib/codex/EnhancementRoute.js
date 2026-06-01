@@ -14,7 +14,7 @@ export function buildCodexEnhancementRouteChoice(input) {
     const daemon = summarizeEnhancementDaemon(input.daemonStatus);
     const localInstall = input.localInstall || probeLocalAlembicInstall();
     const missingCapabilities = findMissingCapabilities(requirement, daemon);
-    const apiAiProvider = summarizeApiAiProvider(input.daemonStatus.health);
+    const residentDaemonJobProvider = summarizeResidentDaemonJobProvider(input.daemonStatus.health);
     const embeddedRuntime = {
         artifact: runtime.embeddedRuntimeSpecifier,
         available: true,
@@ -35,7 +35,7 @@ export function buildCodexEnhancementRouteChoice(input) {
             source: HOST_AGENT_SOURCE,
             tools: CODEX_HOST_AGENT_ROUTE_TOOLS,
         },
-        apiAiProvider,
+        residentDaemonJobProvider,
         localAlembic: {
             daemon,
             install: localInstall,
@@ -91,7 +91,7 @@ export function summarizeEnhancementDaemon(status) {
         ? normalizeAlembicResidentServiceStatus(data.residentService)
         : null;
     const runtimeBoundary = summarizeDaemonRuntimeBoundary(capabilities, data);
-    const capabilitySummary = mergeCapabilitySummaryWithResidentService(summarizeAlembicRuntimeCapabilities(capabilities), residentServiceStatus);
+    const capabilitySummary = mergeCapabilitySummaryWithResidentService(toCodexDaemonCapabilitySummary(summarizeAlembicRuntimeCapabilities(capabilities)), residentServiceStatus);
     const route = firstString(residentServiceStatus?.route, enhancement?.route) ||
         inferRouteFromReadyDaemon(status);
     const dashboardUrl = firstString(capabilitySummary.dashboardUrl, data?.dashboardUrl, isLocalAlembicDaemonRoute(route) && capabilitySummary.dashboardAvailable === true
@@ -202,7 +202,7 @@ function summarizeDaemonRuntimeBoundary(capabilities, data) {
     const daemon = asRecord(source?.daemon);
     const dashboard = asRecord(source?.dashboard);
     const fileMonitor = asRecord(source?.fileMonitor);
-    const apiAi = asRecord(source?.apiAi);
+    const contractApiAi = asRecord(source?.apiAi);
     const jobs = asRecord(source?.jobs);
     return {
         available: Boolean(source),
@@ -237,10 +237,10 @@ function summarizeDaemonRuntimeBoundary(capabilities, data) {
             mode: normalizeAlembicFileMonitorMode(fileMonitor?.mode) ||
                 normalizeAlembicFileMonitorMode(fileMonitor?.source),
         },
-        apiAi: {
-            available: booleanOrNull(apiAi?.available),
-            owner: firstString(apiAi?.owner),
-            runtimeOwner: firstString(apiAi?.runtimeOwner),
+        residentDaemonJobProvider: {
+            available: booleanOrNull(contractApiAi?.available),
+            owner: firstString(contractApiAi?.owner),
+            runtimeOwner: firstString(contractApiAi?.runtimeOwner),
         },
         jobs: {
             kinds: stringArray(jobs?.kinds),
@@ -273,7 +273,7 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
         : unavailable('file-monitor.git-worktree')
             ? false
             : null;
-    const apiAiAvailable = available('jobs.api-ai.bootstrap') || available('jobs.api-ai.rescan')
+    const residentDaemonJobsAvailable = available('jobs.api-ai.bootstrap') || available('jobs.api-ai.rescan')
         ? true
         : unavailable('jobs.api-ai.bootstrap') && unavailable('jobs.api-ai.rescan')
             ? false
@@ -299,9 +299,23 @@ function mergeCapabilitySummaryWithResidentService(summary, residentService) {
         dashboardUrl: summary.dashboardUrl,
         fileMonitorAvailable: fileMonitorAvailable ?? summary.fileMonitorAvailable,
         fileMonitorMode: summary.fileMonitorMode,
-        apiAiAvailable: apiAiAvailable ?? summary.apiAiAvailable,
+        residentDaemonJobsAvailable: residentDaemonJobsAvailable ?? summary.residentDaemonJobsAvailable,
         jobsAvailable: jobsAvailable ?? summary.jobsAvailable,
         jobKinds: jobKinds.length > 0 ? jobKinds : summary.jobKinds,
+    };
+}
+function toCodexDaemonCapabilitySummary(summary) {
+    return {
+        apiAvailable: summary.apiAvailable,
+        dashboardAvailable: summary.dashboardAvailable,
+        dashboardUrl: summary.dashboardUrl,
+        fileMonitorAvailable: summary.fileMonitorAvailable,
+        fileMonitorMode: summary.fileMonitorMode,
+        jobKinds: summary.jobKinds,
+        jobsAvailable: summary.jobsAvailable,
+        // Core/Alembic exposes this as apiAiAvailable; Plugin presents it only as
+        // resident daemon job readiness because the provider runtime is not owned here.
+        residentDaemonJobsAvailable: summary.apiAiAvailable,
     };
 }
 function isLocalAlembicDaemonRoute(route) {
@@ -331,16 +345,16 @@ function findMissingCapabilities(requirement, daemon) {
     }
     return missing;
 }
-function summarizeApiAiProvider(health) {
+function summarizeResidentDaemonJobProvider(health) {
     const data = asRecord(health?.data);
     const capabilities = asRecord(data?.capabilities);
-    const apiAi = asRecord(capabilities?.apiAi);
-    if (apiAi) {
+    const contractApiAi = asRecord(capabilities?.apiAi);
+    if (contractApiAi) {
         return {
-            available: apiAi.available === true,
-            configSource: readConfigSource(apiAi.configSource),
-            model: firstString(apiAi.model),
-            provider: firstString(apiAi.provider),
+            available: contractApiAi.available === true,
+            configSource: readConfigSource(contractApiAi.configSource),
+            model: firstString(contractApiAi.model),
+            provider: firstString(contractApiAi.provider),
         };
     }
     return {

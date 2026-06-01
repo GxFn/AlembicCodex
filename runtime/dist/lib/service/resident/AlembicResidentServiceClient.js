@@ -568,8 +568,8 @@ function embeddedPluginStatus(state) {
                 owner: 'alembic-plugin',
                 route: 'embedded-plugin-runtime',
             },
-            'jobs.api-ai.bootstrap': unavailableCapability('jobs.api-ai.bootstrap', 'unsupported-route', 'Alembic API AI jobs require a local Alembic resident daemon.'),
-            'jobs.api-ai.rescan': unavailableCapability('jobs.api-ai.rescan', 'unsupported-route', 'Alembic API AI jobs require a local Alembic resident daemon.'),
+            'jobs.api-ai.bootstrap': unavailableCapability('jobs.api-ai.bootstrap', 'unsupported-route', 'Provider-backed Alembic daemon jobs require a local Alembic resident daemon.'),
+            'jobs.api-ai.rescan': unavailableCapability('jobs.api-ai.rescan', 'unsupported-route', 'Provider-backed Alembic daemon jobs require a local Alembic resident daemon.'),
             'search.keyword': unavailableCapability('search.keyword', 'unsupported-route'),
             'search.semantic': unavailableCapability('search.semantic', 'unsupported-route'),
             'status.health': {

@@ -490,12 +490,12 @@ function buildCodexHostProjectAlignmentNotes(alignment) {
 function buildCodexRouteBoundaryNotes(enhancementRoute) {
     if (!enhancementRoute) {
         return [
-            'Codex host-agent workflows write source=host-agent and remain separate from Alembic API AI provider configuration.',
+            'Codex host-agent workflows write source=host-agent and remain separate from Alembic resident daemon job provider configuration.',
         ];
     }
-    const apiAi = enhancementRoute.apiAiProvider.available
-        ? `${enhancementRoute.apiAiProvider.provider || 'configured'} via ${enhancementRoute.apiAiProvider.configSource || 'unknown'}`
-        : `not configured (${enhancementRoute.apiAiProvider.configSource || 'empty'})`;
+    const providerSummary = enhancementRoute.residentDaemonJobProvider.available
+        ? `${enhancementRoute.residentDaemonJobProvider.provider || 'configured'} via ${enhancementRoute.residentDaemonJobProvider.configSource || 'unknown'}`
+        : `not configured (${enhancementRoute.residentDaemonJobProvider.configSource || 'empty'})`;
     const routeNote = enhancementRoute.selected === 'local-alembic-daemon'
         ? `Local Alembic resident service route: ${enhancementRoute.selected}. ${enhancementRoute.reason}`
         : enhancementRoute.selected === 'embedded-plugin-runtime'
@@ -504,7 +504,7 @@ function buildCodexRouteBoundaryNotes(enhancementRoute) {
     return [
         `Host-agent route uses source=${enhancementRoute.hostAgentRoute.source} for Codex-submitted knowledge, proposals, and dimension completion.`,
         routeNote,
-        `API AI provider config: ${apiAi}; this is provider/model state, not a knowledge source.`,
+        `Resident daemon job provider config: ${providerSummary}; this is provider/model state, not a Plugin knowledge source.`,
     ];
 }
 export function buildCodexRecommendedAction(input) {

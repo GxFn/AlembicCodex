@@ -147,8 +147,8 @@ Run this against a fresh test repository and one real project before public prom
 8. Run `alembic_codex_dashboard`; if no local Alembic Dashboard daemon is active, confirm it fails closed with `CODEX_DASHBOARD_HANDOFF_UNAVAILABLE` and no embedded URL. When local Alembic owns the Dashboard server, confirm the returned URL comes from that local daemon capability.
 9. Run `alembic_bootstrap` and confirm Codex receives a Mission Briefing for the host-agent workflow without requiring an AI Provider.
 10. Optional daemon-job line: when the Alembic resident service is already configured for jobs, run `alembic_codex_bootstrap` and capture the job id. Do not configure third-party AI providers through the Codex plugin.
-11. Run `alembic_codex_job` with the job id from the optional API AI line.
-12. Restart Codex or stop the daemon, then confirm `alembic_codex_job` returns a recoverable status instead of leaving the API AI job stuck.
+11. Run `alembic_codex_job` with the job id from the optional provider-backed daemon job line.
+12. Restart Codex or stop the daemon, then confirm `alembic_codex_job` returns a recoverable status instead of leaving the provider-backed daemon job stuck.
 13. Run `alembic_codex_cleanup` without `confirm` and verify it is a dry run.
 
 ## Failure Triage
