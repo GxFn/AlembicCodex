@@ -20,5 +20,5 @@ export interface WorkflowMcpContext {
 }
 export declare function normalizeDimensionIds(dimensions: unknown): string[] | undefined;
 export declare function normalizeStringArray(values: unknown): string[] | undefined;
-export type WorkflowExecutor = 'internal-agent' | 'external-agent';
+export type WorkflowExecutor = 'internal-agent' | 'host-agent';
 export type WorkflowAnalysisMode = 'full' | 'incremental';

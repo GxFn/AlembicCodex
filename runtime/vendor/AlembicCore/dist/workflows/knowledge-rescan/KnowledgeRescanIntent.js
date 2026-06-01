@@ -22,19 +22,19 @@ export function createInternalKnowledgeRescanIntent(args) {
         },
     };
 }
-export function createExternalKnowledgeRescanIntent(args) {
+export function createHostAgentKnowledgeRescanIntent(args) {
     const forceMode = args.force ?? false;
     const cleanupPolicy = forceMode ? 'force-rescan' : 'rescan-clean';
     return {
         kind: 'knowledge-rescan',
-        executor: 'external-agent',
+        executor: 'host-agent',
         analysisMode: forceMode ? 'full' : 'incremental',
         cleanupPolicy,
-        completionPolicy: 'external-dimension-complete',
+        completionPolicy: 'host-agent-dimension-complete',
         projectAnalysis: {
             maxFiles: 500,
             contentMaxLines: 120,
-            sourceTag: 'rescan-external',
+            sourceTag: 'rescan-host-agent',
             summaryPrefix: 'Rescan scan',
             generateAstContext: false,
         },

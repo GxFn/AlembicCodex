@@ -5,7 +5,7 @@
  * 的确定性协议；Codex MCP tool、Skill 文案、AgentRuntime、tool policy、
  * AI provider 和多渠道交付仍由外层仓库负责。
  */
-export * from './workflows/capabilities/execution/external/index.js';
+export * from './workflows/capabilities/host-agent/index.js';
 export * from './workflows/capabilities/persistence/index.js';
 export * from './workflows/capabilities/planning/dimensions/index.js';
 export * from './workflows/capabilities/planning/knowledge/index.js';

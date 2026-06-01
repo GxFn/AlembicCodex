@@ -12,7 +12,7 @@ export interface InternalKnowledgeRescanArgs extends RescanInput {
 export interface KnowledgeRescanProjectAnalysisIntent {
     maxFiles: number;
     contentMaxLines: number;
-    sourceTag: 'rescan-internal' | 'rescan-external';
+    sourceTag: 'rescan-internal' | 'rescan-host-agent';
     summaryPrefix: string;
     generateAstContext: boolean;
 }
@@ -24,11 +24,11 @@ export interface KnowledgeRescanWorkflowIntent {
     executor: KnowledgeRescanExecutor;
     analysisMode: 'incremental' | 'full';
     cleanupPolicy: 'none' | 'force-rescan' | 'rescan-clean';
-    completionPolicy: 'auto-fill' | 'external-dimension-complete';
+    completionPolicy: 'auto-fill' | 'host-agent-dimension-complete';
     projectAnalysis: KnowledgeRescanProjectAnalysisIntent;
     dimensionIds?: string[];
     reason?: string | null;
     internalExecution?: InternalKnowledgeRescanExecutionIntent;
 }
 export declare function createInternalKnowledgeRescanIntent(args: InternalKnowledgeRescanArgs): KnowledgeRescanWorkflowIntent;
-export declare function createExternalKnowledgeRescanIntent(args: RescanInput): KnowledgeRescanWorkflowIntent;
+export declare function createHostAgentKnowledgeRescanIntent(args: RescanInput): KnowledgeRescanWorkflowIntent;

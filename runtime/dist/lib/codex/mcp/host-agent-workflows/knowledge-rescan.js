@@ -10,7 +10,7 @@
  *   4. 构建 Mission Briefing（含 allRecipes + evolutionGuide）
  *   5. 返回给宿主 Agent 按维度执行: evolve → gap-fill → dimension_complete
  */
-import { auditRecipesForRescan, buildExternalMissionBriefing as buildHostAgentMissionBriefing, buildIDEAgentAnalysisPacketFromSnapshot, buildKnowledgeRescanPlan, buildKnowledgeRescanWorkflowPlan, buildRescanPrescreen, createExternalKnowledgeRescanIntent as createHostAgentKnowledgeRescanIntent, createExternalWorkflowSession as createHostAgentWorkflowSession, presentExternalKnowledgeRescanEmptyProject as presentHostAgentKnowledgeRescanEmptyProject, presentExternalKnowledgeRescanResponse as presentHostAgentKnowledgeRescanResponse, projectExternalRescanEvidencePlan as projectHostAgentRescanEvidencePlan, runForceRescanCleanPolicy, runRescanCleanPolicy, syncKnowledgeStoreForRescan, } from '@alembic/core/host-agent-workflows';
+import { auditRecipesForRescan, buildHostAgentMissionBriefing, buildIDEAgentAnalysisPacketFromSnapshot, buildKnowledgeRescanPlan, buildKnowledgeRescanWorkflowPlan, buildRescanPrescreen, createHostAgentKnowledgeRescanIntent, createHostAgentWorkflowSession, presentHostAgentKnowledgeRescanEmptyProject, presentHostAgentKnowledgeRescanResponse, projectHostAgentRescanEvidencePlan, runForceRescanCleanPolicy, runRescanCleanPolicy, syncKnowledgeStoreForRescan, } from '@alembic/core/host-agent-workflows';
 import { buildProjectSnapshot, ProjectIntelligenceCapability, } from '@alembic/core/project-intelligence';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { buildIDEAgentAnalysisSurface } from '#codex/ide-agent/IDEAgentAnalysisSurface.js';
@@ -154,7 +154,7 @@ export async function runHostAgentKnowledgeRescanWorkflow(ctx, args) {
         isMultiLang: langProfile.isMultiLang || false,
         fileCount: allFiles.length,
         projectType: snapshot.discoverer.id,
-        profile: 'rescan-external',
+        profile: 'rescan-host-agent',
         rescan: { evidencePlan, prescreen },
         briefing: {
             astData: astProjectSummary,

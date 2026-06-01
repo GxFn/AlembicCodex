@@ -21,7 +21,7 @@ export declare function presentInternalColdStartEmptyProject({ report, responseT
         version?: string;
     };
 };
-export declare function presentExternalColdStartEmptyProject({ responseTimeMs, }: {
+export declare function presentHostAgentColdStartEmptyProject({ responseTimeMs, }: {
     responseTimeMs: number;
 }): {
     success: boolean;
@@ -114,7 +114,7 @@ export declare function presentInternalColdStartResponse({ cleanupResult, snapsh
         version?: string;
     };
 };
-export declare function presentExternalColdStartResponse({ cleanupResult, briefing, dimensionCount, responseTimeMs, }: {
+export declare function presentHostAgentColdStartResponse({ cleanupResult, briefing, dimensionCount, responseTimeMs, }: {
     cleanupResult: CleanupResult;
     briefing: MissionBriefingResult;
     dimensionCount: number;

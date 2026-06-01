@@ -47,7 +47,7 @@ function projectInternalRescanPromptRecipe({ entry, dimensionId, auditSummary, a
         auditEvidence: auditResult?.evidence,
     };
 }
-export function projectExternalRescanEvidencePlan(plan) {
+export function projectHostAgentRescanEvidencePlan(plan) {
     const snapshotById = new Map(plan.recipeEntries.map((entry) => [entry.id, entry]));
     const allRecipes = plan.auditSummary.results
         .filter((result) => result.verdict !== 'dead')

@@ -2,8 +2,8 @@ import path from 'node:path';
 import { EvolutionPolicy } from '../../../../domain/evolution/EvolutionPolicy.js';
 import { buildEvolutionPrescreen } from './EvolutionPrescreen.js';
 import { buildKnowledgeRescanPlan, TARGET_RECIPES_PER_DIMENSION, } from './KnowledgeRescanPlanBuilder.js';
-import { projectExternalRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes, projectInternalRescanPromptRecipesFromParts, } from './RescanEvidenceProjectors.js';
-export { buildKnowledgeRescanPlan, projectExternalRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes, TARGET_RECIPES_PER_DIMENSION, };
+import { projectHostAgentRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes, projectInternalRescanPromptRecipesFromParts, } from './RescanEvidenceProjectors.js';
+export { buildKnowledgeRescanPlan, projectHostAgentRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes, TARGET_RECIPES_PER_DIMENSION, };
 export function syncKnowledgeStoreForRescan(opts) {
     try {
         if (opts.container.services && !opts.container.services.knowledgeSyncService) {
@@ -318,6 +318,6 @@ export function planInternalRescanGaps(opts) {
 export function buildExistingRecipesForInternalFill(opts) {
     return projectInternalRescanPromptRecipesFromParts(opts);
 }
-export function buildExternalRescanEvidencePlan(opts) {
-    return projectExternalRescanEvidencePlan(buildKnowledgeRescanPlan(opts));
+export function buildHostAgentRescanEvidencePlan(opts) {
+    return projectHostAgentRescanEvidencePlan(buildKnowledgeRescanPlan(opts));
 }

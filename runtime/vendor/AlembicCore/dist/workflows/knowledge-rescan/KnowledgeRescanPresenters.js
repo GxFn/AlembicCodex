@@ -8,7 +8,7 @@ export function presentInternalKnowledgeRescanEmptyProject({ responseTimeMs, }) 
         meta: { tool: 'alembic_rescan', responseTimeMs },
     });
 }
-export function presentExternalKnowledgeRescanEmptyProject({ responseTimeMs, }) {
+export function presentHostAgentKnowledgeRescanEmptyProject({ responseTimeMs, }) {
     return envelope({
         success: true,
         data: { message: 'No source files found. Nothing to rescan.' },
@@ -99,7 +99,7 @@ export function presentInternalKnowledgeRescanResponse({ recipeSnapshot, cleanRe
         meta: { tool: 'alembic_rescan', responseTimeMs },
     });
 }
-export function presentExternalKnowledgeRescanResponse({ recipeSnapshot, cleanResult, auditSummary, briefing, evidencePlan, dimensions, reason, responseTimeMs, }) {
+export function presentHostAgentKnowledgeRescanResponse({ recipeSnapshot, cleanResult, auditSummary, briefing, evidencePlan, dimensions, reason, responseTimeMs, }) {
     return envelope({
         success: true,
         data: {

@@ -1,5 +1,5 @@
 import { getInternalAgentRequiredFields } from '../../domain/knowledge/FieldSpec.js';
-import { buildInternalNextSteps } from '../capabilities/execution/external/MissionBriefingSupport.js';
+import { buildInternalNextSteps } from '../capabilities/host-agent/MissionBriefingSupport.js';
 import { buildLanguageExtension as buildProjectLanguageExtension } from '../capabilities/presentation/LanguageExtensionBuilder.js';
 import { summarizePanorama as summarizeProjectPanorama } from '../capabilities/presentation/PanoramaSummaryPresenter.js';
 import { inferTargetRole } from '../capabilities/presentation/TargetClassifier.js';
@@ -12,7 +12,7 @@ export function presentInternalColdStartEmptyProject({ report, responseTimeMs, }
         meta: { tool: 'alembic_bootstrap', responseTimeMs },
     });
 }
-export function presentExternalColdStartEmptyProject({ responseTimeMs, }) {
+export function presentHostAgentColdStartEmptyProject({ responseTimeMs, }) {
     return envelope({
         success: true,
         data: { message: 'No source files found. Nothing to bootstrap.' },
@@ -142,7 +142,7 @@ export function presentInternalColdStartResponse({ cleanupResult, snapshot, repo
         meta: { tool: 'alembic_bootstrap', responseTimeMs },
     });
 }
-export function presentExternalColdStartResponse({ cleanupResult, briefing, dimensionCount, responseTimeMs, }) {
+export function presentHostAgentColdStartResponse({ cleanupResult, briefing, dimensionCount, responseTimeMs, }) {
     return envelope({
         success: true,
         data: {

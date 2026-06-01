@@ -1,7 +1,7 @@
 export function buildColdStartWorkflowPlan({ intent, projectRoot, dataRoot, }) {
     const prepare = {
         clearOldData: true,
-        ...(intent.executor === 'external-agent' ? { dataRoot } : {}),
+        ...(intent.executor === 'host-agent' ? { dataRoot } : {}),
     };
     const scan = {
         maxFiles: intent.projectAnalysis.maxFiles,
@@ -26,7 +26,7 @@ export function buildColdStartWorkflowPlan({ intent, projectRoot, dataRoot, }) {
         intent,
         cleanup: {
             policy: 'full-reset',
-            projectRoot: intent.executor === 'external-agent' ? dataRoot : projectRoot,
+            projectRoot: intent.executor === 'host-agent' ? dataRoot : projectRoot,
             dataRoot,
         },
         projectAnalysis: {

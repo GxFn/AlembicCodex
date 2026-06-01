@@ -6,8 +6,8 @@
  * AI provider 和多渠道交付仍由外层仓库负责。
  */
 export type { DimensionDef, MissionBriefingResult, ProjectSnapshot, ProjectSnapshotInput, } from './types/project-snapshot.js';
-export * from './workflows/capabilities/execution/external/index.js';
-export type { ProjectSkillAssetKind, ProjectSkillAuthorizationStatus, ProjectSkillConflictStatus, ProjectSkillDeliveryAsset, ProjectSkillDeliveryAuthorization, ProjectSkillDeliveryEvidenceRef, ProjectSkillDeliveryReceipt, ProjectSkillDeliveryRoute, ProjectSkillDeliveryValidationIssue, ProjectSkillDeliveryValidationResult, ProjectSkillLinkMode, ProjectSkillManagedMarker, ProjectSkillRuntimeExportReceipt, ProjectSkillRuntimeExportStatus, ProjectSkillRuntimeExportStrategy, } from './workflows/capabilities/execution/external/ProjectSkillDeliveryContracts.js';
+export * from './workflows/capabilities/host-agent/index.js';
+export type { ProjectSkillAssetKind, ProjectSkillAuthorizationStatus, ProjectSkillConflictStatus, ProjectSkillDeliveryAsset, ProjectSkillDeliveryAuthorization, ProjectSkillDeliveryEvidenceRef, ProjectSkillDeliveryReceipt, ProjectSkillDeliveryRoute, ProjectSkillDeliveryValidationIssue, ProjectSkillDeliveryValidationResult, ProjectSkillLinkMode, ProjectSkillManagedMarker, ProjectSkillRuntimeExportReceipt, ProjectSkillRuntimeExportStatus, ProjectSkillRuntimeExportStrategy, } from './workflows/capabilities/host-agent/ProjectSkillDeliveryContracts.js';
 export * from './workflows/capabilities/persistence/index.js';
 export * from './workflows/capabilities/planning/dimensions/index.js';
 export * from './workflows/capabilities/planning/knowledge/index.js';

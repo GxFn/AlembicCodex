@@ -1,5 +1,5 @@
 import type { DimensionDef, ProjectSnapshot } from '../../types/project-snapshot.js';
-import type { ExternalRescanEvidencePlan, InternalRescanGapPlan, RelevanceAuditSummary } from '../capabilities/planning/knowledge/KnowledgeRescanPlanner.js';
+import type { HostAgentRescanEvidencePlan, InternalRescanGapPlan, RelevanceAuditSummary } from '../capabilities/planning/knowledge/KnowledgeRescanPlanner.js';
 import type { CleanupResult, RecipeSnapshot } from '../capabilities/RecipeSnapshotTypes.js';
 export type KnowledgeRescanTargetFileMap = Record<string, Array<Record<string, unknown>>>;
 export declare function presentInternalKnowledgeRescanEmptyProject({ responseTimeMs, }: {
@@ -19,7 +19,7 @@ export declare function presentInternalKnowledgeRescanEmptyProject({ responseTim
         version?: string;
     };
 };
-export declare function presentExternalKnowledgeRescanEmptyProject({ responseTimeMs, }: {
+export declare function presentHostAgentKnowledgeRescanEmptyProject({ responseTimeMs, }: {
     responseTimeMs: number;
 }): {
     success: boolean;
@@ -143,12 +143,12 @@ export declare function presentInternalKnowledgeRescanResponse({ recipeSnapshot,
         version?: string;
     };
 };
-export declare function presentExternalKnowledgeRescanResponse({ recipeSnapshot, cleanResult, auditSummary, briefing, evidencePlan, dimensions, reason, responseTimeMs, }: {
+export declare function presentHostAgentKnowledgeRescanResponse({ recipeSnapshot, cleanResult, auditSummary, briefing, evidencePlan, dimensions, reason, responseTimeMs, }: {
     recipeSnapshot: RecipeSnapshot;
     cleanResult: CleanupResult;
     auditSummary: RelevanceAuditSummary;
     briefing: Record<string, unknown>;
-    evidencePlan: ExternalRescanEvidencePlan;
+    evidencePlan: HostAgentRescanEvidencePlan;
     dimensions: DimensionDef[];
     reason?: string | null;
     responseTimeMs: number;

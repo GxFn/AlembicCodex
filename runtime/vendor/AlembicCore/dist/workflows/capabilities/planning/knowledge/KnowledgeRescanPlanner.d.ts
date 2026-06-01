@@ -4,7 +4,7 @@ import type { DimensionDef } from '../../../../types/project-snapshot.js';
 import type { RecipeSnapshotEntry } from '../../RecipeSnapshotTypes.js';
 import { type EvolutionPrescreen } from './EvolutionPrescreen.js';
 import { type AuditVerdict, type BuildKnowledgeRescanPlanOptions, buildKnowledgeRescanPlan, type KnowledgeRescanDimensionPlan, type KnowledgeRescanExecutionDecision, type KnowledgeRescanPlan, type RescanExecutionMode, type RescanExecutionReason, type RescanExecutionReasonKind, TARGET_RECIPES_PER_DIMENSION } from './KnowledgeRescanPlanBuilder.js';
-import { type ExternalDimensionGap, type ExternalRescanEvidencePlan, type InternalRescanGapPlan, projectExternalRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes } from './RescanEvidenceProjectors.js';
+import { type HostAgentDimensionGap, type HostAgentRescanEvidencePlan, type InternalRescanGapPlan, projectHostAgentRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes } from './RescanEvidenceProjectors.js';
 /** 单个 Recipe 的审计结果 */
 export interface RelevanceAuditResult {
     recipeId: string;
@@ -31,8 +31,8 @@ export interface RelevanceAuditSummary {
     proposalsCreated: number;
     immediateDeprecated: number;
 }
-export { buildKnowledgeRescanPlan, projectExternalRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes, TARGET_RECIPES_PER_DIMENSION, };
-export type { AuditVerdict, ExternalDimensionGap, ExternalRescanEvidencePlan, InternalRescanGapPlan, KnowledgeRescanDimensionPlan, KnowledgeRescanExecutionDecision, KnowledgeRescanPlan, RescanExecutionMode, RescanExecutionReason, RescanExecutionReasonKind, };
+export { buildKnowledgeRescanPlan, projectHostAgentRescanEvidencePlan, projectInternalRescanGapPlan, projectInternalRescanPromptRecipes, TARGET_RECIPES_PER_DIMENSION, };
+export type { AuditVerdict, HostAgentDimensionGap, HostAgentRescanEvidencePlan, InternalRescanGapPlan, KnowledgeRescanDimensionPlan, KnowledgeRescanExecutionDecision, KnowledgeRescanPlan, RescanExecutionMode, RescanExecutionReason, RescanExecutionReasonKind, };
 interface RescanLogger {
     info(msg: string, meta?: Record<string, unknown>): void;
     warn(msg: string, meta?: Record<string, unknown>): void;
@@ -100,9 +100,9 @@ export declare function buildExistingRecipesForInternalFill(opts: {
     sourceRefs?: string[];
     auditEvidence?: Record<string, unknown>;
 }>;
-export declare function buildExternalRescanEvidencePlan(opts: {
+export declare function buildHostAgentRescanEvidencePlan(opts: {
     recipeEntries: RecipeSnapshotEntry[];
     auditSummary: RelevanceAuditSummary;
     dimensions: DimensionDef[];
     targetPerDimension?: number;
-}): ExternalRescanEvidencePlan;
+}): HostAgentRescanEvidencePlan;

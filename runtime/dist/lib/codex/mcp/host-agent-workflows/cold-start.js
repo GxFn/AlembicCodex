@@ -8,7 +8,7 @@
  * 本文件只返回宿主 Agent Mission Briefing；插件侧不启动本地 AI pipeline。
  * Phase 1-4 分析逻辑由 ProjectIntelligenceRunner 执行。
  */
-import { buildColdStartWorkflowPlan, buildExternalMissionBriefing as buildHostAgentMissionBriefing, buildIDEAgentAnalysisPacketFromSnapshot, createExternalColdStartIntent as createHostAgentColdStartIntent, createExternalWorkflowSession as createHostAgentWorkflowSession, getActiveExternalWorkflowSession as getActiveHostAgentWorkflowSession, presentExternalColdStartEmptyProject as presentHostAgentColdStartEmptyProject, presentExternalColdStartResponse as presentHostAgentColdStartResponse, runFullResetPolicy, } from '@alembic/core/host-agent-workflows';
+import { buildColdStartWorkflowPlan, buildHostAgentMissionBriefing, buildIDEAgentAnalysisPacketFromSnapshot, createHostAgentColdStartIntent, createHostAgentWorkflowSession, getActiveHostAgentWorkflowSession, presentHostAgentColdStartEmptyProject, presentHostAgentColdStartResponse, runFullResetPolicy, } from '@alembic/core/host-agent-workflows';
 import { buildProjectSnapshot, ProjectIntelligenceCapability, } from '@alembic/core/project-intelligence';
 import { resolveDataRoot, resolveProjectRoot } from '@alembic/core/workspace';
 import { buildIDEAgentAnalysisSurface } from '#codex/ide-agent/IDEAgentAnalysisSurface.js';
@@ -87,7 +87,7 @@ export async function runHostAgentColdStartWorkflow(ctx) {
         isMultiLang: langProfile.isMultiLang || false,
         fileCount: allFiles.length,
         projectType: snapshot.discoverer.id,
-        profile: 'cold-start-external',
+        profile: 'cold-start-host-agent',
         briefing: {
             astData: astProjectSummary,
             codeEntityResult,

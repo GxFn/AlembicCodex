@@ -14,7 +14,7 @@ export interface InternalRescanGapPlan {
     executionReasons: Record<string, RescanExecutionReason[]>;
     targetPerDimension: number;
 }
-export interface ExternalDimensionGap {
+export interface HostAgentDimensionGap {
     dimensionId: string;
     existingCount: number;
     gap: number;
@@ -24,7 +24,7 @@ export interface ExternalDimensionGap {
     existingTriggers: string[];
     executionReasons: RescanExecutionReason[];
 }
-export interface ExternalRescanEvidencePlan {
+export interface HostAgentRescanEvidencePlan {
     allRecipes: Array<{
         id: string;
         title: string;
@@ -45,7 +45,7 @@ export interface ExternalRescanEvidencePlan {
             decayReasons: string[];
         };
     }>;
-    dimensionGaps: ExternalDimensionGap[];
+    dimensionGaps: HostAgentDimensionGap[];
     executionReasons: Record<string, RescanExecutionReason[]>;
     totalGap: number;
     totalCreateBudget: number;
@@ -93,4 +93,4 @@ export declare function projectInternalRescanPromptRecipesFromParts(opts: {
     sourceRefs?: string[];
     auditEvidence?: Record<string, unknown>;
 }>;
-export declare function projectExternalRescanEvidencePlan(plan: KnowledgeRescanPlan): ExternalRescanEvidencePlan;
+export declare function projectHostAgentRescanEvidencePlan(plan: KnowledgeRescanPlan): HostAgentRescanEvidencePlan;

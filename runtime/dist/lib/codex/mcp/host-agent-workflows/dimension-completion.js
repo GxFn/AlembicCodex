@@ -225,7 +225,7 @@ async function resolveHostAgentCompletionSession({ ctx, input, dependencies, }) 
     };
 }
 async function getActiveHostAgentWorkflowSession(container, sessionId) {
-    const { getActiveExternalWorkflowSession: getActiveCoreHostAgentWorkflowSession } = await import('@alembic/core/host-agent-workflows');
+    const { getActiveHostAgentWorkflowSession: getActiveCoreHostAgentWorkflowSession } = await import('@alembic/core/host-agent-workflows');
     return getActiveCoreHostAgentWorkflowSession(container, sessionId);
 }
 function extendSessionTtl(session) {

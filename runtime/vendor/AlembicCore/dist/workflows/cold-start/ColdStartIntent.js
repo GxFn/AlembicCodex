@@ -21,19 +21,19 @@ export function createInternalColdStartIntent(args = {}) {
         ignoredFileDiffIncremental: args.incremental === true,
     };
 }
-export function createExternalColdStartIntent() {
+export function createHostAgentColdStartIntent() {
     return {
         kind: 'cold-start',
-        executor: 'external-agent',
+        executor: 'host-agent',
         analysisMode: 'full',
         cleanupPolicy: 'full-reset',
-        completionPolicy: 'external-dimension-complete',
+        completionPolicy: 'host-agent-dimension-complete',
         projectAnalysis: {
             maxFiles: 500,
             contentMaxLines: 120,
             skipGuard: false,
-            sourceTag: 'bootstrap-external',
-            summaryPrefix: 'Bootstrap-external scan',
+            sourceTag: 'bootstrap-host-agent',
+            summaryPrefix: 'Bootstrap host-agent scan',
             generateAstContext: false,
         },
         ignoredFileDiffIncremental: false,
