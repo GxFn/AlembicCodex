@@ -256,7 +256,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_bootstrap: catalogEntry({
         name: 'alembic_bootstrap',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.bootstrap-external',
+        handlerOwner: 'McpServer.bootstrap-host-agent',
         tier: 'agent',
         schema: 'BootstrapInput',
         annotations: aiBackedWriteTool('Run Codex Host-Agent Bootstrap'),
@@ -267,7 +267,7 @@ export const PLUGIN_TOOL_SURFACE_CATALOG = {
     alembic_rescan: catalogEntry({
         name: 'alembic_rescan',
         owner: 'plugin-embedded-core',
-        handlerOwner: 'McpServer.bootstrap-external',
+        handlerOwner: 'McpServer.bootstrap-host-agent',
         tier: 'agent',
         schema: 'RescanInput',
         annotations: aiBackedWriteTool('Run Codex Host-Agent Rescan'),

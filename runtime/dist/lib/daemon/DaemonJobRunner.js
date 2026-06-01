@@ -101,11 +101,11 @@ export function getJobStore(container) {
 }
 async function executeHostDrivenWorkflow(options) {
     if (options.kind === 'bootstrap') {
-        const { bootstrapExternal } = await import('../codex/mcp/handlers/bootstrap-external.js');
-        return unwrapEnvelope(await bootstrapExternal({ container: options.container, logger: options.logger }));
+        const { bootstrapForHostAgent } = await import('../codex/mcp/handlers/bootstrap-host-agent.js');
+        return unwrapEnvelope(await bootstrapForHostAgent({ container: options.container, logger: options.logger }));
     }
-    const { rescanExternal } = await import('../codex/mcp/handlers/rescan-external.js');
-    return unwrapEnvelope(await rescanExternal({ container: options.container, logger: options.logger }, {
+    const { rescanForHostAgent } = await import('../codex/mcp/handlers/rescan-host-agent.js');
+    return unwrapEnvelope(await rescanForHostAgent({ container: options.container, logger: options.logger }, {
         reason: options.args?.reason || `${options.source || 'daemon'}-rescan`,
         dimensions: Array.isArray(options.args?.dimensions)
             ? options.args.dimensions.filter((dimension) => typeof dimension === 'string')

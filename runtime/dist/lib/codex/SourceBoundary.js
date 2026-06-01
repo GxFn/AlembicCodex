@@ -1,5 +1,5 @@
 import { HOST_AGENT_SOURCE, LEGACY_IDE_AGENT_SOURCE } from '@alembic/core/shared';
-const LEGACY_EXTERNAL_HOST_SOURCES = new Set([
+const LEGACY_HOST_AGENT_WRITE_SOURCES = new Set([
     'cursor-scan',
     'mcp',
     'mcp-external',
@@ -8,7 +8,7 @@ const LEGACY_EXTERNAL_HOST_SOURCES = new Set([
 export { HOST_AGENT_SOURCE as CODEX_HOST_AGENT_SOURCE };
 export function normalizeCodexHostAgentWriteSource(source) {
     const value = typeof source === 'string' ? source.trim() : '';
-    if (!value || LEGACY_EXTERNAL_HOST_SOURCES.has(value)) {
+    if (!value || LEGACY_HOST_AGENT_WRITE_SOURCES.has(value)) {
         return HOST_AGENT_SOURCE;
     }
     return value;

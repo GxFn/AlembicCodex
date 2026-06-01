@@ -266,8 +266,8 @@ export async function submitKnowledgeBatch(ctx, args) {
  * 知识条目生命周期操作 (alembic_knowledge_lifecycle)
  *
  * 简化为 3 状态: pending / active / deprecated
- * 外部 Agent 允许 reactivate（废弃 → 待审核）；发布/废弃由开发者在 Dashboard 操作
- * 外部 Agent 也可以通过 submitKnowledge / submitKnowledgeBatch 提交新条目（→ pending）
+ * 宿主 Agent 允许 reactivate（废弃 → 待审核）；发布/废弃由开发者在 Dashboard 操作
+ * 宿主 Agent 也可以通过 submitKnowledge / submitKnowledgeBatch 提交新条目（→ pending）
  */
 const MCP_ALLOWED_LIFECYCLE_ACTIONS = new Set(['reactivate']);
 export async function knowledgeLifecycle(ctx, args) {
@@ -276,7 +276,7 @@ export async function knowledgeLifecycle(ctx, args) {
         throw new Error('需要 id 和 action');
     }
     if (!MCP_ALLOWED_LIFECYCLE_ACTIONS.has(action)) {
-        throw new Error(`[PERMISSION_DENIED] 外部 Agent 不允许执行 "${action}" 操作，仅支持: reactivate。发布、废弃等操作请在 Dashboard 中完成。提交新知识请使用 alembic_submit_knowledge 工具。`);
+        throw new Error(`[PERMISSION_DENIED] 宿主 Agent 不允许执行 "${action}" 操作，仅支持: reactivate。发布、废弃等操作请在 Dashboard 中完成。提交新知识请使用 alembic_submit_knowledge 工具。`);
     }
     const service = ctx.container.get('knowledgeService');
     const context = { userId: getDeveloperIdentity() };
