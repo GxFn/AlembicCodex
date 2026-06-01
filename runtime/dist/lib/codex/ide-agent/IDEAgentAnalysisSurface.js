@@ -21,7 +21,7 @@ export function buildIDEAgentAnalysisSurface(packet, options = {}) {
             .slice(0, maxNextUnits)
             .map(projectUnitSurface),
         retrieval: {
-            requiredReadSet: packet.requiredReadSet,
+            requiredReadSet: projectRequiredReadSet(packet.requiredReadSet, packet.sourceRefs),
             retrievalHints: packet.retrievalHints,
             sourceRefs: packet.sourceRefs,
             structuralEvidenceRefs: packet.structuralEvidenceRefs,
@@ -117,7 +117,7 @@ function projectUnitSurface(unit) {
         priority: unit.priority,
         reason: unit.reason,
         sourceRefs: unit.sourceRefs,
-        requiredReadSet: unit.requiredReadSet,
+        requiredReadSet: projectRequiredReadSet(unit.requiredReadSet, unit.sourceRefs),
         completionContract: unit.completionContract,
         degraded: unit.degraded,
         warnings: unit.warnings,
@@ -150,6 +150,48 @@ function normalizePositiveInt(value, fallback) {
     }
     return Math.floor(value);
 }
+function projectRequiredReadSet(requiredReadSet, sourceRefs) {
+    const projected = [];
+    const sourceRefsByPath = indexSourceRefsByComparablePath(sourceRefs);
+    for (const requiredPath of requiredReadSet) {
+        const matches = sourceRefsByPath.get(normalizeComparablePath(requiredPath));
+        if (matches?.length) {
+            projected.push(...matches.map(readableSourcePath));
+        }
+        else {
+            projected.push(requiredPath);
+        }
+    }
+    return uniqueStrings(projected);
+}
+function indexSourceRefsByComparablePath(sourceRefs) {
+    const index = new Map();
+    for (const sourceRef of sourceRefs) {
+        for (const pathValue of comparableSourceRefPaths(sourceRef)) {
+            const key = normalizeComparablePath(pathValue);
+            const bucket = index.get(key) ?? [];
+            bucket.push(sourceRef);
+            index.set(key, bucket);
+        }
+    }
+    return index;
+}
+function comparableSourceRefPaths(sourceRef) {
+    return uniqueStrings([
+        sourceRef.path,
+        sourceRef.legacyPath,
+        sourceRef.relativePath,
+        sourceRef.qualifiedPath,
+    ]);
+}
+function readableSourcePath(sourceRef) {
+    return sourceRef.qualifiedPath ?? sourceRef.path;
+}
+function normalizeComparablePath(pathValue) {
+    return pathValue.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+/g, '/');
+}
 function uniqueStrings(values) {
-    return [...new Set((values ?? []).filter((value) => value.trim().length > 0))];
+    return [
+        ...new Set((values ?? []).filter((value) => typeof value === 'string' && value.trim().length > 0)),
+    ];
 }

@@ -12,6 +12,7 @@
 import type { SignalBus } from '../../infrastructure/signal/SignalBus.js';
 import type KnowledgeRepositoryImpl from '../../repository/knowledge/KnowledgeRepository.impl.js';
 import type { RecipeSourceRefRepositoryImpl } from '../../repository/sourceref/RecipeSourceRefRepository.js';
+import { type CanonicalSourceIdentity } from '../../shared/ProjectScope.js';
 export interface ReconcileReport {
     /** 新插入的 sourceRef 条目 */
     inserted: number;
@@ -41,8 +42,9 @@ export interface ApplyReport {
 export declare class SourceRefReconciler {
     #private;
     constructor(projectRoot: string, sourceRefRepo: RecipeSourceRefRepositoryImpl, knowledgeRepo: KnowledgeRepositoryImpl, options?: {
-        ttlMs?: number;
+        sourceIdentities?: readonly CanonicalSourceIdentity[];
         signalBus?: SignalBus;
+        ttlMs?: number;
     });
     /**
      * 从 knowledge_entries.reasoning 填充 recipe_source_refs 表。

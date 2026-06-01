@@ -13,12 +13,14 @@
  *
  * @module types/project-snapshot
  */
+import type { CanonicalSourceIdentity } from '../shared/ProjectScope.js';
 import type { FileDiffPlan } from './workflows.js';
 /** 项目级别的文件信息，来自 Phase 1 扫描 */
 export interface SnapshotFile {
     name: string;
     path: string;
     relativePath: string;
+    sourceIdentity?: CanonicalSourceIdentity;
     content: string;
     targetName: string;
     language?: string;
@@ -44,6 +46,7 @@ export interface LocalPackageModule {
     fileCount: number;
     inferredRole?: string;
     keyFiles?: string[];
+    keyFileIdentities?: CanonicalSourceIdentity[];
 }
 /** 语言统计 */
 export interface LanguageProfile {

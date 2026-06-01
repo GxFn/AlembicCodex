@@ -1,4 +1,5 @@
 import type { EvolutionCandidatePlan } from '../../../../service/evolution/RecipeImpactPlanner.js';
+import type { CanonicalSourceIdentity } from '../../../../shared/ProjectScope.js';
 import type { DimensionDef } from '../../../../types/project-snapshot.js';
 import type { RecipeSnapshotEntry } from '../../RecipeSnapshotTypes.js';
 import { type EvolutionPrescreen } from './EvolutionPrescreen.js';
@@ -51,9 +52,10 @@ export interface RecipeAuditOptions {
     logger: RescanLogger;
     recipeEntries: RecipeSnapshotEntry[];
     allFiles: Array<{
+        name: string;
         path?: string;
         relativePath?: string;
-        name: string;
+        sourceIdentity?: CanonicalSourceIdentity;
     }>;
     projectRoot?: string;
     /** RecipeImpactPlanner 产出的增量候选（可选，有则增强 verdict 精度） */

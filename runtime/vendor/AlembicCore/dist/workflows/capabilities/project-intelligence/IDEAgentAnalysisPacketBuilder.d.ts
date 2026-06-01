@@ -7,7 +7,14 @@ export type IDEAgentAnalysisDegradedReason = 'ast-unavailable' | 'ast-partial' |
 export type IDEAgentAnalysisUnitStatus = 'pending' | 'claimed' | 'completed' | 'blocked' | 'rejected' | 'skipped';
 export interface IDEAgentSourceRef {
     path: string;
+    folderDisplayName?: string;
+    folderId?: string;
+    folderRelativeRoot?: string;
     line?: number;
+    legacyPath?: string;
+    projectScopeId?: string;
+    qualifiedPath?: string;
+    relativePath?: string;
     symbol?: string;
     fqn?: string;
     entityType?: string;
@@ -17,6 +24,9 @@ export interface IDEAgentSourceRef {
 }
 export interface IDEAgentStableUnitKeyInput {
     sourceRef: string;
+    folderId?: string;
+    projectScopeId?: string;
+    qualifiedPath?: string;
     fqn?: string;
     entityType: string;
     line?: number;

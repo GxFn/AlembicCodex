@@ -25,6 +25,10 @@ export function buildProjectAnalysisLocalPackageModules({ targetsSummary, allFil
         keyFiles: allFiles
             .filter((file) => file.targetName === target.name)
             .slice(0, 8)
-            .map((file) => file.relativePath),
+            .map((file) => file.sourceIdentity?.qualifiedPath ?? file.relativePath),
+        keyFileIdentities: allFiles
+            .filter((file) => file.targetName === target.name && file.sourceIdentity)
+            .slice(0, 8)
+            .map((file) => file.sourceIdentity),
     }));
 }

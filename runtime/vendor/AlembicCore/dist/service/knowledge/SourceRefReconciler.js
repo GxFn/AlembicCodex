@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import Logger from '../../infrastructure/logging/Logger.js';
+import { buildProjectScopeSourceRefIndex, resolveProjectScopeSourceRef, } from '../../shared/ProjectScope.js';
 import { rewriteRecipePaths } from './RecipePathRewriter.js';
 const execFileAsync = promisify(execFile);
 /* ────────────────────── Class ────────────────────── */
@@ -26,12 +27,16 @@ export class SourceRefReconciler {
     #signalBus;
     #logger = Logger.getInstance();
     #ttlMs;
+    #sourceRefIndex;
     constructor(projectRoot, sourceRefRepo, knowledgeRepo, options) {
         this.#projectRoot = projectRoot;
         this.#sourceRefRepo = sourceRefRepo;
         this.#knowledgeRepo = knowledgeRepo;
         this.#signalBus = options?.signalBus ?? null;
         this.#ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS;
+        this.#sourceRefIndex = options?.sourceIdentities?.length
+            ? buildProjectScopeSourceRefIndex(options.sourceIdentities)
+            : null;
     }
     /**
      * 从 knowledge_entries.reasoning 填充 recipe_source_refs 表。
@@ -94,9 +99,10 @@ export class SourceRefReconciler {
                         continue;
                     }
                 }
-                // 验证路径存在性
-                const absPath = path.resolve(this.#projectRoot, sourcePath);
-                const exists = fs.existsSync(absPath);
+                // ProjectScope 场景先用 qualifiedPath / 唯一 legacyPath 定位；legacyPath 歧义时
+                // 不自动写错仓库，保持 stale 并等待外层补充 folder identity。
+                const resolvedSource = this.#resolveSourcePath(sourcePath);
+                const exists = resolvedSource.status === 'resolved' && fs.existsSync(resolvedSource.absolutePath);
                 if (existing) {
                     // 更新已有记录
                     if (exists) {
@@ -311,5 +317,32 @@ export class SourceRefReconciler {
             this.#logger.debug('SourceRefReconciler: git rename detection unavailable');
         }
         return renameMap;
+    }
+    #resolveSourcePath(sourcePath) {
+        if (this.#sourceRefIndex) {
+            const resolution = resolveProjectScopeSourceRef(sourcePath, this.#sourceRefIndex);
+            if (resolution.status === 'ambiguous') {
+                this.#logger.warn('SourceRefReconciler: ambiguous ProjectScope sourceRef', {
+                    sourcePath,
+                });
+                return {
+                    absolutePath: path.resolve(this.#projectRoot, sourcePath),
+                    reason: resolution.reason,
+                    status: 'ambiguous',
+                };
+            }
+            if (resolution.identity?.absolutePath) {
+                return {
+                    absolutePath: resolution.identity.absolutePath,
+                    reason: resolution.reason,
+                    status: 'resolved',
+                };
+            }
+        }
+        return {
+            absolutePath: path.resolve(this.#projectRoot, sourcePath),
+            reason: 'legacy-project-root',
+            status: 'resolved',
+        };
     }
 }

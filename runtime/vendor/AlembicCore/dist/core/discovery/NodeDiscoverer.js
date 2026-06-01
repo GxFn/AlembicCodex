@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, extname, join, relative, resolve } from 'node:path';
 import { LanguageService } from '../../shared/LanguageService.js';
 import { ProjectDiscoverer, } from './ProjectDiscoverer.js';
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
 const SOURCE_EXTENSIONS = new Set([
     '.ts',
     '.tsx',
@@ -19,19 +20,7 @@ const SOURCE_EXTENSIONS = new Set([
     '.vue',
     '.svelte',
 ]);
-const EXCLUDE_DIRS = new Set([
-    'node_modules',
-    '.git',
-    '.cursor',
-    'dist',
-    'build',
-    'out',
-    '.next',
-    '.nuxt',
-    'coverage',
-    '.turbo',
-    '.cache',
-]);
+const EXCLUDE_DIRS = createSourceScanExcludeDirs();
 export class NodeDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;
     #packageJson = null;

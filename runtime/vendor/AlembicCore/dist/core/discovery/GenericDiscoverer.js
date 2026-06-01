@@ -10,27 +10,8 @@ import { existsSync, readdirSync } from 'node:fs';
 import { basename, extname, join, relative } from 'node:path';
 import { LanguageService } from '../../shared/LanguageService.js';
 import { ProjectDiscoverer, } from './ProjectDiscoverer.js';
-const EXCLUDE_DIRS = new Set([
-    'node_modules',
-    '.git',
-    '.cursor',
-    'dist',
-    'build',
-    'out',
-    '.build',
-    'target',
-    'Pods',
-    'Carthage',
-    'DerivedData',
-    '__pycache__',
-    '.venv',
-    'venv',
-    '.gradle',
-    '.idea',
-    'vendor',
-    'coverage',
-    '.cache',
-]);
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
+const EXCLUDE_DIRS = createSourceScanExcludeDirs(['.gradle']);
 const SOURCE_EXTENSIONS = LanguageService.sourceExts;
 export class GenericDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;

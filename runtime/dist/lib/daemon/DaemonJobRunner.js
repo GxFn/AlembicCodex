@@ -101,10 +101,10 @@ export function getJobStore(container) {
 }
 async function executeHostDrivenWorkflow(options) {
     if (options.kind === 'bootstrap') {
-        const { bootstrapExternal } = await import('../external/mcp/handlers/bootstrap-external.js');
+        const { bootstrapExternal } = await import('../codex/mcp/handlers/bootstrap-external.js');
         return unwrapEnvelope(await bootstrapExternal({ container: options.container, logger: options.logger }));
     }
-    const { rescanExternal } = await import('../external/mcp/handlers/rescan-external.js');
+    const { rescanExternal } = await import('../codex/mcp/handlers/rescan-external.js');
     return unwrapEnvelope(await rescanExternal({ container: options.container, logger: options.logger }, {
         reason: options.args?.reason || `${options.source || 'daemon'}-rescan`,
         dimensions: Array.isArray(options.args?.dimensions)

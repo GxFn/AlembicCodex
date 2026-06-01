@@ -1,3 +1,4 @@
+import type { CanonicalSourceIdentity } from '../../../shared/ProjectScope.js';
 type ProjectAnalysisTargetItem = string | {
     name: string;
     type?: string;
@@ -7,6 +8,7 @@ type ProjectAnalysisTargetItem = string | {
 interface ProjectAnalysisTargetFile {
     targetName: string;
     relativePath: string;
+    sourceIdentity?: CanonicalSourceIdentity;
 }
 export interface ProjectAnalysisTargetSummary {
     name: string;
@@ -22,6 +24,7 @@ export interface ProjectAnalysisLocalPackageModule {
     fileCount: number;
     inferredRole: string;
     keyFiles: string[];
+    keyFileIdentities?: CanonicalSourceIdentity[];
 }
 export declare function buildProjectAnalysisTargetsSummary({ allTargets, allFiles, projectRoot, }: {
     allTargets: ProjectAnalysisTargetItem[];

@@ -8,18 +8,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, extname, join, relative } from 'node:path';
 import { ProjectDiscoverer, } from './ProjectDiscoverer.js';
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
 const SOURCE_EXTENSIONS = new Set(['.go']);
-const EXCLUDE_DIRS = new Set([
-    '.git',
-    '.cursor',
-    'vendor',
-    'node_modules',
-    'testdata',
-    '.cache',
-    'dist',
-    'build',
-    '_output',
-]);
+const EXCLUDE_DIRS = createSourceScanExcludeDirs(['testdata', '_output']);
 export class GoDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;
     #targets = [];

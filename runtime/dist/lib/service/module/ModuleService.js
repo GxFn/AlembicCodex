@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename as _pathBasename, extname as _pathExtname, isAbsolute as _pathIsAbsolute, join as _pathJoin, relative, } from 'node:path';
 import Logger from '@alembic/core/logging';
 import { getDiscovererRegistry } from '@alembic/core/project-intelligence';
-import { inferLang } from '../../external/mcp/handlers/LanguageExtensions.js';
+import { inferLang } from '../../codex/mcp/handlers/LanguageExtensions.js';
 import { attachHostAgentManagedBoundary } from '../../http/utils/host-managed-boundary.js';
 /** 全局排除目录 */
 const SCAN_EXCLUDE_DIRS = new Set([

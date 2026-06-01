@@ -17,6 +17,7 @@
 import type { ProjectAnalysisResult } from '../../../core/AstAnalyzer.js';
 import { analyzeProject, isAvailable as astIsAvailable, generateContextForAgent } from '../../../core/AstAnalyzer.js';
 import type { CallGraphResult as CallGraphAnalysisResult } from '../../../core/analysis/CallGraphAnalyzer.js';
+import { type CanonicalSourceIdentity, type ProjectDescriptor } from '../../../shared/ProjectScope.js';
 import type { GuardAudit } from '../../../types/project-snapshot.js';
 import { type BaseDimension } from '../planning/dimensions/BaseDimensions.js';
 /** Logger with required info/warn (compatible with Logger singleton) */
@@ -36,6 +37,7 @@ interface BootstrapFileEntry {
     name: string;
     path: string;
     relativePath: string;
+    sourceIdentity?: CanonicalSourceIdentity;
     content: string;
     targetName: string;
     /** Whether this file belongs to a test target or matches test file naming patterns */
@@ -44,7 +46,7 @@ interface BootstrapFileEntry {
 /** Target item — either a plain string or an object with metadata */
 type TargetItem = string | {
     name: string;
-    framework?: string;
+    framework?: string | null;
     type?: string;
     packageName?: string;
     [key: string]: unknown;
@@ -98,6 +100,7 @@ interface Phase4Params {
 /** Phase 1 options */
 interface Phase1Options {
     maxFiles?: number;
+    projectScope?: ProjectDescriptor | null;
     [key: string]: unknown;
 }
 /** Phase 1.5 AST analysis options */
@@ -157,6 +160,7 @@ interface AllPhasesOptions {
     generateAstContext?: boolean;
     materialize?: ProjectAnalysisMaterializationInput;
     maxFiles?: number;
+    projectScope?: ProjectDescriptor | null;
     skipGuard?: boolean;
     sourceTag?: string;
     summaryPrefix?: string;

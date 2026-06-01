@@ -23,7 +23,7 @@ shutdown.install();
 shutdown.register(async () => {
     await timerRegistry.dispose();
 }, 'timer-registry');
-const { startCodexMcpServer } = await import('../lib/external/mcp/CodexMcpServer.js');
+const { startCodexMcpServer } = await import('../lib/codex/mcp/CodexMcpServer.js');
 startCodexMcpServer()
     .then((server) => {
     shutdown.register(() => server.shutdown(), 'codex-mcp-server');

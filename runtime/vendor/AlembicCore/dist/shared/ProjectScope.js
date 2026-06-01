@@ -206,6 +206,128 @@ export function createProjectScopeSourceRef(input) {
         sourceKind: 'source-file',
     });
 }
+export function createCanonicalSourceIdentity(input) {
+    const sourcePath = normalizeSlashPath(input.sourcePath, 'sourcePath');
+    const relativePath = normalizeSlashPath(input.relativePath ?? sourcePath, 'relativePath');
+    const folderDisplayName = normalizeNullableString(input.folderDisplayName);
+    const folderPath = normalizeNullableString(input.folderPath);
+    const projectRoot = normalizeNullableString(input.projectRoot);
+    const folderRelativeRoot = folderPath && projectRoot
+        ? normalizeComparableSourcePath(path.relative(projectRoot, folderPath))
+        : null;
+    const qualifiedPath = folderDisplayName
+        ? normalizeComparableSourcePath(`${folderDisplayName}/${relativePath}`)
+        : relativePath;
+    return {
+        absolutePath: folderPath ? path.resolve(folderPath, relativePath) : null,
+        folderDisplayName,
+        folderId: normalizeNullableString(input.folderId),
+        folderPath,
+        folderRelativeRoot,
+        legacyPath: relativePath,
+        projectScopeId: normalizeNullableString(input.projectScopeId),
+        qualifiedPath,
+        relativePath,
+    };
+}
+export function buildProjectScopeSourceRefIndex(identities) {
+    const byQualifiedPath = new Map();
+    const legacyBuckets = new Map();
+    const basenameBuckets = new Map();
+    for (const identity of identities) {
+        byQualifiedPath.set(normalizeComparableSourcePath(identity.qualifiedPath), identity);
+        const legacy = normalizeComparableSourcePath(identity.legacyPath);
+        legacyBuckets.set(legacy, [...(legacyBuckets.get(legacy) ?? []), identity]);
+        const basename = sourceRefBasename(legacy);
+        if (basename) {
+            basenameBuckets.set(basename, [...(basenameBuckets.get(basename) ?? []), identity]);
+        }
+    }
+    const byLegacyPath = new Map();
+    const ambiguousLegacyPaths = new Set();
+    for (const [legacyPath, entries] of legacyBuckets) {
+        const distinctQualifiedPaths = new Set(entries.map((entry) => entry.qualifiedPath));
+        if (distinctQualifiedPaths.size === 1 && entries[0]) {
+            byLegacyPath.set(legacyPath, entries[0]);
+        }
+        else {
+            ambiguousLegacyPaths.add(legacyPath);
+        }
+    }
+    const byBasename = new Map();
+    const ambiguousBasenames = new Set();
+    for (const [basename, entries] of basenameBuckets) {
+        const distinctQualifiedPaths = new Set(entries.map((entry) => entry.qualifiedPath));
+        if (distinctQualifiedPaths.size === 1 && entries[0]) {
+            byBasename.set(basename, entries[0]);
+        }
+        else {
+            ambiguousBasenames.add(basename);
+        }
+    }
+    return { ambiguousBasenames, ambiguousLegacyPaths, byBasename, byLegacyPath, byQualifiedPath };
+}
+export function resolveProjectScopeSourceRef(sourceRef, index) {
+    const normalized = normalizeComparableSourcePath(sourceRef);
+    const qualified = index.byQualifiedPath.get(normalized);
+    if (qualified) {
+        return { identity: qualified, input: sourceRef, reason: 'qualified-path', status: 'resolved' };
+    }
+    if (index.ambiguousLegacyPaths.has(normalized)) {
+        return {
+            identity: null,
+            input: sourceRef,
+            reason: 'ambiguous-legacy-path',
+            status: 'ambiguous',
+        };
+    }
+    const legacy = index.byLegacyPath.get(normalized);
+    if (legacy) {
+        return { identity: legacy, input: sourceRef, reason: 'unique-legacy-path', status: 'resolved' };
+    }
+    return { identity: null, input: sourceRef, reason: 'not-found', status: 'missing' };
+}
+export function normalizeProjectScopeSourceRef(sourceRef, index) {
+    const resolution = resolveProjectScopeSourceRef(sourceRef, index);
+    if (resolution.status === 'resolved' && resolution.identity) {
+        return normalizeResolvedProjectScopeSourceRef(sourceRef, resolution.identity, resolution.reason === 'qualified-path' ? 'qualified-path' : 'unique-legacy-path');
+    }
+    if (resolution.status === 'ambiguous') {
+        return normalizeRejectedProjectScopeSourceRef(sourceRef, {
+            reason: 'ambiguous-legacy-path',
+            status: 'ambiguous',
+        });
+    }
+    const normalized = normalizeComparableSourcePath(sourceRef);
+    // basename alias 只接受无目录输入，避免把 `foo/database.ts` 误归到另一个仓库的同名文件。
+    if (!normalized.includes('/')) {
+        if (index.ambiguousBasenames?.has(normalized)) {
+            return normalizeRejectedProjectScopeSourceRef(sourceRef, {
+                reason: 'ambiguous-basename',
+                status: 'ambiguous',
+            });
+        }
+        const basename = index.byBasename?.get(normalized);
+        if (basename) {
+            return normalizeResolvedProjectScopeSourceRef(sourceRef, basename, 'unique-basename');
+        }
+    }
+    return normalizeRejectedProjectScopeSourceRef(sourceRef, {
+        reason: 'not-found',
+        status: 'missing',
+    });
+}
+export function normalizeProjectScopeSourceRefs(sourceRefs, index) {
+    const normalized = sourceRefs.map((sourceRef) => normalizeProjectScopeSourceRef(sourceRef, index));
+    const activeSourceRefs = Array.from(new Set(normalized
+        .filter((sourceRef) => sourceRef.status === 'active' && sourceRef.normalizedRef)
+        .map((sourceRef) => sourceRef.normalizedRef)));
+    return {
+        activeSourceRefs,
+        normalized,
+        rejected: normalized.filter((sourceRef) => sourceRef.status !== 'active'),
+    };
+}
 export function createProjectScopeRegistryDocument(scopes = []) {
     return scopes.reduce((document, scope) => upsertProjectScopeInRegistry(document, scope), {
         folderIndex: {},
@@ -342,6 +464,52 @@ function pathsEquivalent(left, right) {
         return false;
     }
     return path.resolve(left) === path.resolve(right);
+}
+function normalizeSlashPath(value, label) {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+        throw new Error(`[ProjectScope] ${label} must be a non-empty string`);
+    }
+    return normalizeComparableSourcePath(value);
+}
+function normalizeComparableSourcePath(value) {
+    return value.trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+/g, '/');
+}
+function sourceRefBasename(value) {
+    const normalized = normalizeComparableSourcePath(value);
+    const basename = path.posix.basename(normalized);
+    return basename && basename !== '.' ? basename : null;
+}
+function normalizeResolvedProjectScopeSourceRef(input, identity, reason) {
+    return {
+        absolutePath: identity.absolutePath,
+        folderDisplayName: identity.folderDisplayName,
+        folderId: identity.folderId,
+        folderPath: identity.folderPath,
+        input,
+        legacyPath: identity.legacyPath,
+        normalizedRef: identity.qualifiedPath,
+        projectScopeId: identity.projectScopeId,
+        qualifiedPath: identity.qualifiedPath,
+        reason,
+        relativePath: identity.relativePath,
+        status: 'active',
+    };
+}
+function normalizeRejectedProjectScopeSourceRef(input, output) {
+    return {
+        absolutePath: null,
+        folderDisplayName: null,
+        folderId: null,
+        folderPath: null,
+        input,
+        legacyPath: null,
+        normalizedRef: null,
+        projectScopeId: null,
+        qualifiedPath: null,
+        reason: output.reason,
+        relativePath: null,
+        status: output.status,
+    };
 }
 function cloneRecord(value) {
     return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};

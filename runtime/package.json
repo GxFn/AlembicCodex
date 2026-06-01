@@ -13,7 +13,6 @@
     "#service/*": "./dist/lib/service/*",
     "#inject/*": "./dist/lib/injection/*",
     "#governance/*": "./dist/lib/governance/*",
-    "#external/*": "./dist/lib/external/*",
     "#http/*": "./dist/lib/http/*",
     "#workflows/*": "./dist/lib/workflows/*",
     "#codex/*": "./dist/lib/codex/*"

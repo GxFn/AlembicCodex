@@ -8,18 +8,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, extname, join, relative } from 'node:path';
 import { ProjectDiscoverer, } from './ProjectDiscoverer.js';
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
 const SOURCE_EXTENSIONS = new Set(['.rs']);
-const EXCLUDE_DIRS = new Set([
-    '.git',
-    'target',
-    'node_modules',
-    '.cargo',
-    '.idea',
-    '.vscode',
-    'dist',
-    'build',
-    '.cursor',
-]);
+const EXCLUDE_DIRS = createSourceScanExcludeDirs(['.cargo']);
 export class RustDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;
     #targets = [];

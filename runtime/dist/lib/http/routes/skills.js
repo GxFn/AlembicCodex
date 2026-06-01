@@ -4,7 +4,7 @@
  */
 import express from 'express';
 import { CreateSkillBody, UpdateSkillBody } from '#shared/schemas/http-requests.js';
-import { createSkill, deleteSkill, listSkills, loadSkill, updateSkill, } from '../../external/mcp/handlers/skill.js';
+import { createSkill, deleteSkill, listSkills, loadSkill, updateSkill, } from '../../codex/mcp/handlers/skill.js';
 import { validate } from '../middleware/validate.js';
 const router = express.Router();
 /**

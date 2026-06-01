@@ -22,6 +22,7 @@ import { parseFlutterPluginsDeps, parseNxWorkspace, parseReactNativeProject, } f
 import { parseBoxfile, parseModuleSpec, } from './parsers/RubyDslParser.js';
 import { parseStarlarkBuildFile, RULE_TO_LANGUAGE, } from './parsers/StarlarkParser.js';
 import { parseMelosProject, parseXcodeGenProject, parseXcodeGenTarget, } from './parsers/YamlConfigParser.js';
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
 const KNOWN_CUSTOM_SYSTEMS = Object.freeze([
     // ── Tier 1: Bazel / Buck2 (Starlark) ──
     {
@@ -193,25 +194,7 @@ const KNOWN_STANDARD_FILES = new Set([
     'Berksfile',
     'Capfile',
 ]);
-const EXCLUDE_DIRS = new Set([
-    'node_modules',
-    '.git',
-    '.cursor',
-    'dist',
-    'build',
-    'out',
-    '.build',
-    'Pods',
-    'Carthage',
-    'DerivedData',
-    '__pycache__',
-    '.venv',
-    'venv',
-    '.gradle',
-    'coverage',
-    '.cache',
-    '.easybox',
-]);
+const EXCLUDE_DIRS = createSourceScanExcludeDirs(['.gradle', '.easybox']);
 const SOURCE_EXTENSIONS = new Set(['.m', '.h', '.swift', '.mm', '.c', '.cpp', '.cc']);
 // ── User Custom Systems (boxspec.json) ──────────────
 /**

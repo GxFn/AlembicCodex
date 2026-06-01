@@ -8,21 +8,14 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { ProjectDiscoverer, } from './ProjectDiscoverer.js';
-const EXCLUDE_DIRS = new Set([
-    '__pycache__',
-    '.venv',
-    'venv',
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
+const EXCLUDE_DIRS = createSourceScanExcludeDirs([
     '.tox',
-    '.git',
     '.mypy_cache',
     '.pytest_cache',
     '.eggs',
-    'dist',
-    'build',
-    'node_modules',
     '.nox',
     '.ruff_cache',
-    '.cursor',
 ]);
 export class PythonDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;

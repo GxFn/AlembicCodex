@@ -81,6 +81,7 @@ function normalizeFiles(raw) {
         name: String(f.name || ''),
         path: String(f.path || ''),
         relativePath: String(f.relativePath || ''),
+        sourceIdentity: normalizeCanonicalSourceIdentity(f.sourceIdentity),
         content: String(f.content || ''),
         targetName: String(f.targetName || ''),
         language: f.language != null ? String(f.language) : undefined,
@@ -184,5 +185,42 @@ function normalizeLocalPackageModules(raw) {
     if (!Array.isArray(raw)) {
         return [];
     }
-    return raw;
+    return raw.map((module) => ({
+        name: String(module.name || ''),
+        packageName: String(module.packageName || module.name || ''),
+        fileCount: typeof module.fileCount === 'number' ? module.fileCount : 0,
+        inferredRole: module.inferredRole != null ? String(module.inferredRole) : undefined,
+        keyFiles: Array.isArray(module.keyFiles) ? module.keyFiles.map(String) : undefined,
+        keyFileIdentities: Array.isArray(module.keyFileIdentities)
+            ? module.keyFileIdentities
+                .map((identity) => normalizeCanonicalSourceIdentity(identity))
+                .filter((identity) => Boolean(identity))
+            : undefined,
+    }));
+}
+function normalizeCanonicalSourceIdentity(raw) {
+    if (!raw || typeof raw !== 'object') {
+        return undefined;
+    }
+    const identity = raw;
+    const relativePath = normalizeOptionalString(identity.relativePath);
+    const qualifiedPath = normalizeOptionalString(identity.qualifiedPath);
+    const legacyPath = normalizeOptionalString(identity.legacyPath) ?? relativePath;
+    if (!relativePath || !qualifiedPath || !legacyPath) {
+        return undefined;
+    }
+    return {
+        absolutePath: normalizeOptionalString(identity.absolutePath) ?? null,
+        folderDisplayName: normalizeOptionalString(identity.folderDisplayName) ?? null,
+        folderId: normalizeOptionalString(identity.folderId) ?? null,
+        folderPath: normalizeOptionalString(identity.folderPath) ?? null,
+        folderRelativeRoot: normalizeOptionalString(identity.folderRelativeRoot) ?? null,
+        legacyPath,
+        projectScopeId: normalizeOptionalString(identity.projectScopeId) ?? null,
+        qualifiedPath,
+        relativePath,
+    };
+}
+function normalizeOptionalString(value) {
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
 }

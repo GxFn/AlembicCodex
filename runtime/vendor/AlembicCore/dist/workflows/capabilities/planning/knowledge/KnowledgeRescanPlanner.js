@@ -74,15 +74,29 @@ export async function auditRecipesForRescan(opts) {
 }
 function buildComparableFilePathSet(allFiles, projectRoot) {
     const paths = new Set();
+    const legacyBuckets = new Map();
     for (const file of allFiles) {
+        addComparablePath(paths, file.sourceIdentity?.qualifiedPath);
         addComparablePath(paths, file.relativePath);
         addComparablePath(paths, file.name);
         addComparablePath(paths, file.path);
+        if (file.sourceIdentity?.legacyPath && file.sourceIdentity.qualifiedPath) {
+            const legacy = normalizeComparablePath(file.sourceIdentity.legacyPath);
+            const bucket = legacyBuckets.get(legacy) ?? new Set();
+            bucket.add(normalizeComparablePath(file.sourceIdentity.qualifiedPath));
+            legacyBuckets.set(legacy, bucket);
+        }
         if (file.path && projectRoot && path.isAbsolute(file.path)) {
             addComparablePath(paths, path.relative(projectRoot, file.path));
         }
     }
-    return paths;
+    const ambiguousLegacyPaths = new Set([...legacyBuckets.entries()]
+        .filter(([, qualifiedPaths]) => qualifiedPaths.size > 1)
+        .map(([legacyPath]) => legacyPath));
+    for (const ambiguous of ambiguousLegacyPaths) {
+        paths.delete(ambiguous);
+    }
+    return { ambiguousLegacyPaths, paths };
 }
 function addComparablePath(paths, value) {
     const normalized = normalizeComparablePath(value);
@@ -212,7 +226,7 @@ function lifecycleToScore(entry, filePathSet) {
     const reasons = [];
     const hasSourceFiles = (entry.sourceRefs?.length ?? 0) > 0;
     const existingFiles = hasSourceFiles
-        ? (entry.sourceRefs ?? []).filter((ref) => filePathSet.has(normalizeComparablePath(ref))).length
+        ? (entry.sourceRefs ?? []).filter((ref) => hasComparablePath(filePathSet, ref)).length
         : 0;
     switch (entry.lifecycle) {
         case 'active':
@@ -255,13 +269,19 @@ function buildRefEvidence(health, _filePathSet, _entry) {
 }
 function buildLifecycleEvidence(entry, filePathSet) {
     const refs = entry.sourceRefs ?? [];
-    const existCount = refs.filter((ref) => filePathSet.has(normalizeComparablePath(ref))).length;
+    const existCount = refs.filter((ref) => hasComparablePath(filePathSet, ref)).length;
     return {
         triggerStillMatches: entry.lifecycle === 'active' || entry.lifecycle === 'evolving',
         symbolsAlive: existCount,
         depsIntact: existCount > 0 || refs.length === 0,
         codeFilesExist: existCount,
     };
+}
+function hasComparablePath(index, value) {
+    const normalized = normalizeComparablePath(value);
+    return (Boolean(normalized) &&
+        !index.ambiguousLegacyPaths.has(normalized) &&
+        index.paths.has(normalized));
 }
 // ── 共用工具 ────────────────────────────────────────────
 function buildResult(entry, rawScore, decayReasons, evidence) {

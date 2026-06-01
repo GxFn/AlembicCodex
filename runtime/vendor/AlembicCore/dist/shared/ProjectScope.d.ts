@@ -108,6 +108,61 @@ export interface ProjectScopeEvidenceRef {
     relativePath: string;
     sourceKind: 'artifact' | 'report' | 'source-file' | 'unknown';
 }
+export interface CanonicalSourceIdentity {
+    absolutePath: string | null;
+    folderDisplayName: string | null;
+    folderId: string | null;
+    folderPath: string | null;
+    folderRelativeRoot: string | null;
+    legacyPath: string;
+    projectScopeId: string | null;
+    qualifiedPath: string;
+    relativePath: string;
+}
+export interface CanonicalSourceIdentityInput {
+    folderDisplayName?: string | null;
+    folderId?: string | null;
+    folderPath?: string | null;
+    projectRoot?: string | null;
+    projectScopeId?: string | null;
+    relativePath?: string | null;
+    sourcePath: string;
+}
+export type ProjectScopeSourceRefResolutionStatus = 'resolved' | 'missing' | 'ambiguous';
+export interface ProjectScopeSourceRefResolution {
+    identity: CanonicalSourceIdentity | null;
+    input: string;
+    reason: string;
+    status: ProjectScopeSourceRefResolutionStatus;
+}
+export interface ProjectScopeSourceRefIndex {
+    ambiguousBasenames?: ReadonlySet<string>;
+    ambiguousLegacyPaths: ReadonlySet<string>;
+    byBasename?: ReadonlyMap<string, CanonicalSourceIdentity>;
+    byLegacyPath: ReadonlyMap<string, CanonicalSourceIdentity>;
+    byQualifiedPath: ReadonlyMap<string, CanonicalSourceIdentity>;
+}
+export type ProjectScopeSourceRefNormalizationStatus = 'active' | 'missing' | 'ambiguous';
+export type ProjectScopeSourceRefNormalizationReason = 'qualified-path' | 'unique-legacy-path' | 'unique-basename' | 'ambiguous-legacy-path' | 'ambiguous-basename' | 'not-found';
+export interface NormalizedProjectScopeSourceRef {
+    absolutePath: string | null;
+    folderDisplayName: string | null;
+    folderId: string | null;
+    folderPath: string | null;
+    input: string;
+    legacyPath: string | null;
+    normalizedRef: string | null;
+    projectScopeId: string | null;
+    qualifiedPath: string | null;
+    reason: ProjectScopeSourceRefNormalizationReason;
+    relativePath: string | null;
+    status: ProjectScopeSourceRefNormalizationStatus;
+}
+export interface ProjectScopeSourceRefNormalizationResult {
+    activeSourceRefs: string[];
+    normalized: NormalizedProjectScopeSourceRef[];
+    rejected: NormalizedProjectScopeSourceRef[];
+}
 export interface ProjectScopeRegistryFolderIndexEntry {
     folderId: string;
     projectScopeId: string;
@@ -171,6 +226,11 @@ export declare function createProjectScopeSourceRef(input: {
     projectScopeId: string;
     sourcePath: string;
 }): ProjectScopeEvidenceRef;
+export declare function createCanonicalSourceIdentity(input: CanonicalSourceIdentityInput): CanonicalSourceIdentity;
+export declare function buildProjectScopeSourceRefIndex(identities: readonly CanonicalSourceIdentity[]): ProjectScopeSourceRefIndex;
+export declare function resolveProjectScopeSourceRef(sourceRef: string, index: ProjectScopeSourceRefIndex): ProjectScopeSourceRefResolution;
+export declare function normalizeProjectScopeSourceRef(sourceRef: string, index: ProjectScopeSourceRefIndex): NormalizedProjectScopeSourceRef;
+export declare function normalizeProjectScopeSourceRefs(sourceRefs: readonly string[], index: ProjectScopeSourceRefIndex): ProjectScopeSourceRefNormalizationResult;
 export declare function createProjectScopeRegistryDocument(scopes?: readonly ProjectDescriptor[]): ProjectScopeRegistryDocument;
 export declare function upsertProjectScopeInRegistry(document: ProjectScopeRegistryDocument, scope: ProjectDescriptor): ProjectScopeRegistryDocument;
 export declare function addProjectScopeFolderToRegistry(document: ProjectScopeRegistryDocument, projectScopeId: string, folderInput: CreateProjectFolderDescriptorInput | ProjectFolderDescriptor): ProjectScopeRegistryDocument;

@@ -10,17 +10,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 import { LanguageService } from '../../shared/LanguageService.js';
 import { ProjectDiscoverer } from './ProjectDiscoverer.js';
-const SKIP_DIRS = new Set([
-    'node_modules',
-    '.git',
-    'Build',
-    '.build',
-    '.swiftpm',
-    'Pods',
-    'DerivedData',
-    'Carthage',
-    '.cursor',
-]);
+import { createSourceScanExcludeDirs } from './SourceScanExclusions.js';
+const SKIP_DIRS = createSourceScanExcludeDirs(['.swiftpm', 'Build']);
 export class SpmDiscoverer extends ProjectDiscoverer {
     #projectRoot = null;
     #parsedPackages = [];
