@@ -7,7 +7,9 @@ import { join } from 'node:path';
 
 const npmCache =
   process.env.ALEMBIC_CODEX_NPM_CACHE || join(tmpdir(), 'alembic-codex-plugin-runtime-npm-cache');
-const lockDir = `${npmCache}.lock`;
+const npmCacheBase = npmCache;
+const npmCacheRunRoot = join(npmCacheBase, 'sessions', `${process.pid}-${Date.now()}`);
+const lockDir = `${npmCacheBase}.lock`;
 let lockHeld = false;
 
 await acquireStartupLock();
@@ -16,7 +18,9 @@ const child = spawn('npx', ['-y', '--offline', '--package', './runtime.tgz', 'al
   cwd: process.cwd(),
   env: {
     ...process.env,
-    npm_config_cache: npmCache,
+    // npm exec 会为同一个 package spec 复用确定性的 _npx 目录；长驻 MCP 进程和二次启动会抢同一目录。
+    // 每个 wrapper 进程使用独立 cache，保留离线 tarball 启动，同时避免 ENOTEMPTY / stale package 冲突。
+    npm_config_cache: npmCacheRunRoot,
     npm_config_fund: 'false',
     npm_config_audit: 'false',
     npm_config_ignore_scripts: 'true',
@@ -42,6 +46,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 child.on('exit', (code, signal) => {
   releaseStartupLock();
+  cleanupRunCache(code, signal);
   if (signal) {
     process.kill(process.pid, signal);
     return;
@@ -51,6 +56,7 @@ child.on('exit', (code, signal) => {
 
 child.on('error', (error) => {
   releaseStartupLock();
+  cleanupRunCache(1, null);
   console.error(`Failed to start Alembic Codex MCP runtime through npx: ${error.message}`);
   process.exit(1);
 });
@@ -118,6 +124,15 @@ function releaseStartupLock() {
   }
   lockHeld = false;
   rmSync(lockDir, { force: true, recursive: true });
+}
+
+function cleanupRunCache(code, signal) {
+  if (process.env.ALEMBIC_CODEX_KEEP_NPM_CACHE === '1') {
+    return;
+  }
+  if (code === 0 || signal) {
+    rmSync(npmCacheRunRoot, { force: true, recursive: true });
+  }
 }
 
 function isExistingLockError(error) {
