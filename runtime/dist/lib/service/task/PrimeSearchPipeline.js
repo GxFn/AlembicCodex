@@ -45,7 +45,7 @@ export class PrimeSearchPipeline {
             sessionHistory,
         };
         // Multi-query parallel search (auto mode + keyword mode for cross-language)
-        const searchBundle = await this.#multiQuerySearch(intent.queries, intent.keywordQueries ?? [], context, residentIntentHandoff);
+        const searchBundle = await this.#multiQuerySearch(intent.queries, intent.keywordQueries ?? [], context, residentIntentHandoff, options.projectRoot);
         const allResults = searchBundle.items;
         // Quality filter: absolute threshold + relative-to-best + score gap detection
         const filtered = this.#qualityFilter(allResults);
@@ -110,7 +110,7 @@ export class PrimeSearchPipeline {
      * Multi-query: uses RRF to fuse results, but weights by original score to
      * retain magnitude information.
      */
-    async #multiQuerySearch(autoQueries, keywordQueries, context, residentIntentHandoff) {
+    async #multiQuerySearch(autoQueries, keywordQueries, context, residentIntentHandoff, projectRoot) {
         // Auto-mode searches (BM25 without CoarseRanker ranking)
         // Using rank: false preserves raw BM25/FWS score magnitude,
         // which the quality filter needs for effective discrimination.
@@ -129,7 +129,7 @@ export class PrimeSearchPipeline {
         // AlembicPlugin 不再持有 embedding executor。语义增强由本地 Alembic resident service
         // 提供；不可用时保留 baseline embedded search，并把原因写入 searchMeta。
         const residentPromise = autoQueries[0]
-            ? this.#residentSemanticSearch(autoQueries[0], residentIntentHandoff)
+            ? this.#residentSemanticSearch(autoQueries[0], residentIntentHandoff, projectRoot)
             : Promise.resolve(null);
         // Keyword-mode searches (raw FWS scores — for cross-language synonym matching)
         const kwPromises = keywordQueries.map((q) => this.#search
@@ -199,7 +199,7 @@ export class PrimeSearchPipeline {
             ...(residentSearch ? { residentSearch } : {}),
         };
     }
-    async #residentSemanticSearch(query, residentIntentHandoff) {
+    async #residentSemanticSearch(query, residentIntentHandoff, projectRoot) {
         if (!this.#residentServiceClient) {
             return null;
         }
@@ -209,6 +209,7 @@ export class PrimeSearchPipeline {
                 mode: 'semantic',
                 limit: 6,
                 rank: false,
+                ...(projectRoot ? { projectRoot } : {}),
                 ...(residentIntentHandoff
                     ? {
                         confidence: residentIntentHandoff.confidence,

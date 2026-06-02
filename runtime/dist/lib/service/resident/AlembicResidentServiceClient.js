@@ -45,9 +45,10 @@ export class AlembicResidentServiceClient {
         const startedAt = Date.now();
         const requestedMode = normalizeRequestedMode(request.mode);
         const residentRequestMode = normalizeResidentRequestMode(requestedMode);
-        const resolved = await this.#resolveProbe();
+        const targetProjectRoot = normalizeFolderPath(request.projectRoot) ?? this.#projectRoot;
+        const resolved = await this.#resolveProbe({ projectRoot: targetProjectRoot });
         const status = resolved.status;
-        const projectScopeIdentity = await this.#resolveProjectScopeIdentity(resolved, this.#projectRoot);
+        const projectScopeIdentity = await this.#resolveProjectScopeIdentity(resolved, targetProjectRoot);
         const feature = residentRequestMode === 'semantic' ? 'search.semantic' : 'search.keyword';
         const hostIntentHandoff = summarizeResidentHostIntentHandoff(request);
         const unavailable = this.#ensureFeatureAvailable(status, feature, {
@@ -93,20 +94,37 @@ export class AlembicResidentServiceClient {
             const data = response.payload.data;
             const items = Array.isArray(data.items) ? data.items : [];
             const searchMeta = isRecord(data.searchMeta) ? data.searchMeta : {};
+            const meta = buildResidentMeta({
+                data,
+                durationMs: Date.now() - startedAt,
+                endpoint: endpoint.toString(),
+                hostIntentHandoff,
+                items,
+                projectScopeIdentity,
+                residentRequestMode,
+                requestedMode,
+                searchMeta,
+                status,
+            });
+            const workspaceMismatch = findResidentSearchWorkspaceMismatch({
+                meta,
+                projectScopeIdentity,
+                targetProjectRoot,
+            });
+            if (workspaceMismatch) {
+                return createAlembicResidentServiceUnavailable(status, 'unsupported-route', workspaceMismatch, {
+                    telemetry: {
+                        endpoint: endpoint.toString(),
+                        feature,
+                        hostIntentHandoff,
+                        projectScopeIdentity,
+                        residentSearch: meta,
+                    },
+                });
+            }
             return createAlembicResidentServiceSuccess({
                 items,
-                meta: buildResidentMeta({
-                    data,
-                    durationMs: Date.now() - startedAt,
-                    endpoint: endpoint.toString(),
-                    hostIntentHandoff,
-                    items,
-                    projectScopeIdentity,
-                    residentRequestMode,
-                    requestedMode,
-                    searchMeta,
-                    status,
-                }),
+                meta,
             }, status, { endpoint: endpoint.toString(), feature, hostIntentHandoff });
         }
         catch (err) {
@@ -376,6 +394,7 @@ export class AlembicResidentServiceClient {
         }
     }
     async #resolveProbe(options = {}) {
+        const projectRoot = normalizeFolderPath(options.projectRoot) ?? this.#projectRoot;
         if (options.daemonStatus) {
             const direct = {
                 state: options.daemonStatus.state,
@@ -384,22 +403,22 @@ export class AlembicResidentServiceClient {
             if (isLocalAlembicResident(direct.status)) {
                 return direct;
             }
-            return (await this.#resolveActiveProjectScopeProbe(direct)) ?? direct;
+            return (await this.#resolveActiveProjectScopeProbe(direct, projectRoot)) ?? direct;
         }
-        const state = this.#readState(this.#projectRoot);
+        const state = this.#readState(projectRoot);
         if (!state?.url) {
             const direct = {
                 state,
                 status: unavailableStatus('not-running', 'No Alembic daemon state is available.', state),
             };
-            return (await this.#resolveActiveProjectScopeProbe(direct)) ?? direct;
+            return (await this.#resolveActiveProjectScopeProbe(direct, projectRoot)) ?? direct;
         }
         if (!state.token) {
             const direct = {
                 state,
                 status: unavailableStatus('token-missing', 'Alembic daemon state is missing its token.', state),
             };
-            return (await this.#resolveActiveProjectScopeProbe(direct)) ?? direct;
+            return (await this.#resolveActiveProjectScopeProbe(direct, projectRoot)) ?? direct;
         }
         try {
             const endpoint = new URL(RESIDENT_HEALTH_PATH, state.url);
@@ -409,7 +428,7 @@ export class AlembicResidentServiceClient {
                     state,
                     status: unavailableStatus(response.ok ? 'request-failed' : reasonForHttpStatus(response.status), extractResponseError(response.payload) || `resident_health_http_${response.status}`, state),
                 };
-                return (await this.#resolveActiveProjectScopeProbe(direct)) ?? direct;
+                return (await this.#resolveActiveProjectScopeProbe(direct, projectRoot)) ?? direct;
             }
             return {
                 state,
@@ -421,13 +440,13 @@ export class AlembicResidentServiceClient {
                 state,
                 status: unavailableStatus(isTimeoutError(err) ? 'request-timeout' : 'request-failed', err instanceof Error ? err.message : String(err), state),
             };
-            return (await this.#resolveActiveProjectScopeProbe(direct)) ?? direct;
+            return (await this.#resolveActiveProjectScopeProbe(direct, projectRoot)) ?? direct;
         }
     }
-    async #resolveActiveProjectScopeProbe(direct) {
+    async #resolveActiveProjectScopeProbe(direct, projectRoot) {
         const candidates = readRuntimeControlProjectRoots();
         for (const candidateRoot of candidates) {
-            if (samePath(candidateRoot, this.#projectRoot)) {
+            if (samePath(candidateRoot, projectRoot)) {
                 continue;
             }
             const state = this.#readState(candidateRoot);
@@ -438,7 +457,7 @@ export class AlembicResidentServiceClient {
             if (!status || !isLocalAlembicResident(status)) {
                 continue;
             }
-            const resolution = await this.#resolveProjectScopeFromEndpoint(status, state, this.#projectRoot);
+            const resolution = await this.#resolveProjectScopeFromEndpoint(status, state, projectRoot);
             if (!resolution) {
                 continue;
             }
@@ -713,6 +732,54 @@ function buildResidentMeta(input) {
         workspace: isRecord(meta.workspace) ? meta.workspace : null,
     };
 }
+function findResidentSearchWorkspaceMismatch(input) {
+    const workspace = isRecord(input.meta.workspace) ? input.meta.workspace : null;
+    if (!workspace) {
+        return null;
+    }
+    const workspaceProjectScopeId = stringFrom(workspace.projectScopeId);
+    if (workspaceProjectScopeId &&
+        input.projectScopeIdentity.projectScopeId &&
+        workspaceProjectScopeId === input.projectScopeIdentity.projectScopeId) {
+        return null;
+    }
+    const targetPaths = collectProjectScopeIdentityPaths(input.projectScopeIdentity, input.targetProjectRoot);
+    const workspacePaths = collectWorkspaceIdentityPaths(workspace);
+    if (targetPaths.length === 0 || workspacePaths.length === 0) {
+        return null;
+    }
+    if (targetPaths.some((targetPath) => workspacePaths.some((path) => samePath(targetPath, path)))) {
+        return null;
+    }
+    return [
+        'Alembic resident search returned a different workspace than the requested projectRoot.',
+        `requested=${input.targetProjectRoot}`,
+        `residentWorkspace=${stringFrom(workspace.projectRoot) ?? 'unknown'}`,
+        'Resident results were ignored to avoid cross-project knowledge contamination.',
+    ].join(' ');
+}
+function collectProjectScopeIdentityPaths(identity, targetProjectRoot) {
+    return uniqueStrings([
+        targetProjectRoot,
+        identity.projectRoot,
+        identity.currentFolderPath,
+        identity.controlRoot,
+        ...(identity.folders || []).map((folder) => folder.path),
+    ]);
+}
+function collectWorkspaceIdentityPaths(workspace) {
+    const projectScope = isRecord(workspace.projectScope) ? workspace.projectScope : null;
+    const rawControlRoot = projectScope?.controlRoot;
+    const controlRoot = isRecord(rawControlRoot)
+        ? stringFrom(rawControlRoot.path)
+        : stringFrom(rawControlRoot);
+    const folders = Array.isArray(projectScope?.folders) ? projectScope.folders : [];
+    return uniqueStrings([
+        stringFrom(workspace.projectRoot) ?? null,
+        controlRoot ?? null,
+        ...folders.map((folder) => (isRecord(folder) ? (stringFrom(folder.path) ?? null) : null)),
+    ]);
+}
 function buildUnavailableSearchResult(result, request) {
     const requestedMode = normalizeRequestedMode(request.mode);
     const residentRequestMode = normalizeResidentRequestMode(requestedMode);
@@ -723,7 +790,7 @@ function buildUnavailableSearchResult(result, request) {
             attempted: true,
             available: false,
             durationMs: 0,
-            reason: result.reason,
+            reason: result.message || result.reason,
             residentRequestMode,
             requestedMode,
             residentService: result.status ? residentServiceSummary(result.status) : undefined,
@@ -910,7 +977,7 @@ function normalizeResidentType(type) {
     return normalized && normalized !== 'all' ? normalized : null;
 }
 function buildResidentSearchBody(request, residentRequestMode) {
-    if (!summarizeResidentHostIntentHandoff(request)) {
+    if (!summarizeResidentHostIntentHandoff(request) && !request.projectRoot) {
         return null;
     }
     return stripUndefined({
@@ -923,6 +990,7 @@ function buildResidentSearchBody(request, residentRequestMode) {
         language: request.language,
         limit: request.limit ?? 8,
         mode: residentRequestMode,
+        projectRoot: request.projectRoot,
         query: request.query,
         q: request.query,
         scenario: request.scenario,

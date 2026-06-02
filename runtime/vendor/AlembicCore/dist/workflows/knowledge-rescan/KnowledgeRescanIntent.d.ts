@@ -1,8 +1,14 @@
 import { type WorkflowExecutor } from '../shared/WorkflowTypes.js';
 export type KnowledgeRescanExecutor = WorkflowExecutor;
+export declare const DEFAULT_KNOWLEDGE_RESCAN_MAX_FILES = 500;
+export declare const DEFAULT_KNOWLEDGE_RESCAN_CONTENT_MAX_LINES = 120;
+export declare const MAX_KNOWLEDGE_RESCAN_MAX_FILES = 20000;
+export declare const MAX_KNOWLEDGE_RESCAN_CONTENT_MAX_LINES = 2000;
 export interface RescanInput {
     force?: boolean;
     dimensions?: unknown;
+    maxFiles?: unknown;
+    contentMaxLines?: unknown;
     reason?: string | null;
     [key: string]: unknown;
 }

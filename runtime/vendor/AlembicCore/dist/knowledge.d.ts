@@ -2,6 +2,7 @@ export { FieldLevel, getAgentAdapterFieldSpec, getAllRequiredFieldNames, getExpe
 export { CANDIDATE_LIFECYCLES, CANDIDATE_STATES, CONSUMABLE_LIFECYCLES, CONSUMABLE_STATES, COUNTABLE_LIFECYCLES, DEGRADED_STATES, GUARD_LIFECYCLES, inferKind, isCandidate, isConsumable, isDegraded, isValidLifecycle, isValidTransition, KnowledgeEntry, KnowledgeRepository, Lifecycle, lifecycleInSql, NON_DEPRECATED_LIFECYCLES, normalizeLifecycle, PUBLISHED_LIFECYCLES, } from './domain/knowledge/index.js';
 export type { KnowledgeEntryProps } from './domain/knowledge/KnowledgeEntry.js';
 export { checkReadinessFromCandidate, checkRecipeReadiness, STANDARD_CATEGORIES as READINESS_STANDARD_CATEGORIES, WHITELISTED_CATEGORIES as READINESS_WHITELISTED_CATEGORIES, } from './domain/knowledge/RecipeReadinessChecker.js';
+export { buildProducerStyleGuide, SUBMIT_REQUIREMENTS, } from './domain/knowledge/StyleGuide.js';
 export { createStatelessValidator, UnifiedValidator, } from './domain/knowledge/UnifiedValidator.js';
 export { Constraints, Content, Quality, RELATION_BUCKETS, Reasoning, Relations, Stats, } from './domain/knowledge/values/index.js';
 export type { KnowledgeFileScanner, KnowledgeFileStore, } from './repository/knowledge/KnowledgeFileStore.js';

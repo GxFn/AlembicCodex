@@ -34,7 +34,7 @@ Do not:
 
 ## Lookup Order
 
-1. Call `alembic_task(operation: "prime")` at the start of meaningful coding work.
+1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_task(operation: "prime")` before every user-input turn's code reading, search, edit, Guard check, or conclusion.
 2. Use `alembic_search(mode: "auto")` for general lookup.
 3. Use `alembic_search(mode: "context")` for coding assistance.
 4. If `searchMeta.residentSearch` / `residentVector` is present, use it to understand whether semantic/vector recall came from the local Alembic resident service or fell back to Plugin baseline search. Do not assume AlembicPlugin has its own embedding executor.
