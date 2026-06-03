@@ -339,8 +339,7 @@ function buildWrapperStartupLockDiagnostics(wrapperSource) {
         wrapperSource.includes("releaseStartupLock('hold-timeout')") ? 'hold-timeout' : null,
     ].filter((signal) => typeof signal === 'string');
     return {
-        cacheParentCreation: wrapperSource.includes('mkdirSync(npmCacheRoot') &&
-            wrapperSource.includes('recursive: true'),
+        cacheParentCreation: wrapperSource.includes('mkdirSync(npmCacheRoot') && wrapperSource.includes('recursive: true'),
         configured,
         holdTimeoutEnv: 'ALEMBIC_CODEX_NPM_LOCK_HOLD_MS',
         ownerMetadata: wrapperSource.includes('owner.json') &&
