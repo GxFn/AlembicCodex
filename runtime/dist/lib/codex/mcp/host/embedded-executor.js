@@ -127,11 +127,27 @@ function attachCodexExecutionContext(result, executionContext, hostProjectRoot) 
     const data = record.data && typeof record.data === 'object' && !Array.isArray(record.data)
         ? record.data
         : {};
+    const projectRuntimePatch = executionContext.projectRuntime && !Object.hasOwn(data, 'projectRuntime')
+        ? { projectRuntime: executionContext.projectRuntime }
+        : {};
+    const hasProjectScopeExecution = executionContext.residentProjectScopeAvailable && executionContext.projectScopeIdentity;
+    if (!hasProjectScopeExecution) {
+        return Object.keys(projectRuntimePatch).length > 0
+            ? {
+                ...record,
+                data: {
+                    ...data,
+                    ...projectRuntimePatch,
+                },
+            }
+            : result;
+    }
     const identity = executionContext.projectScopeIdentity;
     return {
         ...record,
         data: {
             ...data,
+            ...projectRuntimePatch,
             codexProjectScopeExecution: {
                 controlRoot: identity.controlRoot,
                 currentFolderId: identity.currentFolderId,

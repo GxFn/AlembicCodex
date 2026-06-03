@@ -4,6 +4,47 @@ import { createProjectRuntimeFailureEnvelope, createProjectRuntimeIdentityContra
 import { WorkspaceResolver } from '@alembic/core/workspace';
 import { resolveCodexRuntimeContext } from './RuntimeContext.js';
 const PROJECT_RUNTIME_CONTEXT_VERSION = 1;
+export const CODEX_RUNTIME_FALLBACK_ISOLATION = [
+    {
+        allowedUse: 'blocked-effective-identity',
+        effectiveIdentityAllowed: false,
+        id: 'saved-project-root',
+        legacyEffectiveIdentityFallback: 'saved-project-root-effective-identity',
+        persistenceRootAllowed: false,
+        reason: 'Saved Codex project-root state is diagnostic or recovery context only; the current trusted Codex project remains the effective identity.',
+    },
+    {
+        allowedUse: 'read-only-diagnostics',
+        effectiveIdentityAllowed: false,
+        id: 'runtime-control-selected-active',
+        legacyEffectiveIdentityFallback: 'runtime-control-selected-active-effective-identity',
+        persistenceRootAllowed: false,
+        reason: 'Alembic selected or active runtime control state is read-only diagnostic evidence and cannot replace the Codex current project identity.',
+    },
+    {
+        allowedUse: 'embedded-host-agent-recovery',
+        effectiveIdentityAllowed: false,
+        id: 'local-jobstore',
+        legacyEffectiveIdentityFallback: 'local-jobstore-default-effective-identity',
+        persistenceRootAllowed: false,
+        reason: 'Local JobStore access is limited to recoverable embedded Codex host-agent jobs for the current project identity.',
+    },
+    {
+        allowedUse: 'codex-host-agent-execution-route',
+        effectiveIdentityAllowed: false,
+        id: 'embedded-plugin-owned-runtime',
+        legacyEffectiveIdentityFallback: null,
+        persistenceRootAllowed: false,
+        reason: 'The embedded Plugin-owned MCP runtime is an execution route for Codex-facing tools; project identity and persistence still come from the unified ProjectRuntimeContext.',
+    },
+];
+export function getCodexRuntimeFallbackIsolation(id) {
+    const isolation = CODEX_RUNTIME_FALLBACK_ISOLATION.find((item) => item.id === id);
+    if (!isolation) {
+        throw new Error(`Unknown Codex runtime fallback isolation id: ${id}`);
+    }
+    return { ...isolation };
+}
 export function buildCodexProjectRuntimeContext(options) {
     const projectRoot = resolve(options.projectRoot);
     const runtime = options.runtime ?? resolveCodexRuntimeContext();
@@ -59,6 +100,7 @@ export function buildCodexProjectRuntimeContext(options) {
             'local-jobstore-default-effective-identity',
         ],
         entryMode: detectCodexMcpEntryMode(runtime),
+        fallbackIsolation: CODEX_RUNTIME_FALLBACK_ISOLATION.map((item) => ({ ...item })),
         failureEnvelopes,
         identity,
         readinessState,
