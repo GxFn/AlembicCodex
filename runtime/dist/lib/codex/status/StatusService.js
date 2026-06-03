@@ -10,6 +10,7 @@ import { buildCodexHostProjectAlignment, } from '../HostProjectAlignment.js';
 import { inspectCodexKnowledge } from '../KnowledgeState.js';
 import { buildCodexModuleBoundaryStatus, } from '../ModuleBoundary.js';
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, getCodexInitMarkerPath, readCodexInitMarker, resolveCodexProjectRoot, summarizeCodexProjectRootResolution, } from '../ProjectRootResolver.js';
+import { buildCodexProjectRuntimeContext, } from '../runtime/ProjectRuntimeContext.js';
 import { CODEX_SETUP_PROFILE, resolveCodexRuntimeContext, } from '../runtime/RuntimeContext.js';
 import { buildCodexToolPolicySignals, resolveCodexToolPolicyState, } from '../ToolPolicy.js';
 export async function buildCodexStatus(projectRootInput, options = {}) {
@@ -35,11 +36,21 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         projectScopeIdentity,
         projectRoot,
     });
+    const projectRootResolution = options.projectRootResolution || resolveCodexProjectRoot({ projectRoot: projectRootInput });
+    const projectRuntime = buildCodexProjectRuntimeContext({
+        daemonStatus,
+        enhancementRoute,
+        hostProjectAlignment,
+        projectRoot,
+        projectRootResolution,
+        projectScopeIdentity,
+        requiredServices: ['project-identity'],
+        runtime,
+    });
     const moduleBoundary = buildCodexModuleBoundaryStatus({
         enhancementRoute,
         hostProjectAlignment,
     });
-    const projectRootResolution = options.projectRootResolution || resolveCodexProjectRoot({ projectRoot: projectRootInput });
     const autoInit = buildCodexAutoInitStatus(projectRoot, knowledge, projectRootResolution, {
         runtimeState: options.autoInit,
     });
@@ -49,6 +60,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         hostProjectAlignment,
         moduleBoundary,
         projectRootResolution,
+        projectRuntime,
         projectScopeIdentity,
         residentService,
     });
@@ -85,6 +97,7 @@ export async function buildCodexStatus(projectRootInput, options = {}) {
         },
         initialized: knowledge.initialized,
         projectRoot,
+        projectRuntime,
         projectRootResolution: summarizeCodexProjectRootResolution(projectRootResolution),
         registry: {
             registered: facts.registered,

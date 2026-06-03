@@ -10,6 +10,8 @@
  *
  * Architecture: Zero DB. Pure memory (IntentState) + SignalBus → JSONL signals.
  */
+import { resolveProjectRoot } from '@alembic/core/workspace';
+import { buildCodexPrimeRuntimeContext } from '#codex/runtime/ProjectRuntimeContext.js';
 import { buildHostIntentFrame, buildResidentIntentHandoff, prepareHostIntentInput, } from '#service/task/HostIntentFrame.js';
 import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { envelope } from '../envelope.js';
@@ -100,13 +102,17 @@ async function _prime(ctx, args) {
     const projectRoot = typeof args.projectRoot === 'string' && args.projectRoot.trim()
         ? args.projectRoot.trim()
         : undefined;
+    const effectiveProjectRoot = projectRoot ?? resolveProjectRoot(ctx.container);
     // ─── Enrichment: multi-query search via PrimeSearchPipeline ───
     const pipeline = _getPipeline(ctx.container);
     let searchResult = null;
     let searchDegraded = false;
     if (pipeline && extracted.queries[0]?.trim()) {
         try {
-            searchResult = await pipeline.search(extracted, { hostIntentFrame, projectRoot });
+            searchResult = await pipeline.search(extracted, {
+                hostIntentFrame,
+                projectRoot: effectiveProjectRoot,
+            });
             if (!searchResult) {
                 process.stderr.write('[MCP/Task] prime: pipeline.search returned null (all filtered)\n');
             }
@@ -123,6 +129,10 @@ async function _prime(ctx, args) {
     else {
         process.stderr.write(`[MCP/Task] prime: queries empty, skipping search. queries=${JSON.stringify(extracted.queries)}\n`);
     }
+    const projectRuntime = buildCodexPrimeRuntimeContext({
+        projectRoot: effectiveProjectRoot,
+        residentSearch: searchResult?.searchMeta.residentSearch ?? null,
+    });
     // ─── Lifecycle: initialize IntentState ───
     const freshIntent = createIdleIntent();
     freshIntent.phase = 'active';
@@ -147,6 +157,7 @@ async function _prime(ctx, args) {
             ...(searchResult.searchMeta.primeInjectionPackage
                 ? { primeInjectionPackage: searchResult.searchMeta.primeInjectionPackage }
                 : {}),
+            projectRuntime: projectRuntime,
             ...(searchResult.searchMeta.residentSearch
                 ? {
                     residentSearch: searchResult.searchMeta.residentSearch,
@@ -215,7 +226,10 @@ async function _prime(ctx, args) {
                     guardRules: searchResult.guardRules,
                 }
                 : null,
-            searchMeta: searchResult?.searchMeta ?? null,
+            searchMeta: searchResult
+                ? { ...searchResult.searchMeta, projectRuntime }
+                : { projectRuntime },
+            projectRuntime,
             intentEpisode,
             _taskRules,
         },
