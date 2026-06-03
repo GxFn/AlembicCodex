@@ -14,22 +14,21 @@ Use `alembic_guard`.
 Common calls:
 
 ```json
-{}
-```
-
-Checks the current git diff. Prefer this after you change code.
-
-```json
 {
   "files": [
-    { "path": "src/network/apiClient.ts" },
-    { "path": "src/network/requestManager.ts" }
-  ],
-  "scope": "project"
+    "src/network/apiClient.ts",
+    "src/network/requestManager.ts"
+  ]
 }
 ```
 
-Checks specific files.
+Checks specific files. Prefer this when `alembic_task(operation: "close")` returns a required Guard `nextAction` with explicit files.
+
+```json
+{}
+```
+
+Checks the whole current git diff. Use this only when an explicit whole-diff Guard is intended.
 
 ```json
 {
@@ -45,7 +44,7 @@ Checks an inline snippet.
 
 For quick checks:
 
-1. Call `alembic_guard`.
+1. Call `alembic_guard` with explicit files when task close provides them; otherwise use no args only for an intended whole-diff check.
 2. Summarize violations by severity.
 3. Fix issues using the returned do/dont clauses, core code, and Recipe references.
 4. Re-run Guard when the fix is meaningful.
