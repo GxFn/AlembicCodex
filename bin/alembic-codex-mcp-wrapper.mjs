@@ -94,6 +94,9 @@ async function acquireStartupLock() {
   const startedAt = Date.now();
   const timeoutMs = Number(process.env.ALEMBIC_CODEX_NPM_LOCK_TIMEOUT_MS || 120000);
   let lastWaitLogAt = 0;
+  // ALEMBIC_CODEX_NPM_CACHE may point at a fresh nested install cache; create it
+  // before the scoped lock so missing parents do not abort packaged MCP startup.
+  mkdirSync(npmCacheRoot, { recursive: true });
   for (;;) {
     try {
       mkdirSync(lockDir, { recursive: false });
@@ -107,6 +110,7 @@ async function acquireStartupLock() {
             runtimeTarball,
             lockScope,
             lockDir,
+            npmCacheRoot,
             npmCacheRunRoot,
             startedAt: new Date().toISOString(),
           },
