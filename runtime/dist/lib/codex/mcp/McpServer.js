@@ -39,8 +39,8 @@ function isErrorResult(value) {
     return record.ok === false || record.success === false || Boolean(record.errorCode);
 }
 // ─── Handler 模块 ─────────────────────────────────────────────
-import * as candidateHandlers from './handlers/candidate.js';
 import * as agentPublicToolHandlers from './handlers/agent-public-tools.js';
+import * as candidateHandlers from './handlers/candidate.js';
 import * as knowledgeHandlers from './handlers/knowledge.js';
 import * as systemHandlers from './handlers/system.js';
 import * as toolRouter from './handlers/tool-router.js';
@@ -412,6 +412,10 @@ export class McpServer {
             // ── Agent 层 ──
             alembic_intent: (ctx, args) => agentPublicToolHandlers.intentHandler(ctx, args),
             alembic_prime: (ctx, args) => agentPublicToolHandlers.primeHandler(ctx, args),
+            alembic_work_start: (ctx, args) => agentPublicToolHandlers.workStartHandler(ctx, args),
+            alembic_work_finish: (ctx, args) => agentPublicToolHandlers.workFinishHandler(ctx, args),
+            alembic_code_guard: (ctx, args) => agentPublicToolHandlers.codeGuardHandler(ctx, args),
+            alembic_decision_record: (ctx, args) => agentPublicToolHandlers.decisionRecordHandler(ctx, args),
             alembic_health: (ctx) => systemHandlers.health(ctx),
             alembic_search: (ctx, args) => toolRouter.routeSearchTool(ctx, args),
             alembic_knowledge: (ctx, args) => toolRouter.routeKnowledgeTool(ctx, args),

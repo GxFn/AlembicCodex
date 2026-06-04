@@ -63,6 +63,7 @@ export const AGENT_BLOCKED_REASON_CODES = [
     'missing-work-ref',
     'missing-guard-scope',
     'decision-scope-unconfirmed',
+    'decision-register-unavailable',
     'shared-contract-required',
 ];
 export const AGENT_FAILURE_REASON_CODES = [
@@ -89,7 +90,7 @@ export const AGENT_PUBLIC_TOOL_ACTION_BY_NAME = {
     alembic_decision_record: 'decision-record',
 };
 export const AgentPublicToolRefSchema = z.object({
-    refType: z.enum(['intent', 'prime', 'work', 'guard-result', 'decision', 'detail']),
+    refType: z.enum(['intent', 'prime', 'work', 'finish', 'guard-result', 'decision', 'detail']),
     id: z.string().min(1).max(240),
     label: z.string().min(1).max(160).optional(),
     source: AgentInputSourceSchema.optional(),
@@ -157,6 +158,7 @@ export const AgentPublicToolRefsSchema = z.object({
     intentRef: AgentPublicToolRefSchema.optional(),
     primeRef: AgentPublicToolRefSchema.optional(),
     workRef: AgentPublicToolRefSchema.optional(),
+    finishRef: AgentPublicToolRefSchema.optional(),
     guardResultRef: AgentPublicToolRefSchema.optional(),
     decisionRef: AgentPublicToolRefSchema.optional(),
     detailRefs: z.array(AgentDetailRefSchema).max(40).default([]),
@@ -245,19 +247,35 @@ export const AGENT_PUBLIC_TOOL_CONTRACT_CATALOG = [
     definition('alembic_work_start', {
         acceptedRefs: ['intentRef', 'primeRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource', 'intentRef'],
-    }, ['workRef', 'detailRefs']),
+    }, ['workRef', 'detailRefs'], {
+        activeMcpSurface: true,
+        handlerDependency: 'McpServer.agent-public-tools',
+        implementationStatus: 'active-tool',
+    }),
     definition('alembic_work_finish', {
         acceptedRefs: ['intentRef', 'primeRef', 'workRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource', 'workRef'],
-    }, ['workRef', 'detailRefs']),
+    }, ['workRef', 'finishRef', 'detailRefs'], {
+        activeMcpSurface: true,
+        handlerDependency: 'McpServer.agent-public-tools',
+        implementationStatus: 'active-tool',
+    }),
     definition('alembic_code_guard', {
         acceptedRefs: ['intentRef', 'workRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource'],
-    }, ['guardResultRef', 'detailRefs']),
+    }, ['guardResultRef', 'detailRefs'], {
+        activeMcpSurface: true,
+        handlerDependency: 'McpServer.agent-public-tools',
+        implementationStatus: 'active-tool',
+    }),
     definition('alembic_decision_record', {
         acceptedRefs: ['intentRef', 'workRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource'],
-    }, ['decisionRef', 'detailRefs']),
+    }, ['decisionRef', 'detailRefs'], {
+        activeMcpSurface: true,
+        handlerDependency: 'McpServer.agent-public-tools',
+        implementationStatus: 'active-tool',
+    }),
 ];
 const AGENT_PUBLIC_TOOL_CONTRACT_BY_NAME = Object.fromEntries(AGENT_PUBLIC_TOOL_CONTRACT_CATALOG.map((entry) => [entry.name, entry]));
 export function getAgentPublicToolContractDefinition(name) {

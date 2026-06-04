@@ -18,7 +18,7 @@
  *   18-19: enrich_candidates/knowledge_lifecycle
  */
 import { z } from 'zod';
-import { BootstrapInput, CallContextInput, ConsolidateInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, IntentInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, PrimeInput, ProjectSkillInput, RescanInput, SearchInput, StructureInput, SubmitKnowledgeInput, TaskInput, } from '#shared/schemas/mcp-tools.js';
+import { BootstrapInput, CallContextInput, CodeGuardInput, ConsolidateInput, DecisionRecordInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, IntentInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, PrimeInput, ProjectSkillInput, RescanInput, SearchInput, StructureInput, SubmitKnowledgeInput, TaskInput, WorkFinishInput, WorkStartInput, } from '#shared/schemas/mcp-tools.js';
 import { TOOL_GATEWAY_MAP, withPluginToolAnnotations } from './PluginToolSurfaceCatalog.js';
 import { getAgentPublicToolDescriptionBase } from './public-tools/descriptions.js';
 import { zodToMcpSchema } from './zodToMcpSchema.js';
@@ -67,6 +67,10 @@ export const withMcpToolAnnotations = withPluginToolAnnotations;
 export { TOOL_GATEWAY_MAP };
 const INTENT_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_intent');
 const PRIME_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_prime');
+const WORK_START_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_work_start');
+const WORK_FINISH_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_work_finish');
+const CODE_GUARD_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_code_guard');
+const DECISION_RECORD_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_decision_record');
 // ─── Tool Declarations ───────────────────────────────────────
 export const TOOLS = [
     // ══════════════════════════════════════════════════════
@@ -88,6 +92,38 @@ export const TOOLS = [
             `${PRIME_DESCRIPTION.selectionHint}\n` +
             `Non-goal: ${PRIME_DESCRIPTION.nonGoal}`,
         inputSchema: zodToMcpSchema(PrimeInput),
+    },
+    {
+        name: 'alembic_work_start',
+        tier: 'agent',
+        description: `${WORK_START_DESCRIPTION.title}. ${WORK_START_DESCRIPTION.purpose}\n` +
+            `${WORK_START_DESCRIPTION.selectionHint}\n` +
+            `Non-goal: ${WORK_START_DESCRIPTION.nonGoal}`,
+        inputSchema: zodToMcpSchema(WorkStartInput),
+    },
+    {
+        name: 'alembic_work_finish',
+        tier: 'agent',
+        description: `${WORK_FINISH_DESCRIPTION.title}. ${WORK_FINISH_DESCRIPTION.purpose}\n` +
+            `${WORK_FINISH_DESCRIPTION.selectionHint}\n` +
+            `Non-goal: ${WORK_FINISH_DESCRIPTION.nonGoal}`,
+        inputSchema: zodToMcpSchema(WorkFinishInput),
+    },
+    {
+        name: 'alembic_code_guard',
+        tier: 'agent',
+        description: `${CODE_GUARD_DESCRIPTION.title}. ${CODE_GUARD_DESCRIPTION.purpose}\n` +
+            `${CODE_GUARD_DESCRIPTION.selectionHint}\n` +
+            `Non-goal: ${CODE_GUARD_DESCRIPTION.nonGoal}`,
+        inputSchema: zodToMcpSchema(CodeGuardInput),
+    },
+    {
+        name: 'alembic_decision_record',
+        tier: 'agent',
+        description: `${DECISION_RECORD_DESCRIPTION.title}. ${DECISION_RECORD_DESCRIPTION.purpose}\n` +
+            `${DECISION_RECORD_DESCRIPTION.selectionHint}\n` +
+            `Non-goal: ${DECISION_RECORD_DESCRIPTION.nonGoal}`,
+        inputSchema: zodToMcpSchema(DecisionRecordInput),
     },
     {
         name: 'alembic_health',
