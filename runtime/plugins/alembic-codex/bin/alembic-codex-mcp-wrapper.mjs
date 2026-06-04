@@ -135,7 +135,7 @@ async function acquireStartupLock() {
           timeoutMs,
           staleResult,
           nextAction:
-            'Wait for the owning wrapper startup to finish. If this repeats, inspect owner.json or run npm run dev:codex-plugin:reload to refresh and stop old MCP processes.',
+            'Wait for the owning wrapper startup to finish. If this repeats, inspect owner.json or run npm run dev:codex-plugin:reload to refresh installed caches; restart Codex itself if the current host MCP transport is closed.',
         });
       }
       if (waitMs > timeoutMs) {

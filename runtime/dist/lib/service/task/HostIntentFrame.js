@@ -19,7 +19,11 @@ export function prepareHostIntentInput(input) {
     const hostDeclaredIntent = declaredResult.value;
     const hostTurnMeta = mergeHostTurnMeta(requestTurnMeta.value, explicitTurnMeta.value);
     const declaredQuery = firstDefinedString(hostDeclaredIntent?.query, hostDeclaredIntent?.summary, hostDeclaredIntent?.goal, hostDeclaredIntent?.action);
-    const effectiveUserQuery = userQuery ?? declaredQuery ?? '';
+    const rawAutomationEnvelope = looksLikeAutomationEnvelopeText(userQuery);
+    if (rawAutomationEnvelope && !declaredQuery) {
+        degradedReasons.push('hostIntent.rawAutomationEnvelopeWithoutDeclaredIntent');
+    }
+    const effectiveUserQuery = declaredQuery ?? (rawAutomationEnvelope ? undefined : userQuery) ?? '';
     const effectiveLanguage = language ?? hostDeclaredIntent?.language ?? hostTurnMeta?.language;
     const source = resolveSource(Boolean(userQuery), Boolean(declaredQuery || hostDeclaredIntent));
     return {
@@ -308,6 +312,24 @@ function resolveSource(hasUserQuery, hasHostDeclaredIntent) {
         return 'host-declared';
     }
     return 'deterministic';
+}
+function looksLikeAutomationEnvelopeText(value) {
+    if (!value) {
+        return false;
+    }
+    return [
+        /<codex_delegation/i,
+        /\bControllerDispatchPacket\b/i,
+        /\bControllerReturnEnvelope\b/i,
+        /\bDeliveryEnvelope\b/i,
+        /\bTargetResultEnvelope\b/i,
+        /\bdispatchGroup\s*:/i,
+        /\bcurrentWindow\s*:/i,
+        /\bcontrollerWindow\s*:/i,
+        /\btaskId\s*:/i,
+        /继续当前窗口任务/i,
+        /继续总控验收/i,
+    ].some((pattern) => pattern.test(value));
 }
 function resolveConfidence(input) {
     if (input.hostDeclaredIntent?.confidence !== undefined) {

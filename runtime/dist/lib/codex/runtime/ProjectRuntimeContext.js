@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { createProjectRuntimeFailureEnvelope, createProjectRuntimeIdentityContract, createProjectRuntimeServiceReadiness, } from '@alembic/core/daemon';
+import { createProjectRuntimeFailureEnvelope, createProjectRuntimeIdentityContract, createProjectRuntimeServiceReadiness, normalizeAlembicRuntimeDataRootSource, } from '@alembic/core/daemon';
 import { WorkspaceResolver } from '@alembic/core/workspace';
 import { resolveCodexRuntimeContext } from './RuntimeContext.js';
 const PROJECT_RUNTIME_CONTEXT_VERSION = 1;
@@ -52,22 +52,10 @@ export function buildCodexProjectRuntimeContext(options) {
         currentFolderId: options.projectScopeIdentity?.currentFolderId ?? undefined,
     });
     const facts = resolver.toFacts();
-    const identity = createProjectRuntimeIdentityContract({
-        currentFolderId: facts.currentFolderId ?? options.projectScopeIdentity?.currentFolderId ?? null,
-        dataRoot: facts.dataRoot,
-        dataRootSource: facts.dataRootSource,
-        databasePath: facts.databasePath,
-        ghost: facts.ghost,
-        mode: facts.mode,
-        projectExists: existsSync(projectRoot),
-        projectId: facts.projectId ?? options.projectScopeIdentity?.projectId ?? null,
-        projectRealpath: facts.projectRealpath,
+    const identity = buildProjectRuntimeIdentity({
+        facts,
         projectRoot,
-        projectScope: options.projectScopeIdentity?.projectScope ?? facts.projectScope ?? null,
-        projectScopeId: facts.projectScopeId ?? options.projectScopeIdentity?.projectScopeId ?? null,
-        registered: facts.registered,
-        runtimeDir: facts.runtimeDir,
-        workspaceExists: facts.workspaceExists,
+        projectScopeIdentity: options.projectScopeIdentity ?? null,
     });
     const sourceOfTruth = extractAlembicRuntimeSourceOfTruth(options.daemonStatus);
     const requiredServices = buildRequiredServiceReadiness({
@@ -121,6 +109,55 @@ export function buildCodexPrimeRuntimeContext(input) {
         projectRoot: input.projectRoot,
         projectScopeIdentity: input.residentSearch?.projectScopeIdentity ?? null,
         requiredServices: ['project-identity'],
+    });
+}
+function buildProjectRuntimeIdentity(input) {
+    const residentIdentity = input.projectScopeIdentity;
+    const residentScope = residentIdentity?.available === true ? residentIdentity.projectScope : null;
+    const residentDataRoot = residentIdentity?.available === true
+        ? (stringFrom(residentIdentity.dataRoot) ?? stringFrom(residentScope?.dataRoot))
+        : null;
+    if (residentDataRoot) {
+        const runtimeDir = join(residentDataRoot, '.asd');
+        const dataRootSource = normalizeAlembicRuntimeDataRootSource(residentIdentity?.dataRootSource) ??
+            normalizeAlembicRuntimeDataRootSource(residentScope?.dataRootSource) ??
+            input.facts.dataRootSource;
+        return createProjectRuntimeIdentityContract({
+            currentFolderId: residentIdentity?.currentFolderId ?? residentScope?.currentFolderId ?? input.facts.currentFolderId,
+            dataRoot: residentDataRoot,
+            dataRootSource,
+            databasePath: join(runtimeDir, 'alembic.db'),
+            ghost: true,
+            mode: 'ghost',
+            projectExists: existsSync(input.projectRoot),
+            projectId: residentIdentity?.projectId ?? residentScope?.projectId ?? input.facts.projectId,
+            projectRealpath: input.facts.projectRealpath,
+            projectRoot: input.projectRoot,
+            projectScope: residentScope ?? input.facts.projectScope ?? null,
+            projectScopeId: residentIdentity?.projectScopeId ??
+                residentScope?.projectScopeId ??
+                input.facts.projectScopeId,
+            registered: true,
+            runtimeDir,
+            workspaceExists: existsSync(residentDataRoot),
+        });
+    }
+    return createProjectRuntimeIdentityContract({
+        currentFolderId: input.facts.currentFolderId ?? residentIdentity?.currentFolderId ?? null,
+        dataRoot: input.facts.dataRoot,
+        dataRootSource: input.facts.dataRootSource,
+        databasePath: input.facts.databasePath,
+        ghost: input.facts.ghost,
+        mode: input.facts.mode,
+        projectExists: existsSync(input.projectRoot),
+        projectId: input.facts.projectId ?? residentIdentity?.projectId ?? null,
+        projectRealpath: input.facts.projectRealpath,
+        projectRoot: input.projectRoot,
+        projectScope: residentIdentity?.projectScope ?? input.facts.projectScope ?? null,
+        projectScopeId: input.facts.projectScopeId ?? residentIdentity?.projectScopeId ?? null,
+        registered: input.facts.registered,
+        runtimeDir: input.facts.runtimeDir,
+        workspaceExists: input.facts.workspaceExists,
     });
 }
 function buildRequiredServiceReadiness(input) {
