@@ -18,8 +18,9 @@
  *   18-19: enrich_candidates/knowledge_lifecycle
  */
 import { z } from 'zod';
-import { BootstrapInput, CallContextInput, ConsolidateInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, ProjectSkillInput, RescanInput, SearchInput, StructureInput, SubmitKnowledgeInput, TaskInput, } from '#shared/schemas/mcp-tools.js';
+import { BootstrapInput, CallContextInput, ConsolidateInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, IntentInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, PrimeInput, ProjectSkillInput, RescanInput, SearchInput, StructureInput, SubmitKnowledgeInput, TaskInput, } from '#shared/schemas/mcp-tools.js';
 import { TOOL_GATEWAY_MAP, withPluginToolAnnotations } from './PluginToolSurfaceCatalog.js';
+import { getAgentPublicToolDescriptionBase } from './public-tools/descriptions.js';
 import { zodToMcpSchema } from './zodToMcpSchema.js';
 // RescanInput may be undefined under certain Vitest module transforms; provide defensive fallback
 const _RescanSchema = RescanInput ??
@@ -64,12 +65,30 @@ const _ConsolidateSchema = ConsolidateInput ??
 export const TIER_ORDER = { agent: 0, admin: 1 };
 export const withMcpToolAnnotations = withPluginToolAnnotations;
 export { TOOL_GATEWAY_MAP };
+const INTENT_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_intent');
+const PRIME_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_prime');
 // ─── Tool Declarations ───────────────────────────────────────
 export const TOOLS = [
     // ══════════════════════════════════════════════════════
     //  Tier: agent — Core Agent Toolset (14)
     // ══════════════════════════════════════════════════════
     // 1. Health Check
+    {
+        name: 'alembic_intent',
+        tier: 'agent',
+        description: `${INTENT_DESCRIPTION.title}. ${INTENT_DESCRIPTION.purpose}\n` +
+            `${INTENT_DESCRIPTION.selectionHint}\n` +
+            `Non-goal: ${INTENT_DESCRIPTION.nonGoal}`,
+        inputSchema: zodToMcpSchema(IntentInput),
+    },
+    {
+        name: 'alembic_prime',
+        tier: 'agent',
+        description: `${PRIME_DESCRIPTION.title}. ${PRIME_DESCRIPTION.purpose}\n` +
+            `${PRIME_DESCRIPTION.selectionHint}\n` +
+            `Non-goal: ${PRIME_DESCRIPTION.nonGoal}`,
+        inputSchema: zodToMcpSchema(PrimeInput),
+    },
     {
         name: 'alembic_health',
         tier: 'agent',

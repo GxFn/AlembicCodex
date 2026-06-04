@@ -25,10 +25,15 @@ export const CODEX_HOST_AGENT_WORKFLOW_TOOL_NAMES = new Set([
     'alembic_submit_knowledge',
     'alembic_dimension_complete',
 ]);
-// alembic_task 是 Codex intent/task lifecycle 工具，不是 Recipe/Search/Guard
-// knowledge-consumption surface。initialized-empty 项目也必须能 close task，
-// 这样 Plugin-only 039 acceptance 才能在真实 dirty diff 场景里返回提示。
-export const CODEX_TASK_LIFECYCLE_TOOL_NAMES = new Set(['alembic_task']);
+// alembic_intent / alembic_prime / alembic_task 是 Codex intent/task lifecycle
+// 工具，不是普通 Recipe/Search/Guard knowledge-consumption surface。
+// initialized-empty 项目也必须能捕获 intent、prime 空结果或 close task，
+// 这样 Plugin-only acceptance 能在真实 dirty diff / empty knowledge 场景里返回提示。
+export const CODEX_TASK_LIFECYCLE_TOOL_NAMES = new Set([
+    'alembic_intent',
+    'alembic_prime',
+    'alembic_task',
+]);
 // Project Skill delivery is a Codex runtime surface, not a Recipe/Guard knowledge
 // consumption surface. It must remain available for initialized projects so Codex
 // can export or inspect generated Project Skill receipts even while bootstrap is
@@ -39,6 +44,8 @@ export const CODEX_PROJECT_SKILL_DELIVERY_TOOL_NAMES = new Set(['alembic_project
 // single-folder knowledge gate 误判为 CODEX_ALEMBIC_KNOWLEDGE_REQUIRED。
 export const CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES = new Set([
     'alembic_health',
+    'alembic_intent',
+    'alembic_prime',
     'alembic_search',
     'alembic_task',
 ]);
