@@ -268,8 +268,15 @@ function daemonFailureReason(status, sourceOfTruth) {
     if (sourceReason === 'daemon-failed') {
         return 'daemon-failed';
     }
+    if (sourceReason === 'daemon-missing') {
+        return 'daemon-missing';
+    }
     if (sourceReason === 'daemon-not-running') {
         return 'daemon-missing';
+    }
+    if (sourceReason === 'runtime-control-active-stale' ||
+        sourceReason === 'runtime-control-selected-mismatch') {
+        return 'daemon-stale';
     }
     switch (status?.status) {
         case 'failed':
@@ -331,6 +338,7 @@ function extractAlembicRuntimeSourceOfTruth(daemonStatus) {
     const runtimeControl = asRecord(raw.runtimeControl);
     return {
         contractVersion: numberFrom(raw.contractVersion),
+        diagnostics: recordArrayFrom(raw.diagnostics),
         failure: asRecord(raw.failure),
         operation: asRecord(raw.operation),
         owner: stringFrom(raw.owner),
@@ -353,9 +361,16 @@ function extractAlembicRuntimeSourceOfTruth(daemonStatus) {
         runtimeControl: runtimeControl
             ? {
                 activeMatchesCurrentProject: booleanFrom(runtimeControl.activeMatchesCurrentProject),
+                activeProject: asRecord(runtimeControl.activeProject),
+                activeReadyProject: asRecord(runtimeControl.activeReadyProject),
                 activeStateTrusted: booleanFrom(runtimeControl.activeStateTrusted),
+                diagnostics: recordArrayFrom(runtimeControl.diagnostics),
+                projects: asRecord(runtimeControl.projects),
                 readOnly: booleanFrom(runtimeControl.readOnly),
                 selectedMatchesCurrentProject: booleanFrom(runtimeControl.selectedMatchesCurrentProject),
+                selectedProject: asRecord(runtimeControl.selectedProject),
+                state: asRecord(runtimeControl.state),
+                stateCleanup: asRecord(runtimeControl.stateCleanup),
                 statePath: stringFrom(runtimeControl.statePath),
             }
             : null,
@@ -378,6 +393,12 @@ function asRecord(value) {
     return value && typeof value === 'object' && !Array.isArray(value)
         ? value
         : null;
+}
+function recordArrayFrom(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((item) => Boolean(asRecord(item)));
 }
 function stringFrom(value) {
     return typeof value === 'string' && value.length > 0 ? value : null;
