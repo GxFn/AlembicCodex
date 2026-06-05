@@ -6,8 +6,8 @@ English version: [README.md](README.md)
 
 适合这些 Codex 工作：
 
-- 编码前用项目 Recipes prime Codex。
-- 对当前改动运行 Guard 检查。
+- 编码前先识别 intent，再用项目 Recipes prime Codex。
+- 对具体 work 开始/结束做记录，并对当前改动运行 scoped Guard 检查。
 - 通过 Codex 宿主 Agent workflow 构建或刷新项目知识。
 - 只在需要视觉交接时打开本地 Dashboard。
 
@@ -76,7 +76,7 @@ alembic codex status --json
 1. `alembic_codex_diagnostics`
 2. `alembic_codex_status`
 3. 状态为 `needs_init` 时调用 `alembic_codex_init`
-4. 用 `alembic_bootstrap` 构建第一轮项目知识，用 `alembic_rescan` 刷新已有知识，或在编码前调用 `alembic_task` 并设置 `operation=prime`
+4. 用 `alembic_bootstrap` 构建第一轮项目知识，用 `alembic_rescan` 刷新已有知识，或在编码前调用 `alembic_intent` + `alembic_prime`
 
 ## 长任务
 

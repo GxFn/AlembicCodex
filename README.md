@@ -6,8 +6,8 @@ Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
 Use it when you want Codex to:
 
-- Prime itself with project Recipes before coding.
-- Run Guard checks against the current change.
+- Normalize intent and prime itself with project Recipes before coding.
+- Start/finish tracked work and run scoped Guard checks against the current change.
 - Build or refresh project knowledge through Codex host-agent workflows.
 - Open the local Dashboard only when a visual handoff is useful.
 
@@ -76,7 +76,7 @@ The normal first minute is:
 1. `alembic_codex_diagnostics`
 2. `alembic_codex_status`
 3. `alembic_codex_init` when status reports `needs_init`
-4. `alembic_bootstrap` for first project knowledge, `alembic_rescan` to refresh existing knowledge, or `alembic_task` with `operation=prime` before coding work
+4. `alembic_bootstrap` for first project knowledge, `alembic_rescan` to refresh existing knowledge, or `alembic_intent` + `alembic_prime` before coding work
 
 ## Long-Running Jobs
 

@@ -244,15 +244,32 @@ function buildCodexHostAgentRescanAction(input) {
         tool: 'alembic_rescan',
     });
 }
+function buildCodexAgentIntentAction(input) {
+    return buildCodexRecommendedAction({
+        arguments: { inputSource: 'host-declared-intent' },
+        label: input.label || 'Normalize agent intent',
+        reason: input.reason ||
+            'Capture host-declared intent and turn metadata before loading project knowledge.',
+        startsDaemon: input.startsDaemon,
+        tool: 'alembic_intent',
+    });
+}
+function buildCodexAgentPrimeAction(input) {
+    return buildCodexRecommendedAction({
+        arguments: { inputSource: 'host-declared-intent' },
+        label: input.label || 'Prime agent context',
+        reason: input.reason ||
+            'Load compact Alembic project knowledge through the agent-facing public prime tool before non-trivial coding work.',
+        startsDaemon: input.startsDaemon,
+        tool: 'alembic_prime',
+    });
+}
 export function buildCodexPostInitActions(knowledge) {
     if (knowledge.usable) {
         return [
-            buildCodexRecommendedAction({
-                arguments: { operation: 'prime' },
-                label: 'Prime Codex',
-                reason: 'Load the most relevant Alembic Recipes before non-trivial coding work.',
+            buildCodexAgentPrimeAction({
+                reason: 'Load the most relevant Alembic Recipes through the agent-facing public prime tool before non-trivial coding work.',
                 startsDaemon: true,
-                tool: 'alembic_task',
             }),
             buildCodexHostAgentRescanAction({
                 reason: 'Refresh Alembic project knowledge through the Codex host-agent workflow.',
@@ -269,7 +286,7 @@ export function buildCodexPostInitActions(knowledge) {
 }
 export function buildCodexPostInitMessage(knowledge) {
     return knowledge.usable
-        ? 'Alembic Codex workspace initialized with usable project knowledge. Next: prime Codex or run host-agent rescan.'
+        ? 'Alembic Codex workspace initialized with usable project knowledge. Next: prime agent context or run host-agent rescan.'
         : 'Alembic Codex workspace initialized. Next: run Codex host-agent bootstrap to build the first usable project knowledge.';
 }
 export function buildCodexKnowledgeGateActions(knowledge) {
@@ -447,20 +464,18 @@ export function buildCodexStatusOnboarding(input) {
         summary: daemonReady
             ? 'Alembic Codex is initialized and the daemon is ready.'
             : 'Alembic Codex is initialized. The daemon will start on demand when a project-knowledge tool needs it.',
-        primaryAction: buildCodexRecommendedAction({
-            arguments: { operation: 'prime' },
-            label: 'Prime Codex',
-            reason: 'Load relevant Alembic Recipes before non-trivial coding work.',
+        primaryAction: buildCodexAgentPrimeAction({
+            reason: 'Load relevant Alembic Recipes through the agent-facing public prime tool before non-trivial coding work.',
             startsDaemon: !daemonReady,
-            tool: 'alembic_task',
         }),
         nextActions: [
-            buildCodexRecommendedAction({
-                arguments: { operation: 'prime' },
-                label: 'Prime Codex',
-                reason: 'Load project conventions and active task context.',
+            buildCodexAgentIntentAction({
+                reason: 'Normalize host-declared intent first when Codex has a concrete user task and wants an intentRef.',
+                startsDaemon: false,
+            }),
+            buildCodexAgentPrimeAction({
+                reason: 'Load project conventions and trusted context from an intentRef or host-declared intent.',
                 startsDaemon: !daemonReady,
-                tool: 'alembic_task',
             }),
             buildCodexHostAgentRescanAction({
                 reason: 'Refresh project knowledge through the Codex host-agent workflow.',

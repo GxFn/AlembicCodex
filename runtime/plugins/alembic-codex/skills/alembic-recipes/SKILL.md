@@ -34,7 +34,7 @@ Do not:
 
 ## Lookup Order
 
-1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_task(operation: "prime")` before semantic coding or knowledge turns. Use a concise semantic query or `hostDeclaredIntent`; do not raw-prime automation/direct-thread envelopes.
+1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_intent` and then `alembic_prime` before semantic coding or knowledge turns. Use a concise semantic query or `hostDeclaredIntent`; do not raw-prime automation/direct-thread envelopes.
 2. Use `alembic_search(mode: "auto")` for general lookup.
 3. Use `alembic_search(mode: "context")` for coding assistance.
 4. If `searchMeta.residentSearch` / `residentVector` is present, use it to understand whether semantic/vector recall came from the local Alembic resident service or fell back to Plugin baseline search. Do not assume AlembicPlugin has its own embedding executor.

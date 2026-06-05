@@ -143,7 +143,7 @@ Run this against a fresh test repository and one real project before public prom
 4. Run `alembic_codex_status`.
 5. If uninitialized, run `alembic_codex_init`.
 6. Confirm Ghost mode did not create project-local `.asd/`, `Alembic/`, `.cursor/`, `.vscode/mcp.json`, or `.env`.
-7. Run `alembic_codex_status` again and confirm the primary action is `alembic_task` with `operation=prime`.
+7. Run `alembic_codex_status` again and confirm the primary action is the agent-facing public prime path (`alembic_prime`, with `alembic_intent` available for intent normalization).
 8. Run `alembic_codex_dashboard`; if no local Alembic Dashboard daemon is active, confirm it fails closed with `CODEX_DASHBOARD_HANDOFF_UNAVAILABLE` and no embedded URL. When local Alembic owns the Dashboard server, confirm the returned URL comes from that local daemon capability.
 9. Run `alembic_bootstrap` and confirm Codex receives a Mission Briefing for the host-agent workflow without requiring an AI Provider.
 10. Optional daemon-job line: when the Alembic resident service is already configured for jobs, run `alembic_codex_bootstrap` and capture the job id. Do not configure third-party AI providers through the Codex plugin.
@@ -296,7 +296,7 @@ Quality:
 2. Run `alembic_codex_diagnostics`.
 3. Run `alembic_codex_status`.
 4. Run `alembic_codex_init` if needed.
-5. Use `alembic_task` with `operation=prime` before non-trivial coding.
+5. Use `alembic_intent` and `alembic_prime` before non-trivial coding.
 
 ### Verification
 - CI: <link>

@@ -1,6 +1,6 @@
 ---
 name: alembic
-description: Use Alembic setup/status/diagnostics/bootstrap/rescan when the user explicitly asks for Alembic. When the current project has a project-level Alembic knowledge skill or local Alembic knowledge base, prime semantic coding/knowledge turns and use Recipes, Guard, project knowledge, and knowledge search proactively. For empty projects, do not proactively prime unless the user explicitly asks for Alembic.
+description: Use Alembic setup/status/diagnostics/bootstrap/rescan when the user explicitly asks for Alembic. When the current project has a project-level Alembic knowledge skill or local Alembic knowledge base, use the agent-facing intent, prime, work, Guard, and decision tools proactively. For empty projects, do not proactively prime unless the user explicitly asks for Alembic.
 ---
 
 # Alembic Codex Workflow
@@ -23,12 +23,15 @@ If the workspace is not initialized and the user wants Alembic knowledge for thi
 
 When the current project has a project-level Alembic knowledge skill in `.agents/skills` or a local Alembic knowledge base, every semantic coding or knowledge request is a knowledge-backed turn:
 
-1. Before code reading, shell search, edit, Guard check, or conclusion for a semantic task, call `alembic_task` with `operation: "prime"` and include the current semantic intent. If the visible input is an automation/direct-thread envelope, use `hostDeclaredIntent` or another concise semantic query; do not raw-prime the envelope text.
-2. Immediately after the prime tool result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: briefly and actively shout as Codex or "I" which Recipe constraints, Guard rules, patterns, or judgment basis you accepted, or say you received no usable project knowledge because the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary. Keep evidence refs in the payload for later verification or user-requested citations; do not dump paths or line numbers by default. Do not make "Alembic prime", prime, or any tool/process the speaker or subject of the visible receipt.
-3. Use `alembic_search`, `alembic_knowledge`, or `alembic_structure` when more project context is needed.
-4. Make code changes according to approved Recipes and project evidence.
-5. After meaningful code edits, follow the `alembic_task(operation: "close")` `nextAction`: if Guard is required, call `alembic_guard` with the explicit returned `files`; if it is skipped, report the lifecycle reason instead of forcing a no-args Guard.
-6. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
+1. Before code reading, shell search, edit, Guard check, or conclusion for a semantic task, call `alembic_intent` with `hostDeclaredIntent` or another concise semantic query. If the visible input is an automation/direct-thread envelope, pass a curated `hostDeclaredIntent`; do not raw-prime the envelope text.
+2. Call `alembic_prime` with the returned `intentRef` or the same structured `hostDeclaredIntent` to load compact project knowledge. Immediately after the result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: briefly and actively shout as Codex or "I" which Recipe constraints, Guard rules, patterns, or judgment basis you accepted, or say you received no usable project knowledge because the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary. Keep evidence refs in the payload for later verification or user-requested citations; do not dump paths or line numbers by default. Do not make "Alembic prime", prime, or any tool/process the speaker or subject of the visible receipt.
+3. Use `alembic_work_start` when the user has asked for concrete implementation, fix, refactor, review, or other evidence-producing work.
+4. Use `alembic_search`, `alembic_knowledge`, or `alembic_structure` when more project context is needed.
+5. Make code changes according to approved Recipes and project evidence.
+6. After meaningful code edits, call `alembic_work_finish` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
+7. Use `alembic_decision_record` for confirmed durable decisions. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
+
+`alembic_task` remains visible in initialized projects only as a legacy compatibility hook for older Codex sessions. Do not use it as the primary workflow guide when the six agent-facing public tools are available.
 
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 

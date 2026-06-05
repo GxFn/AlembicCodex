@@ -22,7 +22,7 @@ Common calls:
 }
 ```
 
-Checks specific files. Prefer this when `alembic_task(operation: "close")` returns a required Guard `nextAction` with explicit files.
+Checks specific files. Prefer this when `alembic_work_finish` returns a Guard recommendation with explicit files.
 
 ```json
 {}
@@ -44,7 +44,7 @@ Checks an inline snippet.
 
 For quick checks:
 
-1. Call `alembic_guard` with explicit files when task close provides them; otherwise use no args only for an intended whole-diff check.
+1. Call `alembic_code_guard` or `alembic_guard` with explicit files when work finish provides them; otherwise use no args only for an intended whole-diff check.
 2. Summarize violations by severity.
 3. Fix issues using the returned do/dont clauses, core code, and Recipe references.
 4. Re-run Guard when the fix is meaningful.

@@ -123,7 +123,9 @@ function buildProjectRuntimeIdentity(input) {
             normalizeAlembicRuntimeDataRootSource(residentScope?.dataRootSource) ??
             input.facts.dataRootSource;
         return createProjectRuntimeIdentityContract({
-            currentFolderId: residentIdentity?.currentFolderId ?? residentScope?.currentFolderId ?? input.facts.currentFolderId,
+            currentFolderId: residentIdentity?.currentFolderId ??
+                residentScope?.currentFolderId ??
+                input.facts.currentFolderId,
             dataRoot: residentDataRoot,
             dataRootSource,
             databasePath: join(runtimeDir, 'alembic.db'),
