@@ -1,5 +1,5 @@
 /**
- * MCP Tool Definitions — V3 Routed Surface (17 agent + 2 admin = 19 tools)
+ * MCP Tool Definitions — V3 Routed Surface (21 agent + 2 admin = 23 tools)
  *
  * Each tool declaration contains name, tier (agent/admin), description, and inputSchema.
  * description is the key for Agent tool selection — use bullet list to enumerate all operations and their purposes.
@@ -11,10 +11,9 @@
  *   Write tool: submit_knowledge
  *   Project Skill delivery: project_skill
  *   Workflow tools: bootstrap/rescan/evolve/consolidate/dimension_complete/panorama
- *   Legacy compatibility: task — 5 ops retained for older hosts/tests, not the primary guide
  *
  * Admin tools (2):
- *   18-19: enrich_candidates/knowledge_lifecycle
+ *   enrich_candidates/knowledge_lifecycle
  */
 import { z } from 'zod';
 import { BootstrapInput, CallContextInput, CodeGuardInput, ConsolidateInput, DecisionRecordInput, DimensionCompleteInput, EnrichCandidatesInput, EvolveInput, GraphInput, GuardInput, HealthInput, IntentInput, KnowledgeInput, KnowledgeLifecycleInput, PanoramaInput, PrimeInput, ProjectSkillInput, RescanInput, SearchInput, StructureInput, SubmitKnowledgeInput, TaskInput, WorkFinishInput, WorkStartInput, } from '#shared/schemas/mcp-tools.js';
@@ -70,12 +69,21 @@ const WORK_START_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_work_s
 const WORK_FINISH_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_work_finish');
 const CODE_GUARD_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_code_guard');
 const DECISION_RECORD_DESCRIPTION = getAgentPublicToolDescriptionBase('alembic_decision_record');
+export const LEGACY_DIRECT_CALL_COMPATIBILITY_TOOLS = [
+    {
+        name: 'alembic_task',
+        tier: 'agent',
+        description: 'Hidden direct-call compatibility for older Codex sessions only. This tool is not advertised through tools/list; use alembic_intent, alembic_prime, alembic_work_start, alembic_work_finish, alembic_code_guard, and alembic_decision_record as the host-facing public lifecycle.',
+        inputSchema: zodToMcpSchema(TaskInput),
+    },
+];
+export const LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES = new Set(LEGACY_DIRECT_CALL_COMPATIBILITY_TOOLS.map((tool) => tool.name));
 // ─── Tool Declarations ───────────────────────────────────────
 export const TOOLS = [
     // ══════════════════════════════════════════════════════
-    //  Tier: agent — Core Agent Toolset (14)
+    //  Tier: agent — Core Agent Toolset (22)
     // ══════════════════════════════════════════════════════
-    // 1. Health Check
+    // Agent-facing public workflow tools
     {
         name: 'alembic_intent',
         tier: 'agent',
@@ -130,7 +138,7 @@ export const TOOLS = [
         description: 'Check service status and knowledge base stats. Returns total (entry count) and kind/lifecycle distribution. When total=0, cold-start is needed (call alembic_bootstrap).',
         inputSchema: zodToMcpSchema(HealthInput),
     },
-    // 2. Unified Search
+    // Unified Search
     {
         name: 'alembic_search',
         tier: 'agent',
@@ -143,7 +151,7 @@ export const TOOLS = [
             'Returns results grouped by kind (rule/pattern/fact).',
         inputSchema: zodToMcpSchema(SearchInput),
     },
-    // 3. Knowledge Browser
+    // Knowledge Browser
     {
         name: 'alembic_knowledge',
         tier: 'agent',
@@ -154,7 +162,7 @@ export const TOOLS = [
             '• confirm_usage — record that knowledge was actually adopted (requires id)',
         inputSchema: zodToMcpSchema(KnowledgeInput),
     },
-    // 4. Project Structure
+    // Project Structure
     {
         name: 'alembic_structure',
         tier: 'agent',
@@ -164,7 +172,7 @@ export const TOOLS = [
             '• metadata — project metadata (language, dependencies, configuration)',
         inputSchema: zodToMcpSchema(StructureInput),
     },
-    // 5. Knowledge Graph
+    // Knowledge Graph
     {
         name: 'alembic_graph',
         tier: 'agent',
@@ -175,7 +183,7 @@ export const TOOLS = [
             '• stats — global graph statistics (nodes/edges/density)',
         inputSchema: zodToMcpSchema(GraphInput),
     },
-    // 6. Call Context
+    // Call Context
     {
         name: 'alembic_call_context',
         tier: 'agent',
@@ -186,19 +194,19 @@ export const TOOLS = [
             '• both — retrieve callers + callees simultaneously',
         inputSchema: zodToMcpSchema(CallContextInput),
     },
-    // 7. Guard Code Check
+    // Guard Code Check
     {
         name: 'alembic_guard',
         tier: 'agent',
-        description: 'Code compliance check and Guard immune system.\n' +
-            '• files → check specified file list; prefer explicit files from alembic_work_finish guardRecommendation\n' +
-            '• no params → check the whole current git diff only when an explicit whole-diff Guard is intended\n' +
-            '• code → inline check code snippet\n' +
+        description: 'Legacy Guard route for compatibility and report operations.\n' +
+            '• files → check specified file list; prefer alembic_code_guard for agent-facing scoped checks\n' +
+            '• no params → blocked; whole-diff fallback is disabled to avoid silently consuming unrelated repository changes\n' +
+            '• code → inline check code snippet; prefer alembic_code_guard for new host-agent calls\n' +
             '• operation: "coverage_matrix" → module-level Guard rule coverage matrix\n' +
             'Each violation includes a fix guide (doClause + coreCode). Fix accordingly and re-check.',
         inputSchema: zodToMcpSchema(GuardInput),
     },
-    // 8. Submit Knowledge (Unified Pipeline)
+    // Submit Knowledge (Unified Pipeline)
     {
         name: 'alembic_submit_knowledge',
         tier: 'agent',
@@ -213,7 +221,7 @@ export const TOOLS = [
             'If two entries share 80%+ content, merge into one or split into primary + extends supplementary entries.',
         inputSchema: zodToMcpSchema(SubmitKnowledgeInput),
     },
-    // 9. Skill Management
+    // Project Skill Management
     {
         name: 'alembic_project_skill',
         tier: 'agent',
@@ -226,7 +234,7 @@ export const TOOLS = [
             '• delete — delete Alembic-managed source/runtime projection; built-in plugin skills remain read-only',
         inputSchema: zodToMcpSchema(ProjectSkillInput),
     },
-    // 10. Cold-Start Bootstrap
+    // Cold-Start Bootstrap
     {
         name: 'alembic_bootstrap',
         tier: 'agent',
@@ -238,7 +246,7 @@ export const TOOLS = [
             'After receiving the Briefing, complete all dimension analyses per the executionPlan.',
         inputSchema: zodToMcpSchema(BootstrapInput),
     },
-    // 11. Incremental Rescan
+    // Incremental Rescan
     {
         name: 'alembic_rescan',
         tier: 'agent',
@@ -251,7 +259,7 @@ export const TOOLS = [
             '\u2022 Optional: dimensions (filter specific dimensions), reason (rescan justification)',
         inputSchema: zodToMcpSchema(_RescanSchema),
     },
-    // 11.5. Recipe Evolution
+    // Recipe Evolution
     {
         name: 'alembic_evolve',
         tier: 'agent',
@@ -264,7 +272,7 @@ export const TOOLS = [
             '\u2022 skip \u2014 still_valid (refreshes lastVerifiedAt) or insufficient_info',
         inputSchema: zodToMcpSchema(_EvolveSchema),
     },
-    // 11.6. Consolidation Review
+    // Consolidation Review
     {
         name: 'alembic_consolidate',
         tier: 'agent',
@@ -276,7 +284,7 @@ export const TOOLS = [
             '\u2022 reject \u2014 Recipe is redundant, deprecate immediately',
         inputSchema: zodToMcpSchema(_ConsolidateSchema),
     },
-    // 12. Dimension Complete Notification
+    // Dimension Complete Notification
     {
         name: 'alembic_dimension_complete',
         tier: 'agent',
@@ -285,7 +293,7 @@ export const TOOLS = [
             'Optional unitId / analysisUnitIds / skippedAnalysisUnitIds / rejectedAnalysisUnitIds / remainingAnalysisUnitIds / deviationReason backfill IDE Agent unit progress.',
         inputSchema: zodToMcpSchema(DimensionCompleteInput),
     },
-    // 13. Project Panorama
+    // Project Panorama
     {
         name: 'alembic_panorama',
         tier: 'agent',
@@ -300,26 +308,17 @@ export const TOOLS = [
             '• enhancement_suggestions — Recipe enhancement suggestions based on usage data',
         inputSchema: zodToMcpSchema(PanoramaInput),
     },
-    // 14. Task & Decision Management
-    {
-        name: 'alembic_task',
-        tier: 'agent',
-        description: 'Legacy compatibility task lifecycle surface for older Codex sessions and regression tests. Prefer the agent-facing public tools as the primary host guide: alembic_intent, alembic_prime, alembic_work_start, alembic_work_finish, alembic_code_guard, and alembic_decision_record.\n' +
-            'Visible for initialized projects only as a compatibility hook; empty projects should use diagnostics/init/bootstrap instead of proactive legacy task calls.\n' +
-            'Compatibility mapping: prime → alembic_intent + alembic_prime; create → alembic_work_start; close → alembic_work_finish then alembic_code_guard only with explicit scope; record_decision → alembic_decision_record; fail remains legacy abandonment metadata.',
-        inputSchema: zodToMcpSchema(TaskInput),
-    },
     // ══════════════════════════════════════════════════════
     //  Tier: admin — Admin/CI Tools (+2)
     // ══════════════════════════════════════════════════════
-    // 15. Candidate Field Diagnosis
+    // Candidate Field Diagnosis
     {
         name: 'alembic_enrich_candidates',
         tier: 'admin',
         description: 'Diagnose field completeness of candidate entries (no AI). Returns missingFields list per candidate for Agent to fill in and resubmit.',
         inputSchema: zodToMcpSchema(EnrichCandidatesInput),
     },
-    // 16. Knowledge Lifecycle
+    // Knowledge Lifecycle
     {
         name: 'alembic_knowledge_lifecycle',
         tier: 'admin',

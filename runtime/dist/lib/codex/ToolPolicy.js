@@ -1,3 +1,4 @@
+import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES } from './mcp/tools.js';
 import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, resolveEffectiveCodexTier, } from './runtime/RuntimeContext.js';
 // Codex 插件当前只有 alembic-codex 一个入口；这里维护单插件工具策略，不做多插件抽象。
 export const CODEX_PROJECT_ROOT_PROPERTY = {
@@ -38,12 +39,10 @@ export const CODEX_AGENT_PUBLIC_TOOL_NAMES = new Set([
     'alembic_code_guard',
     'alembic_decision_record',
 ]);
-// Legacy alembic_task remains an initialized-project lifecycle compatibility
-// surface. It is deliberately not exposed before init.
-export const CODEX_TASK_LIFECYCLE_TOOL_NAMES = new Set([
-    ...CODEX_AGENT_PUBLIC_TOOL_NAMES,
-    'alembic_task',
-]);
+// Agent lifecycle tools are the active public route. Legacy alembic_task is no
+// longer a visible policy surface; older direct calls are handled separately by
+// the hidden compatibility boundary in the MCP executor.
+export const CODEX_TASK_LIFECYCLE_TOOL_NAMES = new Set([...CODEX_AGENT_PUBLIC_TOOL_NAMES]);
 // Project Skill delivery is a Codex runtime surface, not a Recipe/Guard knowledge
 // consumption surface. It must remain available for initialized projects so Codex
 // can export or inspect generated Project Skill receipts even while bootstrap is
@@ -56,7 +55,6 @@ export const CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES = new Set([
     'alembic_health',
     ...CODEX_AGENT_PUBLIC_TOOL_NAMES,
     'alembic_search',
-    'alembic_task',
 ]);
 export const CODEX_INIT_ON_DEMAND_TOOL_NAMES = new Set([
     'alembic_codex_dashboard',
@@ -175,13 +173,14 @@ export function resolveCodexToolPolicy(input) {
     const effectiveTier = resolveEffectiveCodexTier(tierName, adminEnabled);
     const maxTier = input.tierOrder[effectiveTier] ?? input.tierOrder[CODEX_DEFAULT_MCP_TIER] ?? 0;
     const localTools = CODEX_LOCAL_TOOLS.filter((tool) => allowedLocalToolNames.has(tool.name));
-    const coreTools = input.coreTools.filter((tool) => (input.knowledge.usable ||
-        CODEX_AGENT_PUBLIC_TOOL_NAMES.has(tool.name) ||
-        (input.residentProjectScopeAvailable === true &&
-            CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(tool.name)) ||
-        CODEX_HOST_AGENT_WORKFLOW_TOOL_NAMES.has(tool.name) ||
-        (input.knowledge.initialized && CODEX_TASK_LIFECYCLE_TOOL_NAMES.has(tool.name)) ||
-        isCodexProjectSkillDeliveryToolVisible(tool.name, input.knowledge)) &&
+    const coreTools = input.coreTools.filter((tool) => !LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES.has(tool.name) &&
+        (input.knowledge.usable ||
+            CODEX_AGENT_PUBLIC_TOOL_NAMES.has(tool.name) ||
+            (input.residentProjectScopeAvailable === true &&
+                CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(tool.name)) ||
+            CODEX_HOST_AGENT_WORKFLOW_TOOL_NAMES.has(tool.name) ||
+            (input.knowledge.initialized && CODEX_TASK_LIFECYCLE_TOOL_NAMES.has(tool.name)) ||
+            isCodexProjectSkillDeliveryToolVisible(tool.name, input.knowledge)) &&
         (input.tierOrder[tool.tier || 'agent'] ?? 0) <= maxTier);
     const state = resolveCodexToolPolicyState(input);
     return {

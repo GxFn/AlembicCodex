@@ -1,7 +1,7 @@
 import { resetServiceContainer } from '../../../injection/ServiceContainer.js';
 import { ALEMBIC_CODEX_PROJECT_SCOPE_SUMMARY_ENV, serializeCodexProjectScopeSummary, } from '../../../shared/project-scope-runtime.js';
 import { McpServer as EmbeddedMcpServer } from '../McpServer.js';
-import { TOOLS } from '../tools.js';
+import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES, TOOLS } from '../tools.js';
 import { safeProjectRootFallback } from './project-root.js';
 import { attachCodexServiceBoundary, failureResult } from './results.js';
 let sharedPluginOwnedMcpServer = null;
@@ -28,7 +28,8 @@ export class CodexEmbeddedToolExecutor {
         this.#hostProjectRoot = options.hostProjectRoot;
     }
     async execute(name, args, serviceBoundary, executionContext, options = {}) {
-        if (!TOOLS.some((tool) => tool.name === name)) {
+        if (!TOOLS.some((tool) => tool.name === name) &&
+            !LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES.has(name)) {
             return attachCodexServiceBoundary(failureResult(name, `Unknown Alembic tool: ${name}`), serviceBoundary);
         }
         try {

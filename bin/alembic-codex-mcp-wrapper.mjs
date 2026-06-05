@@ -21,17 +21,41 @@ let lockHeld = false;
 let lockReleaseTimer = null;
 
 try {
+  assertRuntimeTarballReady();
   await acquireStartupLock();
   startRuntime();
 } catch (err) {
   const error = err instanceof Error ? err : new Error(String(err));
-  logWrapperDiagnostic('startup-lock-failed', {
+  const event =
+    error.code === 'ALEMBIC_CODEX_RUNTIME_TARBALL_MISSING'
+      ? 'runtime-tarball-missing'
+      : 'startup-lock-failed';
+  logWrapperDiagnostic(event, {
     lockDir,
+    lockScope,
     message: error.message,
+    npmCacheRoot,
+    pluginRoot,
+    runtimeTarball,
     nextAction:
-      'Check owner.json in the lock directory, clear stale plugin cache locks, or run npm run dev:codex-plugin:reload.',
+      event === 'runtime-tarball-missing'
+        ? 'Run npm run prepare:codex-plugin-runtime or npm run dev:codex-plugin:reload before starting the packaged Codex plugin wrapper.'
+        : 'Check owner.json in the lock directory, clear stale plugin cache locks, or run npm run dev:codex-plugin:reload.',
   });
   process.exit(1);
+}
+
+function assertRuntimeTarballReady() {
+  try {
+    if (statSync(runtimeTarball).isFile()) {
+      return;
+    }
+  } catch {
+    // The structured wrapper diagnostic below gives the user the actionable path.
+  }
+  const error = new Error(`Packaged Alembic Codex runtime tarball is missing: ${runtimeTarball}`);
+  error.code = 'ALEMBIC_CODEX_RUNTIME_TARBALL_MISSING';
+  throw error;
 }
 
 function startRuntime() {

@@ -31,7 +31,7 @@ When the current project has a project-level Alembic knowledge skill in `.agents
 6. After meaningful code edits, call `alembic_work_finish` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
 7. Use `alembic_decision_record` for confirmed durable decisions. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
-`alembic_task` remains visible in initialized projects only as a legacy compatibility hook for older Codex sessions. Do not use it as the primary workflow guide when the six agent-facing public tools are available.
+`alembic_task` is not advertised as a public workflow surface. Older direct calls may still be handled for compatibility, but the six agent-facing public tools are the only primary host lifecycle guide.
 
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 

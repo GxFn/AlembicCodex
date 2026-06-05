@@ -19,7 +19,7 @@ import { safeProjectRootFallback } from './host/project-root.js';
 import { persistTrustedCodexProjectRootScope, resolveCodexProjectRootScope, } from './host/project-root-scope.js';
 import { attachCodexServiceBoundary, attachEnhancementRoute, failureResult, isErrorResult, } from './host/results.js';
 import { getVisibleCodexTools } from './host/tool-visibility.js';
-import { TIER_ORDER, TOOLS } from './tools.js';
+import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES, TIER_ORDER, TOOLS } from './tools.js';
 function summarizeResidentServiceResult(result) {
     const base = {
         ok: result.ok,
@@ -877,7 +877,9 @@ export class CodexMcpServer {
         }
     }
     async resolveToolExecutionContext(toolName) {
-        if (!CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(toolName)) {
+        const usesResidentProjectScope = CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(toolName) ||
+            LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES.has(toolName);
+        if (!usesResidentProjectScope) {
             return {
                 projectRoot: this.projectRoot,
                 projectScopeIdentity: null,

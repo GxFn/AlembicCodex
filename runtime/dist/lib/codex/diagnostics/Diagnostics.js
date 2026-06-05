@@ -214,6 +214,8 @@ function buildCodexPluginMcpDiagnostics(context, registry) {
     const entry = buildCodexMcpEntryDiagnostics({
         args,
         command,
+        packageVersion: context.packageVersion,
+        pluginVersion: asString(registry.plugin.manifest.value?.version) || null,
         registryPluginRoot: registry.plugin.root,
         runtimeTarballPath,
         wrapperArg,
@@ -375,6 +377,24 @@ function collectCodexMcpEntryStaleReasons(input) {
         collectLocalMcpMarkerStaleReasons(input, staleReasons);
     }
     if (input.marker.exists &&
+        input.marker.entryMode &&
+        input.marker.entryMode !== input.configMode &&
+        input.configMode !== 'unknown') {
+        staleReasons.push('refresh-marker-entry-mode-mismatch');
+    }
+    if (input.marker.exists &&
+        input.marker.packageVersion &&
+        input.input.packageVersion &&
+        input.marker.packageVersion !== input.input.packageVersion) {
+        staleReasons.push('refresh-marker-package-version-mismatch');
+    }
+    if (input.marker.exists &&
+        input.marker.pluginVersion &&
+        input.input.pluginVersion &&
+        input.marker.pluginVersion !== input.input.pluginVersion) {
+        staleReasons.push('refresh-marker-plugin-version-mismatch');
+    }
+    if (input.marker.exists &&
         input.marker.mode === 'packaged-runtime' &&
         input.configMode !== 'packaged-wrapper') {
         staleReasons.push('refresh-marker-packaged-but-config-not-wrapper');
@@ -390,6 +410,9 @@ function collectLocalMcpMarkerStaleReasons(input, staleReasons) {
         if (markerEntry !== input.localDistPath) {
             staleReasons.push('refresh-marker-local-entry-mismatch');
         }
+    }
+    if (input.marker.entryMode && input.marker.entryMode !== 'local-dev-direct-dist') {
+        staleReasons.push('refresh-marker-local-entry-mode-mismatch');
     }
 }
 function buildWrapperStartupLockDiagnostics(wrapperSource) {
@@ -409,6 +432,9 @@ function buildWrapperStartupLockDiagnostics(wrapperSource) {
             wrapperSource.includes('pluginRoot') &&
             wrapperSource.includes('runtimeTarball'),
         releaseSignals,
+        runtimeTarballPreflight: wrapperSource.includes('assertRuntimeTarballReady') &&
+            wrapperSource.includes('runtime-tarball-missing') &&
+            wrapperSource.includes('ALEMBIC_CODEX_RUNTIME_TARBALL_MISSING'),
         scope: wrapperSource.includes('lockScope') &&
             wrapperSource.includes('pluginRoot') &&
             wrapperSource.includes('runtimeTarball')
@@ -430,10 +456,14 @@ function buildWrapperStartupLockDiagnostics(wrapperSource) {
 function readInstalledRefreshMarker(path) {
     const marker = readJsonIfExists(path);
     return {
+        canonicalLocalDevCommand: stringOrNull(marker?.canonicalLocalDevCommand),
+        entryMode: stringOrNull(marker?.entryMode),
         exists: Boolean(marker),
         gitHead: stringOrNull(marker?.gitHead),
         localMcpEntry: stringOrNull(marker?.localMcpEntry),
         mode: stringOrNull(marker?.mode),
+        packageVersion: stringOrNull(marker?.packageVersion),
+        pluginVersion: stringOrNull(marker?.pluginVersion),
         refreshedAt: stringOrNull(marker?.refreshedAt),
     };
 }

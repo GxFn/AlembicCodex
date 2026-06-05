@@ -7,6 +7,7 @@
  * @module service/task/PrimeSearchPipeline
  */
 import { slimSearchResult } from '@alembic/core/search';
+import { unavailablePrimeRetrievalConsumerSummary, } from '../resident/AlembicResidentServiceClient.js';
 import { buildResidentIntentHandoff, } from './HostIntentFrame.js';
 // ── Constants ───────────────────────────────────────
 /** Absolute minimum score — items below this are definitely noise */
@@ -253,6 +254,7 @@ export class PrimeSearchPipeline {
                     reason,
                     requestedMode: 'semantic',
                     residentVector: { available: false, reason },
+                    retrievalConsumer: unavailablePrimeRetrievalConsumerSummary(reason),
                     resultCount: 0,
                     route: 'alembic-resident-service',
                     used: false,
@@ -271,6 +273,9 @@ export class PrimeSearchPipeline {
             ...(residentSearch?.intentEvidence ? { intentEvidence: residentSearch.intentEvidence } : {}),
             ...(residentSearch?.primeInjectionPackage
                 ? { primeInjectionPackage: residentSearch.primeInjectionPackage }
+                : {}),
+            ...(residentSearch?.retrievalConsumer
+                ? { retrievalConsumer: residentSearch.retrievalConsumer }
                 : {}),
             ...(residentSearch ? { residentSearch } : {}),
         };

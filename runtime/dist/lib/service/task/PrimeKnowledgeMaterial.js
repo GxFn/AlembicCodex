@@ -53,6 +53,9 @@ export function buildPrimeKnowledgeMaterial(input) {
         ...(input.searchResult?.searchMeta.primeInjectionPackage
             ? { primeInjectionPackage: input.searchResult.searchMeta.primeInjectionPackage }
             : {}),
+        ...(input.searchResult?.searchMeta.retrievalConsumer
+            ? { retrievalConsumer: input.searchResult.searchMeta.retrievalConsumer }
+            : {}),
     };
 }
 export function formatPrimeTrustPostureMessage(posture) {
