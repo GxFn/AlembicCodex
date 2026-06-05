@@ -551,7 +551,8 @@ export async function codeGuardHandler(ctx, args) {
 }
 export async function decisionRecordHandler(ctx, args) {
     const intake = buildIntentIntake(ctx, args);
-    const detailRefs = buildBaseDetailRefs('alembic_decision_record', uniqueStrings([...(args.sourceRefs ?? []), ...(args.evidenceRefs ?? [])]));
+    const sourceRefs = uniqueStrings([...(args.sourceRefs ?? []), ...(args.evidenceRefs ?? [])]);
+    const detailRefs = buildBaseDetailRefs('alembic_decision_record', sourceRefs);
     const action = args.action ?? 'create';
     const scopeBlocker = resolveDecisionScopeBlocker(action, args);
     if (scopeBlocker) {
@@ -578,61 +579,103 @@ export async function decisionRecordHandler(ctx, args) {
             meta: { tool: 'alembic_decision_record' },
         });
     }
+    const client = resolveResidentDecisionRegisterClient(ctx.container);
+    if (!client) {
+        const result = buildDecisionRecordBlockedResult({
+            args,
+            detailRefs,
+            intake,
+            message: 'Decision Register durable persistence is not available in AlembicPlugin; residentDecisionRegisterClient is not registered.',
+            reasonCode: 'decision-register-unavailable',
+            retryable: false,
+            summary: 'Decision durable route unavailable; no local fake record was written.',
+        });
+        return envelope({
+            success: false,
+            data: {
+                durablePersistence: {
+                    action,
+                    available: false,
+                    requiredRoute: 'Alembic durable Decision Register route',
+                },
+                requestedDecision: buildRequestedDecision(action, args),
+                result,
+            },
+            message: result.reason?.message ?? result.summary.compact,
+            meta: { tool: 'alembic_decision_record' },
+        });
+    }
+    const residentRequest = buildDecisionRegisterRequest({
+        action,
+        args,
+        detailRefs,
+        sessionId: ctx.session?.id,
+        sourceRefs,
+    });
+    const residentResult = await client.decisionRegister(residentRequest);
+    if (!residentResult.ok) {
+        const reasonCode = decisionRegisterBlockedCode(residentResult);
+        const result = buildDecisionRecordBlockedResult({
+            args,
+            detailRefs,
+            intake,
+            message: residentResult.message ||
+                (reasonCode === 'decision-register-capability-mismatch'
+                    ? 'Decision Register route is available but its capability contract is missing or mismatched.'
+                    : 'Decision Register durable route is unavailable.'),
+            reasonCode,
+            retryable: residentResult.retryable ?? true,
+            summary: reasonCode === 'decision-register-capability-mismatch'
+                ? 'Decision Register capability mismatch; no local fake record was written.'
+                : 'Decision durable route unavailable; no local fake record was written.',
+        });
+        return envelope({
+            success: false,
+            data: {
+                durablePersistence: {
+                    action,
+                    available: false,
+                    reason: residentResult.reason,
+                    requiredRoute: 'Alembic durable Decision Register route',
+                    route: residentResult.status?.route ?? null,
+                    owner: residentResult.status?.owner ?? null,
+                    telemetry: residentResult.telemetry ?? null,
+                },
+                requestedDecision: buildRequestedDecision(action, args),
+                result,
+            },
+            message: result.reason?.message ?? result.summary.compact,
+            meta: { tool: 'alembic_decision_record' },
+        });
+    }
+    const decisionId = resolveDecisionId(residentResult.value, args);
     const result = createAgentPublicToolResultEnvelope({
         actionKind: 'decision-record',
         agentHost: intake.agentHost,
         inputSource: intake.inputSource,
         intentKind: intake.intentKind,
-        reason: {
-            kind: 'blocked',
-            code: 'decision-register-unavailable',
-            message: 'Decision Register durable persistence is not available in AlembicPlugin; producer route or shared durable contract is required before recording this decision.',
-            retryable: false,
-        },
-        refs: {
-            ...(args.intentRef
-                ? {
-                    intentRef: {
-                        refType: 'intent',
-                        id: args.intentRef,
-                        toolName: 'alembic_intent',
-                    },
-                }
-                : {}),
-            ...(args.workRef
-                ? {
-                    workRef: {
-                        refType: 'work',
-                        id: args.workRef,
-                        toolName: 'alembic_work_start',
-                    },
-                }
-                : {}),
-            detailRefs,
-        },
-        status: 'blocked',
-        summary: buildResultSummary('Decision durable route unavailable; no local fake record was written.', args.outputBudget),
+        refs: buildDecisionRecordRefs(args, detailRefs, decisionId),
+        status: 'ready',
+        summary: buildResultSummary(formatDecisionRecordSuccessSummary(action, residentResult.value, decisionId), args.outputBudget),
         toolName: 'alembic_decision_record',
     });
     return envelope({
-        success: false,
+        success: true,
         data: {
+            count: residentResult.value.count ?? null,
+            decision: residentResult.value.decision,
+            decisionRef: decisionId,
+            decisions: residentResult.value.decisions ?? [],
             durablePersistence: {
                 action,
-                available: false,
-                requiredRoute: 'Alembic durable Decision Register Recipe route',
-            },
-            requestedDecision: {
-                action,
-                description: args.description ?? null,
-                evidenceRefs: args.evidenceRefs ?? [],
-                rationale: args.rationale ?? null,
-                tags: args.tags ?? [],
-                title: args.title ?? null,
+                available: true,
+                capability: residentResult.value.capability,
+                owner: residentResult.status?.owner ?? null,
+                route: residentResult.status?.route ?? null,
             },
             result,
         },
-        message: result.reason?.message ?? result.summary.compact,
+        message: result.summary.compact,
         meta: { tool: 'alembic_decision_record' },
     });
 }
@@ -889,13 +932,203 @@ function formatGuardRecommendationMessage(decision) {
     return `Guard skipped: ${decision.reasonCode}.`;
 }
 function resolveDecisionScopeBlocker(action, args) {
-    if (action !== 'create' && !args.decisionRef?.trim()) {
+    if (action !== 'create' && action !== 'list' && !args.decisionRef?.trim()) {
         return `${action} requires an existing decisionRef.`;
     }
     if (action === 'create' && !firstString(args.title, args.description)) {
         return 'create requires a decision title or description.';
     }
+    if (action === 'update' && !hasDecisionUpdatePayload(args)) {
+        return 'update requires at least one decision field, tag, evidenceRef, intentRef, or workRef.';
+    }
     return null;
+}
+function buildDecisionRecordBlockedResult(input) {
+    return createAgentPublicToolResultEnvelope({
+        actionKind: 'decision-record',
+        agentHost: input.intake.agentHost,
+        inputSource: input.intake.inputSource,
+        intentKind: input.intake.intentKind,
+        reason: {
+            kind: 'blocked',
+            code: input.reasonCode,
+            message: input.message,
+            retryable: input.retryable,
+        },
+        refs: buildDecisionRecordRefs(input.args, input.detailRefs, null),
+        status: 'blocked',
+        summary: buildResultSummary(input.summary, input.args.outputBudget),
+        toolName: 'alembic_decision_record',
+    });
+}
+function buildDecisionRecordRefs(args, detailRefs, decisionId) {
+    return {
+        ...(args.intentRef
+            ? {
+                intentRef: {
+                    refType: 'intent',
+                    id: args.intentRef,
+                    toolName: 'alembic_intent',
+                },
+            }
+            : {}),
+        ...(args.workRef
+            ? {
+                workRef: {
+                    refType: 'work',
+                    id: args.workRef,
+                    toolName: 'alembic_work_start',
+                },
+            }
+            : {}),
+        ...(decisionId
+            ? {
+                decisionRef: {
+                    refType: 'decision',
+                    id: decisionId,
+                    toolName: 'alembic_decision_record',
+                },
+            }
+            : {}),
+        detailRefs,
+    };
+}
+function resolveResidentDecisionRegisterClient(container) {
+    const splitClient = tryGetContainerService(container, 'residentDecisionRegisterClient');
+    if (isResidentDecisionRegisterClientLike(splitClient)) {
+        return splitClient;
+    }
+    const facadeClient = tryGetContainerService(container, 'residentServiceClient');
+    if (isResidentDecisionRegisterClientLike(facadeClient)) {
+        return facadeClient;
+    }
+    return null;
+}
+function tryGetContainerService(container, name) {
+    try {
+        return container.get(name);
+    }
+    catch {
+        return null;
+    }
+}
+function isResidentDecisionRegisterClientLike(value) {
+    return Boolean(value &&
+        typeof value === 'object' &&
+        typeof value.decisionRegister === 'function');
+}
+function buildDecisionRegisterRequest(input) {
+    const body = buildDecisionRegisterRequestBody(input);
+    return {
+        action: input.action,
+        ...(input.action !== 'create' && input.action !== 'list'
+            ? { decisionId: firstString(input.args.decisionRef) }
+            : {}),
+        ...(body ? { body } : {}),
+        ...(typeof input.args.includeDeleted === 'boolean'
+            ? { includeDeleted: input.args.includeDeleted }
+            : {}),
+        ...(typeof input.args.limit === 'number' && Number.isFinite(input.args.limit)
+            ? { limit: input.args.limit }
+            : {}),
+        ...(typeof input.args.projectRoot === 'string' && input.args.projectRoot.trim()
+            ? { projectRoot: input.args.projectRoot.trim() }
+            : {}),
+        ...(firstString(input.args.sessionId, input.sessionId)
+            ? { sessionId: firstString(input.args.sessionId, input.sessionId) }
+            : {}),
+        ...(input.args.status ? { status: input.args.status } : {}),
+    };
+}
+function buildDecisionRegisterRequestBody(input) {
+    if (input.action === 'list' || input.action === 'read') {
+        return undefined;
+    }
+    const detailRefUris = input.detailRefs.map((ref) => ref.uri ?? ref.id);
+    const description = firstString(input.args.description, input.args.title);
+    const title = truncateDecisionTitle(firstString(input.args.title, description));
+    const base = compactRecord({
+        ...(input.action === 'create' ? { createdBy: 'codex-host-agent' } : {}),
+        ...(input.action !== 'create' ? { updatedBy: 'codex-host-agent' } : {}),
+        decision: input.args.description ?? (input.action === 'create' ? title : undefined),
+        description,
+        detailRefs: detailRefUris.length > 0 ? detailRefUris : undefined,
+        intentRef: firstString(input.args.intentRef),
+        metadata: {
+            agentHost: input.args.agentHost ?? 'codex',
+            inputSource: input.args.inputSource ?? 'user-message',
+            intentKind: input.args.intentKind ?? null,
+            sourceRefsCount: input.sourceRefs.length,
+        },
+        rationale: firstString(input.args.rationale),
+        sourceRefs: input.sourceRefs.length > 0 ? input.sourceRefs : undefined,
+        tags: input.args.tags?.length ? uniqueStrings(input.args.tags) : undefined,
+        title,
+        turnId: firstString(input.args.hostTurnMeta?.turnId, input.args.hostTurnMeta?.messageId),
+        workRef: firstString(input.args.workRef),
+    });
+    if (input.action === 'revoke' || input.action === 'delete') {
+        return compactRecord({
+            reason: firstString(input.args.rationale, input.args.description),
+            updatedBy: 'codex-host-agent',
+        });
+    }
+    return Object.keys(base).length > 0 ? base : undefined;
+}
+function buildRequestedDecision(action, args) {
+    return {
+        action,
+        decisionRef: args.decisionRef ?? null,
+        description: args.description ?? null,
+        evidenceRefs: args.evidenceRefs ?? [],
+        rationale: args.rationale ?? null,
+        tags: args.tags ?? [],
+        title: args.title ?? null,
+    };
+}
+function decisionRegisterBlockedCode(result) {
+    return result.reason === 'capability-unavailable'
+        ? 'decision-register-capability-mismatch'
+        : 'decision-register-unavailable';
+}
+function resolveDecisionId(result, args) {
+    const decisionId = isRecord(result.decision)
+        ? firstString(result.decision.decisionId, result.decision.id)
+        : null;
+    return decisionId ?? firstString(args.decisionRef) ?? null;
+}
+function formatDecisionRecordSuccessSummary(action, result, decisionId) {
+    if (action === 'list') {
+        return `Decision Register listed ${result.count ?? result.decisions?.length ?? 0} decision(s).`;
+    }
+    if (action === 'read') {
+        return `Decision Register read decision ${decisionId ?? 'unknown'}.`;
+    }
+    return `Decision Register ${action} completed for decision ${decisionId ?? 'unknown'}.`;
+}
+function hasDecisionUpdatePayload(args) {
+    return Boolean(firstString(args.title, args.description, args.rationale, args.intentRef, args.workRef) ||
+        (args.tags?.length ?? 0) > 0 ||
+        (args.evidenceRefs?.length ?? 0) > 0 ||
+        (args.sourceRefs?.length ?? 0) > 0);
+}
+function truncateDecisionTitle(value) {
+    if (!value) {
+        return undefined;
+    }
+    return value.length > 240 ? value.slice(0, 240) : value;
+}
+function compactRecord(input) {
+    const output = {};
+    for (const [key, value] of Object.entries(input)) {
+        if (value !== undefined) {
+            output[key] = value;
+        }
+    }
+    return output;
+}
+function isRecord(value) {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 function bindPrimeSessionIntent(ctx, intake, searchResult, projectRuntime) {
     if (!ctx.session) {

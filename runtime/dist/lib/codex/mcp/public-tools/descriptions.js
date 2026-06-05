@@ -46,9 +46,9 @@ export const AGENT_PUBLIC_TOOL_DESCRIPTION_BASE = {
     alembic_decision_record: {
         name: 'alembic_decision_record',
         title: 'Record agent decision',
-        purpose: 'Record a user preference, implementation decision, or durable project choice with decisionRef and supporting detailRefs.',
-        selectionHint: 'Use when the user or implementation has produced a decision that should be available to future agent work.',
-        nonGoal: 'Does not start or finish work, perform code checks, or treat tentative suggestions as confirmed decisions.',
+        purpose: 'Create, update, read, list, revoke, or delete a durable Alembic Decision Register record with decisionRef and supporting detailRefs.',
+        selectionHint: 'Use when the user or implementation has produced a confirmed decision that should be persisted through Alembic resident Decision Register.',
+        nonGoal: 'Does not write Plugin-local fake decisions, start or finish work, perform code checks, or treat tentative suggestions as confirmed decisions.',
     },
 };
 export function getAgentPublicToolDescriptionBase(name) {

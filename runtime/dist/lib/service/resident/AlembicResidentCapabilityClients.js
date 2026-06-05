@@ -47,6 +47,18 @@ export class ResidentIntentEpisodeClient {
         return this.client.updateIntentEpisodeOutcome(episodeId, request);
     }
 }
+export class ResidentDecisionRegisterClient {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    decisionRegister(request) {
+        return this.client.decisionRegister(request);
+    }
+    decisionRegisterCapability(options = {}) {
+        return this.client.decisionRegisterCapability(options);
+    }
+}
 export class ResidentJobClient {
     client;
     constructor(client) {
@@ -72,6 +84,7 @@ export function createAlembicResidentCapabilityClients(options) {
     const client = new AlembicResidentServiceClient(options);
     return {
         dashboard: new ResidentDashboardClient(client),
+        decisionRegister: new ResidentDecisionRegisterClient(client),
         jobs: new ResidentJobClient(client),
         intentEpisodes: new ResidentIntentEpisodeClient(client),
         probe: new ResidentProbeClient(client),
