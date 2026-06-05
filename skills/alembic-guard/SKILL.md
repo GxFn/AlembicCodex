@@ -1,6 +1,6 @@
 ---
 name: alembic-guard
-description: Check code against Alembic Recipe standards with `alembic_guard` proactively only when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. For empty projects, use only on explicit Alembic Guard requests.
+description: Check code against Alembic Recipe standards with `alembic_code_guard` and explicit scope when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. For empty projects, use only on explicit Alembic Guard requests.
 ---
 
 # Alembic Guard
@@ -9,7 +9,7 @@ Guard checks code against project Recipes. Use it after edits only when this pro
 
 ## Tool
 
-Use `alembic_guard`.
+Use `alembic_code_guard` for agent-facing checks. The legacy `alembic_guard` route no longer accepts no-args whole-diff checks; use it only for explicit compatibility/report operations when a tool call already provides a scope.
 
 Common calls:
 
@@ -25,12 +25,6 @@ Common calls:
 Checks specific files. Prefer this when `alembic_work_finish` returns a Guard recommendation with explicit files.
 
 ```json
-{}
-```
-
-Checks the whole current git diff. Use this only when an explicit whole-diff Guard is intended.
-
-```json
 {
   "code": "URLSession.shared.dataTask(with: url) { ... }",
   "language": "swift",
@@ -44,7 +38,7 @@ Checks an inline snippet.
 
 For quick checks:
 
-1. Call `alembic_code_guard` or `alembic_guard` with explicit files when work finish provides them; otherwise use no args only for an intended whole-diff check.
+1. Call `alembic_code_guard` with explicit files when work finish provides them. If there is no explicit file or inline-code scope, report that Guard is blocked instead of forcing a no-args check.
 2. Summarize violations by severity.
 3. Fix issues using the returned do/dont clauses, core code, and Recipe references.
 4. Re-run Guard when the fix is meaningful.
@@ -53,7 +47,7 @@ For module audits:
 
 1. Use `alembic_structure(operation: "targets")` to find relevant modules.
 2. Use `alembic_structure(operation: "files")` for the chosen module.
-3. Call `alembic_guard` with the selected files.
+3. Call `alembic_code_guard` with the selected files.
 4. Report the highest-severity issues first.
 
 ## Knowledge Source
