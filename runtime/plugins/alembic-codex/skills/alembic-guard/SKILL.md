@@ -1,15 +1,19 @@
 ---
 name: alembic-guard
-description: Check code against Alembic Recipe standards with `alembic_code_guard` and explicit scope when the current project has a project-level Alembic knowledge skill or local Alembic knowledge base. For empty projects, use only on explicit Alembic Guard requests.
+description: Check code against Alembic Recipe standards with `alembic_code_guard` and explicit files, inline code, or a current workRef with scoped files when the current project has Alembic knowledge.
 ---
 
 # Alembic Guard
 
 Guard checks code against project Recipes. Use it after edits only when this project has a local Alembic knowledge base or project-level Alembic knowledge skill. For empty projects, call Guard only when the user explicitly asks for Alembic Guard or compliance checking.
 
+Guard is a scoped Recipe-adherence check. It is not repo lint, security audit, general code review, or a whole-diff fallback.
+
 ## Tool
 
-Use `alembic_code_guard` for agent-facing checks. The legacy `alembic_guard` route no longer accepts no-args whole-diff checks; use it only for explicit compatibility/report operations when a tool call already provides a scope.
+Use `alembic_code_guard` for agent-facing checks. Supported public scopes are explicit `files`, inline `code`, or an active `workRef` whose current Plugin session recorded scoped files. `diffRef`, `primeRef`, `acceptedGuards`, and `applicableRecipe` are not public Guard scope fields yet.
+
+The legacy `alembic_guard` route no longer accepts no-args whole-diff checks; use it only for explicit compatibility/report operations when a tool call already provides a scope.
 
 Common calls:
 
@@ -34,11 +38,19 @@ Checks specific files. Prefer this when `alembic_work_finish` returns a Guard re
 
 Checks an inline snippet.
 
+```json
+{
+  "workRef": "work-public-1"
+}
+```
+
+Checks files recorded by the current session workRef. If the workRef has no scoped files, Guard returns `no-code-scope` rather than scanning unrelated repository state.
+
 ## Workflow
 
 For quick checks:
 
-1. Call `alembic_code_guard` with explicit files when work finish provides them. If there is no explicit file or inline-code scope, report that Guard is blocked instead of forcing a no-args check.
+1. Call `alembic_code_guard` with explicit files when work finish provides them, or with a current workRef when the work record has scoped files. If there is no explicit file, inline-code, or scoped workRef input, report that Guard is blocked/skipped instead of forcing a no-args check.
 2. Summarize violations by severity.
 3. Fix issues using the returned do/dont clauses, core code, and Recipe references.
 4. Re-run Guard when the fix is meaningful.
