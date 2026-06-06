@@ -5,7 +5,7 @@ import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { buildPrimeKnowledgeMaterial, createUnavailablePrimeIntentEpisodeMaterial, formatPrimeTrustPostureMessage, } from '#service/task/PrimeKnowledgeMaterial.js';
 import { classifyTaskLifecycleInput, decideGuardTrigger, normalizeTaskLifecycleFileRefs, } from '#service/task/TaskLifecyclePolicy.js';
 import { envelope } from '../envelope.js';
-import { AGENT_INTENT_DESIGN_FIELD_MAPPINGS, createAgentDetailRef, createAgentPublicToolResultEnvelope, } from '../public-tools/index.js';
+import { AGENT_INTENT_DESIGN_FIELD_MAPPINGS, createAgentDetailRef, createAgentPublicToolResultEnvelope, createPrimePublicPackage, PRIME_PUBLIC_TRUST_LAYERS, } from '../public-tools/index.js';
 import * as guardHandlers from './guard.js';
 import { createIdleIntent } from './types.js';
 let intentCounter = 0;
@@ -93,6 +93,8 @@ export async function intentHandler(ctx, args) {
 export async function primeHandler(ctx, args) {
     const record = typeof args.intentRef === 'string' ? (INTENT_RECORDS.get(args.intentRef) ?? null) : null;
     const intake = record ? intakeFromRecord(record, ctx, args) : buildIntentIntake(ctx, args);
+    const detailRefs = buildBaseDetailRefs('alembic_prime', intake.sourceRefs);
+    const primeRef = nextPrimeRef();
     const blockingReason = resolvePrimeBlockingReason(args, record, intake);
     if (blockingReason) {
         const result = createAgentPublicToolResultEnvelope({
@@ -116,21 +118,38 @@ export async function primeHandler(ctx, args) {
                         },
                     }
                     : {}),
-                detailRefs: buildBaseDetailRefs('alembic_prime', intake.sourceRefs),
+                detailRefs,
+                primeRef: { refType: 'prime', id: primeRef, toolName: 'alembic_prime' },
             },
             status: 'blocked',
             summary: buildResultSummary(blockingReason.message, args.outputBudget),
             toolName: 'alembic_prime',
         });
+        const primePackage = buildPrimePublicPackage({
+            detailRefs,
+            intake,
+            primeKnowledgeMaterial: null,
+            primeRef,
+            projectRuntime: null,
+            result,
+            searchDegraded: false,
+            searchResult: null,
+        });
         return envelope({
             success: false,
-            data: { result },
+            data: {
+                detailRefs,
+                diagnostics: primePackage.diagnostics,
+                primePackage,
+                result,
+                runtimePolicy: primePackage.runtimePolicy,
+                sourcePolicy: primePackage.sourcePolicy,
+            },
             message: blockingReason.message,
             meta: { tool: 'alembic_prime' },
         });
     }
     const lifecycle = intake.lifecycle;
-    const detailRefs = buildBaseDetailRefs('alembic_prime', intake.sourceRefs);
     const effectiveProjectRoot = resolveEffectiveProjectRoot(ctx, args);
     let searchResult = null;
     let searchDegraded = false;
@@ -177,7 +196,6 @@ export async function primeHandler(ctx, args) {
         searchResult,
         skippedReason,
     });
-    const primeRef = nextPrimeRef();
     const intentRef = record?.intentRef ?? args.intentRef;
     const result = createAgentPublicToolResultEnvelope({
         actionKind: 'prime',
@@ -203,6 +221,16 @@ export async function primeHandler(ctx, args) {
         toolName: 'alembic_prime',
     });
     bindPrimeSessionIntent(ctx, intake, searchResult, projectRuntime);
+    const primePackage = buildPrimePublicPackage({
+        detailRefs,
+        intake,
+        primeKnowledgeMaterial,
+        primeRef,
+        projectRuntime,
+        result,
+        searchDegraded,
+        searchResult,
+    });
     return envelope({
         success: result.status !== 'failed' && result.status !== 'blocked',
         data: {
@@ -214,23 +242,15 @@ export async function primeHandler(ctx, args) {
                 }
                 : null,
             primeKnowledgeMaterial,
-            primePackage: {
-                primeRef,
-                retrievalConsumer,
-                structureFirst: intake.vectorPlan,
-                trustReceipt: {
-                    hostResponse: primeKnowledgeMaterial.hostResponse,
-                    receiptId: primeKnowledgeMaterial.receiptId,
-                    status: primeKnowledgeMaterial.status,
-                    trustPosture: primeKnowledgeMaterial.trustPosture,
-                },
-            },
+            primePackage,
             projectRuntime,
             retrievalConsumer,
             result,
+            runtimePolicy: primePackage.runtimePolicy,
             searchMeta: searchResult
                 ? { ...searchResult.searchMeta, projectRuntime }
                 : { projectRuntime },
+            sourcePolicy: primePackage.sourcePolicy,
         },
         message: formatPrimeMessage(result, primeKnowledgeMaterial),
         meta: { tool: 'alembic_prime' },
@@ -1492,6 +1512,251 @@ function buildSourcePolicy(intake, persistence) {
         },
         rawThreadIdsPersisted: false,
     };
+}
+function buildPrimePublicPackage(input) {
+    const producerBoundary = buildPrimeProducerBoundary(input.searchResult);
+    // 这里生成的是 Codex host 可稳定消费的 compact 投影；完整 Recipe / Guard
+    // material 仍留在 primeKnowledgeMaterial，避免突破 outputBudget。
+    return createPrimePublicPackage({
+        compactPackage: {
+            acceptedGuards: (input.primeKnowledgeMaterial?.acceptedGuards ?? [])
+                .slice(0, 8)
+                .map((item) => ({
+                evidenceRefCount: item.evidenceRefs.length,
+                id: item.id,
+                score: item.score,
+                title: item.title,
+                trigger: item.trigger,
+            })),
+            acceptedKnowledge: (input.primeKnowledgeMaterial?.acceptedKnowledge ?? [])
+                .slice(0, 8)
+                .map((item) => ({
+                evidenceRefCount: item.evidenceRefs.length,
+                id: item.id,
+                kind: item.kind,
+                score: item.score,
+                title: item.title,
+                trigger: item.trigger,
+            })),
+            counts: {
+                acceptedGuards: input.primeKnowledgeMaterial?.acceptedGuards.length ?? 0,
+                acceptedKnowledge: input.primeKnowledgeMaterial?.acceptedKnowledge.length ?? 0,
+                detailRefs: input.detailRefs.length,
+                omittedFromCompact: Math.max(0, (input.primeKnowledgeMaterial?.acceptedGuards.length ?? 0) +
+                    (input.primeKnowledgeMaterial?.acceptedKnowledge.length ?? 0) -
+                    16),
+            },
+            detailRefsMode: 'ref-based',
+            evidenceDelivery: 'detailRefs-and-primeKnowledgeMaterial',
+            primeInjectionPackage: producerBoundary,
+        },
+        diagnostics: {
+            outputBudget: input.result.summary.outputBudget,
+            producerBoundary: {
+                missingProducerFields: producerBoundary.missingProducerFields,
+                pluginSynthesizedPrimeInjectionPackage: false,
+                primeInjectionPackageProducedBy: 'Alembic resident service',
+            },
+            retrieval: {
+                filteredCount: input.searchResult?.searchMeta.filteredCount ?? null,
+                queries: compactPrimeQueryList(input.searchResult?.searchMeta.queries ?? input.intake.vectorPlan.queries),
+                residentAttempted: input.searchResult?.searchMeta.residentSearch?.attempted ?? false,
+                residentAvailable: input.searchResult?.searchMeta.residentSearch?.available ?? null,
+                residentReason: input.searchResult?.searchMeta.residentSearch?.reason ?? null,
+                resultCount: input.searchResult?.searchMeta.resultCount ?? null,
+                searchAttempted: Boolean(input.searchResult) || input.searchDegraded,
+                searchDegraded: input.searchDegraded,
+            },
+        },
+        kind: 'PrimePublicPackage',
+        primeRef: input.primeRef,
+        reason: input.result.reason,
+        refs: input.result.refs,
+        retrievalConsumer: input.searchResult?.searchMeta.retrievalConsumer
+            ? { ...input.searchResult.searchMeta.retrievalConsumer }
+            : null,
+        runtimePolicy: buildPrimeRuntimePolicy(input.projectRuntime),
+        sourcePolicy: buildPrimeSourcePolicy(input.intake, input.detailRefs),
+        status: input.result.status,
+        structureFirst: {
+            keywordQueries: compactPrimeQueryList(input.intake.vectorPlan.keywordQueries),
+            language: input.intake.vectorPlan.language,
+            module: input.intake.vectorPlan.module,
+            queries: compactPrimeQueryList(input.intake.vectorPlan.queries),
+            retrievalOrder: compactPrimeQueryList(input.intake.vectorPlan.retrievalOrder),
+            route: input.intake.vectorPlan.route,
+            scenario: input.intake.vectorPlan.scenario,
+            vectorUseKind: input.intake.vectorPlan.vectorUseKind,
+        },
+        summary: input.result.summary,
+        trustPosture: buildPrimeTrustPostureProjection(input.primeKnowledgeMaterial, input.result),
+        trustReceipt: {
+            hostResponse: input.primeKnowledgeMaterial
+                ? { ...input.primeKnowledgeMaterial.hostResponse }
+                : null,
+            receiptId: input.primeKnowledgeMaterial?.receiptId ?? input.primeRef,
+            status: input.primeKnowledgeMaterial?.status ?? primeTrustStatusFromResult(input.result),
+        },
+    });
+}
+function compactPrimeQueryList(values) {
+    return values.filter((value) => value.trim().length > 0).slice(0, 12);
+}
+function buildPrimeTrustPostureProjection(primeKnowledgeMaterial, result) {
+    const status = primeKnowledgeMaterial?.status ?? primeTrustStatusFromResult(result);
+    const checklist = primeKnowledgeMaterial
+        ? primeKnowledgeMaterial.trustPosture.receiptChecklist.map((layer) => ({
+            itemCount: layer.items.length,
+            label: layer.label,
+            layer: layer.layer,
+            requiredInVisibleReceipt: layer.requiredInVisibleReceipt,
+            visibleReceiptDirective: layer.visibleReceiptDirective,
+        }))
+        : PRIME_PUBLIC_TRUST_LAYERS.map((layer) => ({
+            itemCount: layer === 'not-available-or-degraded' ? 1 : 0,
+            label: primeTrustLayerLabelForPublicPackage(layer),
+            layer,
+            requiredInVisibleReceipt: layer === 'not-available-or-degraded',
+            visibleReceiptDirective: layer === 'not-available-or-degraded'
+                ? `In the visible receipt, say no usable project knowledge was delivered because prime ${result.status}.`
+                : primeTrustLayerDirectiveForPublicPackage(layer),
+        }));
+    return {
+        antiEmptyReceiptRequired: primeKnowledgeMaterial?.trustPosture.antiEmptyReceipt.required ?? true,
+        noTrustedClaimRequired: result.status !== 'ready' || status !== 'delivered',
+        receiptChecklist: checklist,
+        status,
+    };
+}
+function primeTrustStatusFromResult(result) {
+    if (result.status === 'blocked') {
+        return 'blocked';
+    }
+    if (result.status === 'skipped') {
+        return 'skipped';
+    }
+    return 'degraded';
+}
+function buildPrimeSourcePolicy(intake, detailRefs) {
+    return {
+        automationEnvelope: intake.inputSource === 'automation-envelope'
+            ? {
+                blockedWithoutSourceRefs: intake.sourceRefs.length === 0,
+                requiredSourceRefsForPrime: true,
+                sourceRefsCount: intake.sourceRefs.length,
+            }
+            : null,
+        detailRefs: {
+            count: detailRefs.length,
+            mode: 'bounded-source-ref-details',
+        },
+        inputSource: intake.inputSource,
+        rawAutomationEnvelopeUsedAsQuery: false,
+        rawThreadIdsPersisted: false,
+        sourceRefsCount: intake.sourceRefs.length,
+    };
+}
+function buildPrimeRuntimePolicy(projectRuntime) {
+    if (!projectRuntime) {
+        return {
+            available: false,
+            identity: null,
+            projectRuntimeContractVersion: null,
+            readinessState: null,
+            reason: 'runtime-policy-not-resolved-before-prime-block',
+            sourcePolicy: {
+                effectiveIdentitySource: null,
+                projectScopeSource: null,
+                runtimeControlSource: null,
+                selectedOrActiveCanOverrideEffectiveIdentity: false,
+            },
+        };
+    }
+    return {
+        available: true,
+        identity: {
+            currentFolderId: projectRuntime.identity.currentFolderId ?? null,
+            dataRootSource: projectRuntime.identity.dataRootSource ?? null,
+            projectId: projectRuntime.identity.projectId ?? null,
+            projectRoot: projectRuntime.identity.projectRoot ?? null,
+            projectScopeId: projectRuntime.identity.projectScopeId ?? null,
+        },
+        projectRuntimeContractVersion: projectRuntime.contractVersion,
+        readinessState: String(projectRuntime.readinessState),
+        sourcePolicy: {
+            effectiveIdentitySource: projectRuntime.sourcePolicy.effectiveIdentitySource,
+            projectScopeSource: projectRuntime.sourcePolicy.projectScopeSource,
+            runtimeControlSource: projectRuntime.sourcePolicy.runtimeControlSource,
+            selectedOrActiveCanOverrideEffectiveIdentity: projectRuntime.sourcePolicy.selectedOrActiveCanOverrideEffectiveIdentity,
+        },
+    };
+}
+function buildPrimeProducerBoundary(searchResult) {
+    const residentPackage = searchResult?.searchMeta.primeInjectionPackage;
+    const producerContract = searchResult?.searchMeta.retrievalConsumer?.producerContract;
+    const residentSearch = searchResult?.searchMeta.residentSearch;
+    const missingProducerFields = producerContract?.missingFields ?? [];
+    const producerOnlyFields = [
+        'decisionRegister',
+        'feedback',
+        'intent',
+        'search',
+        'vector',
+        'relations',
+        'selectedKnowledge',
+        'omitted',
+        'trace',
+        'retrievalQuality',
+    ];
+    // PrimeInjectionPackage 的 lexical/vector/relations/trace 等生产语义属于
+    // Alembic resident producer；Plugin 只透传 compact metadata，不能在消费侧补造。
+    return {
+        availability: residentPackage
+            ? 'resident-provided'
+            : producerContract && !producerContract.available
+                ? 'producer-contract-missing'
+                : residentSearch && residentSearch.available === false
+                    ? 'resident-unavailable'
+                    : searchResult
+                        ? 'not-produced'
+                        : 'not-run',
+        missingProducerFields,
+        omittedCount: residentPackage?.injection.omittedCount ?? null,
+        pluginSynthesized: false,
+        producer: 'alembic-resident-service',
+        producerBoundary: 'PrimeInjectionPackage lexical/vector/relations/selectedKnowledge/omitted/trace fields are produced by Alembic resident search metadata; AlembicPlugin only passes through the compact resident projection and never synthesizes producer-only fields.',
+        producerOnlyFields,
+        selectedCount: residentPackage?.injection.selectedCount ?? null,
+        status: residentPackage?.injection.status ?? null,
+    };
+}
+function primeTrustLayerLabelForPublicPackage(layer) {
+    switch (layer) {
+        case 'trusted-to-obey':
+            return 'Guard and rule constraints Codex must obey';
+        case 'trusted-to-use':
+            return 'Recipe or pattern knowledge Codex may use';
+        case 'context-only':
+            return 'Host intent, query, and evidence context only';
+        case 'requires-verification':
+            return 'Source refs, candidates, and evidence that require verification';
+        case 'not-available-or-degraded':
+            return 'Missing, blocked, or degraded project knowledge';
+    }
+}
+function primeTrustLayerDirectiveForPublicPackage(layer) {
+    switch (layer) {
+        case 'trusted-to-obey':
+            return 'No trusted-to-obey constraints were delivered in this prime result.';
+        case 'trusted-to-use':
+            return 'No trusted-to-use Recipe knowledge was delivered in this prime result.';
+        case 'context-only':
+            return 'Host intent and query data are only context when prime is not ready.';
+        case 'requires-verification':
+            return 'Source refs and evidence refs still require verification before use.';
+        case 'not-available-or-degraded':
+            return 'Say no usable project knowledge was delivered.';
+    }
 }
 function buildResultSummary(compact, outputBudget) {
     const maxChars = Math.max(1, Math.min(outputBudget?.maxChars ?? 1600, 2000));
