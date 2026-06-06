@@ -5,7 +5,7 @@ import { extract as extractIntent } from '#service/task/IntentExtractor.js';
 import { buildPrimeKnowledgeMaterial, createUnavailablePrimeIntentEpisodeMaterial, formatPrimeTrustPostureMessage, } from '#service/task/PrimeKnowledgeMaterial.js';
 import { classifyTaskLifecycleInput, decideGuardTrigger, normalizeTaskLifecycleFileRefs, } from '#service/task/TaskLifecyclePolicy.js';
 import { envelope } from '../envelope.js';
-import { createAgentDetailRef, createAgentPublicToolResultEnvelope, } from '../public-tools/index.js';
+import { AGENT_INTENT_DESIGN_FIELD_MAPPINGS, createAgentDetailRef, createAgentPublicToolResultEnvelope, } from '../public-tools/index.js';
 import * as guardHandlers from './guard.js';
 import { createIdleIntent } from './types.js';
 let intentCounter = 0;
@@ -17,10 +17,13 @@ const INTENT_RECORDS = new Map();
 const WORK_RECORDS = new Map();
 export async function intentHandler(ctx, args) {
     const intake = buildIntentIntake(ctx, args);
-    const status = resolveIntentStatus(intake.lifecycle, intake.hostIntentFrame);
+    const status = resolveIntentStatus(intake.lifecycle, intake.hostIntentFrame, intake.intentKind);
     const detailRefs = buildBaseDetailRefs('alembic_intent', intake.sourceRefs);
-    const intentRef = nextIntentRef();
-    const vectorPlan = buildVectorPlan(intake.extracted);
+    const persistence = resolveIntentPersistence(intake, status);
+    const vectorPlan = buildVectorPlan(intake.extracted, {
+        vectorUseKind: resolveVectorUseKind(intake, persistence),
+    });
+    const intentRef = persistence.consumable ? nextIntentRef() : null;
     const result = createAgentPublicToolResultEnvelope({
         actionKind: 'intent',
         agentHost: intake.agentHost,
@@ -28,40 +31,59 @@ export async function intentHandler(ctx, args) {
         intentKind: intake.intentKind,
         refs: {
             detailRefs,
-            intentRef: { refType: 'intent', id: intentRef, toolName: 'alembic_intent' },
+            ...(intentRef
+                ? {
+                    intentRef: {
+                        refType: 'intent',
+                        id: intentRef,
+                        toolName: 'alembic_intent',
+                    },
+                }
+                : {}),
         },
         ...(status.reason ? { reason: status.reason } : {}),
         status: status.status,
         summary: buildResultSummary(status.summary, args.outputBudget),
         toolName: 'alembic_intent',
     });
-    const record = {
-        createdAt: new Date().toISOString(),
-        detailRefs,
-        extracted: intake.extracted,
-        hostIntentFrame: intake.hostIntentFrame,
-        hostIntentInput: intake.hostIntentInput,
-        inputSource: intake.inputSource,
-        intentKind: intake.intentKind,
-        intentRef,
-        lifecycle: intake.lifecycle,
-        sourceRefs: intake.sourceRefs,
-        vectorPlan,
-    };
-    rememberIntentRecord(record);
+    const record = intentRef
+        ? {
+            createdAt: new Date().toISOString(),
+            detailRefs,
+            extracted: intake.extracted,
+            hostIntentFrame: intake.hostIntentFrame,
+            hostIntentInput: intake.hostIntentInput,
+            inputSource: intake.inputSource,
+            intentKind: intake.intentKind,
+            intentRef,
+            lifecycle: intake.lifecycle,
+            sourceRefs: intake.sourceRefs,
+            vectorPlan,
+        }
+        : null;
+    if (record) {
+        rememberIntentRecord(record);
+    }
     return envelope({
         success: result.status !== 'failed',
         data: {
             detailRefs,
-            intentRef,
-            localRecord: {
-                createdAt: record.createdAt,
-                intentRef,
-                status: result.status,
-            },
+            ...(intentRef ? { intentRef } : {}),
+            ...(record
+                ? {
+                    localRecord: {
+                        createdAt: record.createdAt,
+                        intentRef,
+                        status: result.status,
+                    },
+                }
+                : {}),
+            diagnostics: buildIntentDiagnostics(intake, persistence, vectorPlan),
+            persistence,
+            recipeRetrievalHint: buildRecipeRetrievalHint(intake, vectorPlan),
             recognizedIntent: intake.hostIntentFrame.recognizedIntentDraft,
             result,
-            sourcePolicy: buildSourcePolicy(intake),
+            sourcePolicy: buildSourcePolicy(intake, persistence),
             vectorPlan,
         },
         message: formatIntentMessage(result, intake.hostIntentFrame),
@@ -754,9 +776,9 @@ function mergeRecognizedIntent(args) {
     }
     return merged;
 }
-function resolveIntentStatus(lifecycle, hostIntentFrame) {
+function resolveIntentStatus(lifecycle, hostIntentFrame, intentKind) {
     const draft = hostIntentFrame.recognizedIntentDraft;
-    if (lifecycle.inputSource === 'automation-envelope') {
+    if (lifecycle.inputSource === 'automation-envelope' || intentKind === 'mechanical-envelope') {
         return {
             reason: {
                 kind: 'skip',
@@ -778,6 +800,18 @@ function resolveIntentStatus(lifecycle, hostIntentFrame) {
             },
             status: 'skipped',
             summary: 'Skipped intent intake because no semantic query was available.',
+        };
+    }
+    if (intentKind === 'status-only' || lifecycle.intentKind === 'status-report') {
+        return {
+            reason: {
+                kind: 'skip',
+                code: 'status-only-turn',
+                message: 'Status-only turns do not create a consumable intent record.',
+                retryable: false,
+            },
+            status: 'skipped',
+            summary: 'Skipped status-only turn; no local intent record was created.',
         };
     }
     if (draft.status !== 'recognized') {
@@ -1224,7 +1258,45 @@ function rememberWorkRecord(record) {
         WORK_RECORDS.delete(oldest);
     }
 }
-function buildVectorPlan(extracted) {
+function resolveIntentPersistence(intake, status) {
+    const draft = intake.hostIntentFrame.recognizedIntentDraft;
+    if (!isConsumableIntentKind(intake.intentKind)) {
+        return {
+            consumable: false,
+            kind: 'ephemeral',
+            localRecordCreated: false,
+            reason: `intentKind.${intake.intentKind}.notConsumable`,
+        };
+    }
+    if (!draft.query.trim()) {
+        return {
+            consumable: false,
+            kind: 'ephemeral',
+            localRecordCreated: false,
+            reason: 'recognizedIntent.queryMissing',
+        };
+    }
+    if (status.status === 'skipped' || status.status === 'blocked' || status.status === 'failed') {
+        return {
+            consumable: false,
+            kind: 'ephemeral',
+            localRecordCreated: false,
+            reason: status.reason?.code ?? status.status,
+        };
+    }
+    return {
+        consumable: true,
+        kind: 'session-local',
+        localRecordCreated: true,
+        reason: status.status === 'degraded'
+            ? 'semanticIntent.degradedButConsumable'
+            : 'semanticIntent.ready',
+    };
+}
+function isConsumableIntentKind(intentKind) {
+    return !['mechanical-envelope', 'status-only', 'unknown'].includes(intentKind);
+}
+function buildVectorPlan(extracted, options = {}) {
     return {
         keywordQueries: extracted.keywordQueries.slice(0, 4),
         language: extracted.language,
@@ -1239,7 +1311,135 @@ function buildVectorPlan(extracted) {
         ],
         route: 'structure-first-recipe-retrieval',
         scenario: extracted.scenario,
+        vectorUseKind: options.vectorUseKind ?? 'semantic-expand',
     };
+}
+function buildRecipeRetrievalHint(intake, vectorPlan) {
+    return {
+        filters: {
+            language: intake.extracted.language,
+            module: intake.extracted.module,
+            sourceRefs: intake.sourceRefs.slice(0, 8),
+        },
+        profiles: resolveRecipeRetrievalProfiles(intake),
+        querySeeds: vectorPlan.queries,
+        route: 'structure-first',
+        vectorUseKind: vectorPlan.vectorUseKind,
+    };
+}
+function buildIntentDiagnostics(intake, persistence, vectorPlan) {
+    return {
+        contractMappingVersion: 1,
+        enumRequirementMapping: AGENT_INTENT_DESIGN_FIELD_MAPPINGS,
+        normalized: {
+            actionKind: intake.hostIntentFrame.recognizedIntentDraft.action || 'unknown',
+            confidenceBand: resolveConfidenceBand(intake.hostIntentFrame.recognizedIntentDraft.confidence),
+            hostSurface: intake.hostIntentFrame.hostTurnMeta?.surface ?? 'unknown',
+            objectKind: resolveObjectKind(intake),
+            persistenceKind: persistence.kind,
+            scopeKind: resolveScopeKind(intake),
+            vectorUseKind: vectorPlan.vectorUseKind,
+        },
+        toolNeeds: {
+            guardNeed: resolveGuardNeed(intake),
+            primeNeed: resolvePrimeNeed(intake, persistence),
+            workNeed: resolveWorkNeed(intake),
+        },
+    };
+}
+function resolveRecipeRetrievalProfiles(intake) {
+    if (!isConsumableIntentKind(intake.intentKind)) {
+        return [];
+    }
+    if (intake.intentKind === 'fix-task') {
+        return ['guard-rule', 'source-ref-focused', 'implementation-pattern'];
+    }
+    if (intake.intentKind === 'review-task' || intake.intentKind === 'read-only-analysis') {
+        return ['source-ref-focused', 'relationship-expansion', 'semantic-supplement'];
+    }
+    return ['structured-recipe', 'implementation-pattern', 'semantic-supplement'];
+}
+function resolveVectorUseKind(intake, persistence) {
+    if (!persistence.consumable) {
+        return 'none';
+    }
+    if (intake.lifecycle.primeDecision.action === 'run') {
+        return 'hybrid-rerank';
+    }
+    return 'semantic-expand';
+}
+function resolveConfidenceBand(confidence) {
+    if (confidence >= 0.8) {
+        return 'high';
+    }
+    if (confidence >= 0.55) {
+        return 'medium';
+    }
+    if (confidence >= 0.3) {
+        return 'low';
+    }
+    return 'degraded';
+}
+function resolveObjectKind(intake) {
+    if (intake.inputSource === 'automation-envelope') {
+        return 'automation-card';
+    }
+    const target = intake.hostIntentFrame.recognizedIntentDraft.target?.toLowerCase() ?? '';
+    if (target.includes('mcp')) {
+        return 'mcp-tool';
+    }
+    if (target.includes('runtime')) {
+        return 'runtime-service';
+    }
+    if (intake.hostIntentInput.activeFile) {
+        return 'code';
+    }
+    if (intake.sourceRefs.length > 0) {
+        return 'source-ref';
+    }
+    if (target.includes('doc') || target.includes('plan')) {
+        return 'docs';
+    }
+    return 'unknown';
+}
+function resolveScopeKind(intake) {
+    if (intake.sourceRefs.length > 0) {
+        return 'source-ref';
+    }
+    if (intake.hostIntentInput.activeFile) {
+        return 'file';
+    }
+    if (intake.extracted.module) {
+        return 'module';
+    }
+    return 'none';
+}
+function resolvePrimeNeed(intake, persistence) {
+    if (!persistence.consumable) {
+        return 'none';
+    }
+    if (intake.lifecycle.primeDecision.action === 'run') {
+        return 'recommended';
+    }
+    if (intake.intentKind === 'read-only-analysis' || intake.intentKind === 'review-task') {
+        return 'optional';
+    }
+    return 'none';
+}
+function resolveWorkNeed(intake) {
+    if (intake.lifecycle.taskAnchorDecision.action === 'create') {
+        return intake.intentKind === 'implementation-task' ? 'start-required' : 'maybe-start';
+    }
+    return 'none';
+}
+function resolveGuardNeed(intake) {
+    if (intake.intentKind === 'fix-task' || intake.intentKind === 'refactor-task') {
+        return 'recommend-if-code-changed';
+    }
+    if (intake.intentKind === 'implementation-task') {
+        return 'explicit-scope-required';
+    }
+    return 'none';
 }
 function buildBaseDetailRefs(toolName, sourceRefs) {
     const refs = [
@@ -1276,7 +1476,7 @@ function buildBaseDetailRefs(toolName, sourceRefs) {
     }
     return refs;
 }
-function buildSourcePolicy(intake) {
+function buildSourcePolicy(intake, persistence) {
     return {
         automationEnvelope: intake.inputSource === 'automation-envelope'
             ? {
@@ -1285,6 +1485,11 @@ function buildSourcePolicy(intake) {
             }
             : null,
         hostTurnMetaRedacted: Boolean(intake.hostIntentFrame.hostTurnMeta),
+        localIntentRecord: {
+            consumable: persistence.consumable,
+            created: persistence.localRecordCreated,
+            persistenceKind: persistence.kind,
+        },
         rawThreadIdsPersisted: false,
     };
 }
