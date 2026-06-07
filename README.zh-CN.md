@@ -106,14 +106,6 @@ npm run release:codex-plugin:daemon
 
 release 检查通过后，如果插件文件有变化，先在这个 submodule 内提交并推送，然后回到 Alembic 主仓库提交更新后的 `plugins/alembic-codex` 指针。
 
-这个 submodule 已经是最新之后，把可安装插件快照同步到聚合 `GxFn/GxFnCodexMarketplace`：
-
-```bash
-npm run sync:gxfn-marketplace
-```
-
-如果要让脚本同时在市场仓库里提交并推送，运行 `npm run sync:gxfn-marketplace:push`。如果 `GxFnCodexMarketplace` 没有和 Alembic 主仓库放在同一层目录，用 `GXFN_CODEX_MARKETPLACE_DIR=/path/to/GxFnCodexMarketplace` 指定路径。
-
 完整发布、测试和推广计划见 [RELEASE-PLAYBOOK.md](./RELEASE-PLAYBOOK.md)。
 
 ## 本地 Marketplace
@@ -123,15 +115,15 @@ npm run sync:gxfn-marketplace
 开发时把这个仓库注册为 local marketplace：
 
 ```toml
-[marketplaces.alembic-codex]
+[marketplaces.gxfn]
 source_type = "local"
 source = "/absolute/path/to/Alembic/plugins/alembic-codex"
 
-[plugins."alembic-codex@alembic-codex"]
+[plugins."alembic-codex@gxfn"]
 enabled = true
 ```
 
-Alembic 主仓库仍保留自己的本地开发 marketplace：`.agents/plugins/marketplace.json`，名称是 `gxfn`，指向 `./plugins/alembic-codex`。
+Alembic 主仓库也保留本地开发 marketplace：`.agents/plugins/marketplace.json`，名称是 `alembic-codex`，指向 `./plugins/alembic-codex`。
 
 `npm run smoke:codex-plugin` 会打包 runtime，从 tarball 里解析 marketplace entry，把插件复制到临时安装目录，并验证已安装 manifest、内置 `./runtime` package、`./runtime.tgz` wrapper entry、MCP 配置、assets、skills 和 stdio MCP 调用。
 

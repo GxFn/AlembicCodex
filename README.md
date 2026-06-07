@@ -106,32 +106,24 @@ That optional variant also starts the daemon on a temporary localhost port and v
 
 After release checks pass, commit and push any changed plugin files from inside this submodule, then commit the updated `plugins/alembic-codex` pointer in the Alembic monorepo.
 
-To update the aggregate `GxFn/GxFnCodexMarketplace` listing after this submodule is current, run:
-
-```bash
-npm run sync:gxfn-marketplace
-```
-
-Use `npm run sync:gxfn-marketplace:push` when the marketplace snapshot should also be committed and pushed. Set `GXFN_CODEX_MARKETPLACE_DIR=/path/to/GxFnCodexMarketplace` if the marketplace repository is not checked out next to the Alembic monorepo.
-
 For the full release, testing, and promotion plan, see [RELEASE-PLAYBOOK.md](./RELEASE-PLAYBOOK.md).
 
 ## Local Marketplace
 
-This distribution repository includes `.agents/plugins/marketplace.json` so Codex can add the repository itself as a plugin marketplace. The marketplace is named `alembic-codex`, the single entry points to `.`, installation is `AVAILABLE`, and authentication is `ON_INSTALL`.
+This distribution repository includes `.agents/plugins/marketplace.json` so Codex can add the repository itself as a plugin marketplace. The marketplace is named `gxfn`, the single entry points to `.`, installation is `AVAILABLE`, and authentication is `ON_INSTALL`.
 
 Register this repository as a local marketplace during development:
 
 ```toml
-[marketplaces.alembic-codex]
+[marketplaces.gxfn]
 source_type = "local"
 source = "/absolute/path/to/Alembic/plugins/alembic-codex"
 
-[plugins."alembic-codex@alembic-codex"]
+[plugins."alembic-codex@gxfn"]
 enabled = true
 ```
 
-The Alembic monorepo still keeps its local development marketplace at `.agents/plugins/marketplace.json`, named `gxfn`, pointing to `./plugins/alembic-codex`.
+The Alembic monorepo also keeps a local development marketplace at `.agents/plugins/marketplace.json`, named `gxfn`, pointing to `./plugins/alembic-codex`.
 
 `npm run smoke:codex-plugin` packages the runtime, resolves this marketplace entry from the packed tarball, copies the plugin into a temporary install root, validates the installed manifest, embedded `./runtime` package, `./runtime.tgz` wrapper entry, MCP config, assets, skills, and stdio MCP calls.
 
