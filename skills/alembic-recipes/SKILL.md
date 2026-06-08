@@ -37,8 +37,8 @@ Do not:
 1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_intent` and then `alembic_prime` before semantic coding or knowledge turns. Use a concise semantic query or `hostDeclaredIntent`; do not raw-prime automation/direct-thread envelopes.
 2. Use `alembic_search(mode: "auto")` for general lookup.
 3. Use `alembic_search(mode: "context")` for coding assistance.
-4. If `searchMeta.residentSearch` / `residentVector` is present, use it to understand whether semantic/vector recall came from the local Alembic resident service or fell back to Plugin baseline search. Do not assume AlembicPlugin has its own embedding executor.
-5. For `alembic_search(mode: "auto")`, keep treating `auto` as the Codex-facing intent; Plugin may request the resident service with a daemon-supported mode such as `semantic`, and `searchMeta.residentSearch.requestedMode` / `residentRequestMode` shows both sides of that boundary.
+4. Use clean `structuredContent` from `alembic_prime` / `alembic_search` as the Recipe context contract; visible text is summary-only.
+5. For runtime route or vector-readiness diagnostics, call `alembic_codex_diagnostics` / `alembic_codex_status` instead of relying on ordinary knowledge-tool payloads.
 6. Use `alembic_knowledge(operation: "list")` with filters when browsing by kind, language, or category.
 7. Use `alembic_knowledge(operation: "get", id)` for full Recipe content.
 

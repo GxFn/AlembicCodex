@@ -78,6 +78,8 @@ alembic codex status --json
 3. 状态为 `needs_init` 时调用 `alembic_codex_init`
 4. 用 `alembic_bootstrap` 构建第一轮项目知识，用 `alembic_rescan` 刷新已有知识，或在编码前调用 `alembic_intent` + `alembic_prime`
 
+Codex MCP 工具调用返回干净的 `structuredContent`：`ok`、`status`、`summary`、可选 `error`、可选 `meta` 和工具专属字段。可见 tool text 只承载 summary，宿主集成不要再从文本里解析旧 JSON envelope。
+
 ## 长任务
 
 `alembic_bootstrap` 和 `alembic_rescan` 是默认 Codex 宿主 Agent workflow。Codex 读取 Mission Briefing、分析项目、提交知识并完成维度；这条路径不要求配置 Alembic AI Provider。
