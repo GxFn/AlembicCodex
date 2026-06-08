@@ -19,7 +19,9 @@ import { safeProjectRootFallback } from './host/project-root.js';
 import { persistTrustedCodexProjectRootScope, resolveCodexProjectRootScope, } from './host/project-root-scope.js';
 import { attachCodexServiceBoundary, attachEnhancementRoute, failureResult, isErrorResult, } from './host/results.js';
 import { getVisibleCodexTools } from './host/tool-visibility.js';
-import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES, TIER_ORDER, TOOLS } from './tools.js';
+import { createCleanMcpErrorResponse, createMcpStructuredToolResult, serializeMcpToolResult, } from './output-contract.js';
+import './codex-local-tools/output.js';
+import { TIER_ORDER, TOOLS } from './tools.js';
 function summarizeResidentServiceResult(result) {
     const base = {
         ok: result.ok,
@@ -138,21 +140,26 @@ export class CodexMcpServer {
                 const result = await this.handleToolCall(name, args || {}, {
                     hostTurnMeta: readHostTurnMetaFromMcpRequest(request),
                 });
-                return {
-                    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-                    isError: isErrorResult(result) ? true : undefined,
-                };
+                return serializeMcpToolResult(name, result, { isErrorResult });
             }
             catch (err) {
-                const result = failureResult(name, err instanceof Error ? err.message : String(err));
-                return {
-                    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-                    isError: true,
-                };
+                return createMcpStructuredToolResult(createCleanMcpErrorResponse({
+                    code: 'CODEX_MCP_ERROR',
+                    message: err instanceof Error ? err.message : String(err),
+                    toolName: name,
+                }));
             }
         });
     }
     async handleToolCall(name, args, options = {}) {
+        if (name === 'alembic_task') {
+            return createCleanMcpErrorResponse({
+                code: 'CODEX_TOOL_RETIRED',
+                message: 'alembic_task has been retired. Use alembic_intent, alembic_prime, alembic_work_start, alembic_work_finish, alembic_code_guard, or alembic_decision_record.',
+                status: 'retired',
+                toolName: name,
+            });
+        }
         const scope = resolveCodexProjectRootScope(name, args);
         if (scope.kind === 'failure') {
             return scope.result;
@@ -877,8 +884,7 @@ export class CodexMcpServer {
         }
     }
     async resolveToolExecutionContext(toolName) {
-        const usesResidentProjectScope = CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(toolName) ||
-            LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES.has(toolName);
+        const usesResidentProjectScope = CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES.has(toolName);
         if (!usesResidentProjectScope) {
             return {
                 projectRoot: this.projectRoot,

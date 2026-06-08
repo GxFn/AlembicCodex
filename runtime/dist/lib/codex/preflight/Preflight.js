@@ -1,4 +1,3 @@
-import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOLS } from '../mcp/tools.js';
 import { buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, isTrustedCodexProjectRoot, summarizeCodexProjectRootResolution, } from '../ProjectRootResolver.js';
 import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, } from '../runtime/RuntimeContext.js';
 import { buildCodexKnowledgeGateActions } from '../status/StatusService.js';
@@ -43,16 +42,6 @@ export function preflightCodexTool(input) {
     });
     const visibleToolNames = new Set(policy.visibleTools.map((visibleTool) => visibleTool.name));
     if (!visibleToolNames.has(input.toolName)) {
-        if (isLegacyDirectCallCompatibilityAllowed(input)) {
-            return {
-                ok: true,
-                autoInit: false,
-                state: {
-                    allowedTools: [...visibleToolNames],
-                    stage: input.stage,
-                },
-            };
-        }
         return {
             ok: false,
             failure: buildToolHiddenFailure({
@@ -112,17 +101,7 @@ function buildToolHiddenFailure(input) {
 function findKnownTool(toolName, coreTools) {
     return (CODEX_LOCAL_TOOLS.find((tool) => tool.name === toolName) ||
         coreTools.find((tool) => tool.name === toolName) ||
-        LEGACY_DIRECT_CALL_COMPATIBILITY_TOOLS.find((tool) => tool.name === toolName) ||
         null);
-}
-function isLegacyDirectCallCompatibilityAllowed(input) {
-    if (!LEGACY_DIRECT_CALL_COMPATIBILITY_TOOLS.some((tool) => tool.name === input.toolName)) {
-        return false;
-    }
-    // 旧入口只作为 initialized/ready 项目的 direct-call 兼容，不进入 tools/list。
-    return (input.knowledge.initialized ||
-        input.knowledge.usable ||
-        input.residentProjectScopeAvailable === true);
 }
 function codexFailure(tool, message, data = {}) {
     return {

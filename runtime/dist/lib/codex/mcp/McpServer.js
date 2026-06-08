@@ -24,12 +24,12 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { readHostTurnMetaFromMcpRequest, } from '#service/task/HostIntentFrame.js';
 import { isCodexProjectScopeSummaryForFolder, readCodexProjectScopeRuntimeFromEnv, } from '../../shared/project-scope-runtime.js';
-import { envelope } from './envelope.js';
 import { wrapHandler } from './errorHandler.js';
 import { createIdleIntent } from './handlers/types.js';
+import { createCleanMcpErrorResponse, createMcpStructuredToolResult, isMcpCallToolResult, serializeMcpToolResult, withMcpOutputSchema, } from './output-contract.js';
 import { TIER_ORDER, TOOL_GATEWAY_MAP, TOOLS, withMcpToolAnnotations } from './tools.js';
 function isMcpToolResponse(value) {
-    return (!!value && typeof value === 'object' && Array.isArray(value.content));
+    return isMcpCallToolResult(value);
 }
 function isErrorResult(value) {
     if (!value || typeof value !== 'object') {
@@ -51,7 +51,6 @@ import { dimensionComplete } from './handlers/host-agent/dimension-completion.js
 import { evolveForHostAgent } from './handlers/host-agent/evolve.js';
 import { rescanForHostAgent } from './handlers/host-agent/rescan.js';
 import { panoramaHandler } from './handlers/panorama.js';
-import { taskHandler } from './handlers/task.js';
 // ─── McpServer 类 ─────────────────────────────────────────────
 export class McpServer {
     container;
@@ -60,7 +59,6 @@ export class McpServer {
     _defaultActorRole;
     _defaultSource;
     _defaultSurface;
-    _lastTaskOperation;
     _session;
     _startedAt;
     bootstrap;
@@ -76,7 +74,6 @@ export class McpServer {
         this._defaultActorRole = options.actorRole || null;
         this._defaultSource = options.source || { kind: 'mcp', name: 'tools/call' };
         this._defaultSurface = options.surface || 'mcp';
-        this._lastTaskOperation = '';
         // ── Session 管理 (with intent lifecycle) ──
         this._session = {
             id: `ses-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
@@ -171,7 +168,7 @@ export class McpServer {
             const tierName = process.env.ALEMBIC_MCP_TIER || 'agent';
             const maxTier = TIER_ORDER[tierName] ?? TIER_ORDER.agent;
             const visible = TOOLS.filter((t) => (TIER_ORDER[t.tier || 'agent'] ?? 0) <= maxTier);
-            return { tools: visible.map(withMcpToolAnnotations) };
+            return { tools: visible.map(withMcpToolAnnotations).map(withMcpOutputSchema) };
         });
         // ── CallTool: 路由到 handler ──
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -185,17 +182,24 @@ export class McpServer {
             catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 this.logger?.error(`MCP tool error: ${name}`, { error: errMsg });
-                const env = envelope({
-                    success: false,
+                return createMcpStructuredToolResult(createCleanMcpErrorResponse({
+                    code: 'TOOL_ERROR',
                     message: errMsg,
-                    errorCode: 'TOOL_ERROR',
-                    meta: { tool: name, responseTimeMs: Date.now() - t0 },
-                });
-                return { content: [{ type: 'text', text: JSON.stringify(env, null, 2) }], isError: true };
+                    responseTimeMs: Date.now() - t0,
+                    toolName: name,
+                }));
             }
         });
     }
     async _handleToolCall(name, args, options = {}) {
+        if (name === 'alembic_task') {
+            return createMcpStructuredToolResult(createCleanMcpErrorResponse({
+                code: 'CODEX_TOOL_RETIRED',
+                message: 'alembic_task has been retired. Use alembic_intent, alembic_prime, alembic_work_start, alembic_work_finish, alembic_code_guard, or alembic_decision_record.',
+                status: 'retired',
+                toolName: name,
+            }));
+        }
         const actorRole = options.actor?.role || this._defaultActorRole || this._resolveMcpActorRole();
         const source = options.source || this._defaultSource;
         const surface = options.surface || this._defaultSurface;
@@ -212,10 +216,7 @@ export class McpServer {
         if (isMcpToolResponse(result)) {
             return result;
         }
-        return {
-            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-            isError: isErrorResult(result) ? true : undefined,
-        };
+        return serializeMcpToolResult(name, result, { isErrorResult });
     }
     async _executeMcpHandler(name, args, runtime = {}) {
         const ctx = this._ctx;
@@ -232,10 +233,6 @@ export class McpServer {
             throw new Error(`Unknown tool: ${name}`);
         }
         const wrapped = wrapHandler(name, handler);
-        // Track task operation for _injectDecisions
-        if (name === 'alembic_task') {
-            this._lastTaskOperation = args.operation || '';
-        }
         const result = await wrapped(ctx, args);
         // ── Session 追踪 + 行为采集 ──
         this._trackSession(name, result);
@@ -256,10 +253,6 @@ export class McpServer {
         this._session.toolCallCount++;
         this._session.toolsUsed.add(toolName);
         this._session.lastActivityAt = Date.now();
-        // Task handler manages IntentState internally — skip behavior tracking
-        if (toolName === 'alembic_task') {
-            return;
-        }
         // ── Intent behavior tracking (active intent only) ──
         const intent = this._session.intent;
         if (intent.phase !== 'active') {
@@ -298,9 +291,6 @@ export class McpServer {
      * Currently deferred — enable by uncommenting the call in _handleToolCall.
      */
     async _injectDecisions(toolName, result) {
-        if (toolName === 'alembic_task') {
-            return result;
-        }
         const intent = this._session.intent;
         if (intent.phase !== 'active') {
             return result;
@@ -425,7 +415,6 @@ export class McpServer {
             alembic_guard: (ctx, args) => toolRouter.routeGuardTool(ctx, args),
             alembic_submit_knowledge: (ctx, args) => toolRouter.routeSubmitKnowledgeTool(ctx, args),
             alembic_project_skill: (ctx, args) => toolRouter.routeProjectSkillTool(ctx, args),
-            alembic_task: (ctx, args) => taskHandler(ctx, args),
             alembic_panorama: (ctx, args) => panoramaHandler(ctx, args),
             // ── Host Agent Bootstrap (v3.1) ──
             alembic_bootstrap: (ctx, _args) => bootstrapForHostAgent(ctx),

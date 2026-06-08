@@ -2,10 +2,9 @@ import { resolveProjectRoot } from '@alembic/core/workspace';
 import { buildCodexPrimeRuntimeContext } from '#codex/runtime/ProjectRuntimeContext.js';
 import { buildHostIntentFrame, prepareHostIntentInput, } from '#service/task/HostIntentFrame.js';
 import { extract as extractIntent } from '#service/task/IntentExtractor.js';
-import { buildPrimeKnowledgeMaterial, createUnavailablePrimeIntentEpisodeMaterial, formatPrimeTrustPostureMessage, } from '#service/task/PrimeKnowledgeMaterial.js';
+import { buildPrimeKnowledgeMaterial, createUnavailablePrimeIntentEpisodeMaterial, } from '#service/task/PrimeKnowledgeMaterial.js';
 import { classifyTaskLifecycleInput, decideGuardTrigger, normalizeTaskLifecycleFileRefs, } from '#service/task/TaskLifecyclePolicy.js';
-import { envelope } from '../envelope.js';
-import { AGENT_INTENT_DESIGN_FIELD_MAPPINGS, createAgentDetailRef, createAgentPublicToolResultEnvelope, createPrimePublicPackage, PRIME_PUBLIC_TRUST_LAYERS, } from '../public-tools/index.js';
+import { createAgentDetailRef, createAgentPublicToolOutput, createAgentPublicToolResultEnvelope, createPrimePublicPackage, PRIME_PUBLIC_TRUST_LAYERS, } from '../public-tools/index.js';
 import * as guardHandlers from './guard.js';
 import { createIdleIntent } from './types.js';
 let intentCounter = 0;
@@ -43,7 +42,7 @@ export async function intentHandler(ctx, args) {
         },
         ...(status.reason ? { reason: status.reason } : {}),
         status: status.status,
-        summary: buildResultSummary(status.summary, args.outputBudget),
+        summary: buildResultSummary(status.summary),
         toolName: 'alembic_intent',
     });
     const record = intentRef
@@ -64,30 +63,23 @@ export async function intentHandler(ctx, args) {
     if (record) {
         rememberIntentRecord(record);
     }
-    return envelope({
-        success: result.status !== 'failed',
-        data: {
-            detailRefs,
-            ...(intentRef ? { intentRef } : {}),
-            ...(record
-                ? {
-                    localRecord: {
-                        createdAt: record.createdAt,
-                        intentRef,
-                        status: result.status,
-                    },
-                }
-                : {}),
-            diagnostics: buildIntentDiagnostics(intake, persistence, vectorPlan),
-            persistence,
-            recipeRetrievalHint: buildRecipeRetrievalHint(intake, vectorPlan),
-            recognizedIntent: intake.hostIntentFrame.recognizedIntentDraft,
-            result,
-            sourcePolicy: buildSourcePolicy(intake, persistence),
-            vectorPlan,
-        },
-        message: formatIntentMessage(result, intake.hostIntentFrame),
-        meta: { tool: 'alembic_intent' },
+    return createAgentPublicToolOutput(result, {
+        detailRefs,
+        ...(intentRef ? { intentRef } : {}),
+        ...(record
+            ? {
+                localRecord: {
+                    createdAt: record.createdAt,
+                    intentRef,
+                    status: result.status,
+                },
+            }
+            : {}),
+        intentClassification: buildIntentClassification(intake, persistence, vectorPlan),
+        intentPersistence: buildIntentPersistenceReceipt(persistence),
+        retrievalPlan: buildIntentRetrievalPlan(vectorPlan),
+        recognizedIntent: intake.hostIntentFrame.recognizedIntentDraft,
+        toolPlan: buildIntentToolPlan(intake, persistence),
     });
 }
 export async function primeHandler(ctx, args) {
@@ -122,7 +114,7 @@ export async function primeHandler(ctx, args) {
                 primeRef: { refType: 'prime', id: primeRef, toolName: 'alembic_prime' },
             },
             status: 'blocked',
-            summary: buildResultSummary(blockingReason.message, args.outputBudget),
+            summary: buildResultSummary(blockingReason.message),
             toolName: 'alembic_prime',
         });
         const primePackage = buildPrimePublicPackage({
@@ -130,23 +122,13 @@ export async function primeHandler(ctx, args) {
             intake,
             primeKnowledgeMaterial: null,
             primeRef,
-            projectRuntime: null,
             result,
             searchDegraded: false,
             searchResult: null,
         });
-        return envelope({
-            success: false,
-            data: {
-                detailRefs,
-                diagnostics: primePackage.diagnostics,
-                primePackage,
-                result,
-                runtimePolicy: primePackage.runtimePolicy,
-                sourcePolicy: primePackage.sourcePolicy,
-            },
-            message: blockingReason.message,
-            meta: { tool: 'alembic_prime' },
+        return createAgentPublicToolOutput(result, {
+            detailRefs,
+            primePackage,
         });
     }
     const lifecycle = intake.lifecycle;
@@ -217,7 +199,7 @@ export async function primeHandler(ctx, args) {
         },
         ...(status.reason ? { reason: status.reason } : {}),
         status: status.status,
-        summary: buildResultSummary(status.summary, args.outputBudget),
+        summary: buildResultSummary(status.summary),
         toolName: 'alembic_prime',
     });
     bindPrimeSessionIntent(ctx, intake, searchResult, projectRuntime);
@@ -226,34 +208,13 @@ export async function primeHandler(ctx, args) {
         intake,
         primeKnowledgeMaterial,
         primeRef,
-        projectRuntime,
         result,
         searchDegraded,
         searchResult,
     });
-    return envelope({
-        success: result.status !== 'failed' && result.status !== 'blocked',
-        data: {
-            detailRefs,
-            knowledge: searchResult
-                ? {
-                    guardRules: searchResult.guardRules,
-                    relatedKnowledge: searchResult.relatedKnowledge,
-                }
-                : null,
-            primeKnowledgeMaterial,
-            primePackage,
-            projectRuntime,
-            retrievalConsumer,
-            result,
-            runtimePolicy: primePackage.runtimePolicy,
-            searchMeta: searchResult
-                ? { ...searchResult.searchMeta, projectRuntime }
-                : { projectRuntime },
-            sourcePolicy: primePackage.sourcePolicy,
-        },
-        message: formatPrimeMessage(result, primeKnowledgeMaterial),
-        meta: { tool: 'alembic_prime' },
+    return createAgentPublicToolOutput(result, {
+        detailRefs,
+        primePackage,
     });
 }
 export async function workStartHandler(ctx, args) {
@@ -280,15 +241,10 @@ export async function workStartHandler(ctx, args) {
                 detailRefs,
             },
             status: status.status,
-            summary: buildResultSummary(status.summary, args.outputBudget),
+            summary: buildResultSummary(status.summary),
             toolName: 'alembic_work_start',
         });
-        return envelope({
-            success: result.status === 'skipped',
-            data: { result },
-            message: result.summary.compact,
-            meta: { tool: 'alembic_work_start' },
-        });
+        return createAgentPublicToolOutput(result);
     }
     const workRef = nextWorkRef();
     const title = firstString(args.title, args.workScope?.goal, intake.hostIntentFrame.recognizedIntentDraft.query) ?? workRef;
@@ -342,24 +298,18 @@ export async function workStartHandler(ctx, args) {
             workRef: { refType: 'work', id: workRef, toolName: 'alembic_work_start' },
         },
         status: 'ready',
-        summary: buildResultSummary(`Work started for "${title}".`, args.outputBudget),
+        summary: buildResultSummary(`Work started for "${title}".`),
         toolName: 'alembic_work_start',
     });
-    return envelope({
-        success: true,
-        data: {
-            detailRefs,
-            localRecord: {
-                createdAt: record.createdAt,
-                scopeFiles,
-                title,
-                workRef,
-            },
-            result,
+    return createAgentPublicToolOutput(result, {
+        detailRefs,
+        localRecord: {
+            createdAt: record.createdAt,
+            scopeFiles,
+            title,
             workRef,
         },
-        message: `Work ready: ${workRef} ${title}`.trim(),
-        meta: { tool: 'alembic_work_start' },
+        workRef,
     });
 }
 export async function workFinishHandler(ctx, args) {
@@ -382,15 +332,10 @@ export async function workFinishHandler(ctx, args) {
             },
             refs: { detailRefs },
             status: 'blocked',
-            summary: buildResultSummary('Work finish blocked because workRef is missing.', args.outputBudget),
+            summary: buildResultSummary('Work finish blocked because workRef is missing.'),
             toolName: 'alembic_work_finish',
         });
-        return envelope({
-            success: false,
-            data: { result },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_work_finish' },
-        });
+        return createAgentPublicToolOutput(result);
     }
     const effectiveProjectRoot = resolveEffectiveProjectRoot(ctx, args);
     const changedFiles = normalizeTaskLifecycleFileRefs(args.changedFiles ?? [], {
@@ -440,31 +385,22 @@ export async function workFinishHandler(ctx, args) {
             workRef: { refType: 'work', id: record.workRef, toolName: 'alembic_work_start' },
         },
         status: 'ready',
-        summary: buildResultSummary(summary, args.outputBudget),
+        summary: buildResultSummary(summary),
         toolName: 'alembic_work_finish',
     });
-    return envelope({
-        success: true,
-        data: {
-            changedFiles,
-            detailRefs,
-            evidenceRefs: args.evidenceRefs ?? [],
-            finishRef,
-            guardRecommendation: buildGuardRecommendation(guardDecision),
-            localRecord: {
-                finishedAt,
-                outcome,
-                workRef: record.workRef,
-            },
+    return createAgentPublicToolOutput(result, {
+        changedFiles,
+        detailRefs,
+        evidenceRefs: args.evidenceRefs ?? [],
+        finishRef,
+        guardRecommendation: buildGuardRecommendation(guardDecision),
+        localRecord: {
+            finishedAt,
             outcome,
-            result,
             workRef: record.workRef,
         },
-        message: [
-            `Work finished: ${record.workRef}`,
-            formatGuardRecommendationMessage(guardDecision),
-        ].join('\n'),
-        meta: { tool: 'alembic_work_finish' },
+        outcome,
+        workRef: record.workRef,
     });
 }
 export async function codeGuardHandler(ctx, args) {
@@ -499,17 +435,11 @@ export async function codeGuardHandler(ctx, args) {
                 detailRefs,
             },
             status: 'blocked',
-            summary: buildResultSummary('Code Guard blocked because the requested workRef is not active in this Plugin session.', args.outputBudget),
+            summary: buildResultSummary('Code Guard blocked because the requested workRef is not active in this Plugin session.'),
             toolName: 'alembic_code_guard',
         });
-        return envelope({
-            success: false,
-            data: {
-                result,
-                unsupportedScopeFields,
-            },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_code_guard' },
+        return createAgentPublicToolOutput(result, {
+            unsupportedScopeFields,
         });
     }
     if (!hasCode && explicitFiles.length === 0 && workRecord && files.length === 0) {
@@ -533,18 +463,12 @@ export async function codeGuardHandler(ctx, args) {
                 detailRefs,
             },
             status: 'skipped',
-            summary: buildResultSummary('Code Guard skipped because the workRef has no scoped source files.', args.outputBudget),
+            summary: buildResultSummary('Code Guard skipped because the workRef has no scoped source files.'),
             toolName: 'alembic_code_guard',
         });
-        return envelope({
-            success: true,
-            data: {
-                explicitScope: { files: [], kind: 'workRef', workRef: workRecord.workRef },
-                result,
-                unsupportedScopeFields,
-            },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_code_guard' },
+        return createAgentPublicToolOutput(result, {
+            explicitScope: { files: [], kind: 'workRef', workRef: workRecord.workRef },
+            unsupportedScopeFields,
         });
     }
     if (!hasCode && files.length === 0) {
@@ -572,15 +496,10 @@ export async function codeGuardHandler(ctx, args) {
                 detailRefs,
             },
             status: 'blocked',
-            summary: buildResultSummary('Code Guard blocked because no explicit scope was provided.', args.outputBudget),
+            summary: buildResultSummary('Code Guard blocked because no explicit scope was provided.'),
             toolName: 'alembic_code_guard',
         });
-        return envelope({
-            success: false,
-            data: { result, unsupportedScopeFields },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_code_guard' },
-        });
+        return createAgentPublicToolOutput(result, { unsupportedScopeFields });
     }
     try {
         const guardEnvelope = hasCode
@@ -625,27 +544,21 @@ export async function codeGuardHandler(ctx, args) {
             status: 'ready',
             summary: buildResultSummary(hasCode
                 ? 'Code Guard checked explicit inline code.'
-                : `Code Guard checked ${files.length} explicit file(s).`, args.outputBudget),
+                : `Code Guard checked ${files.length} explicit file(s).`),
             toolName: 'alembic_code_guard',
         });
-        return envelope({
-            success: true,
-            data: {
-                detailRefs,
-                explicitScope: hasCode
-                    ? { kind: 'code', filePath: args.filePath ?? null }
-                    : {
-                        files,
-                        kind: explicitFiles.length > 0 ? 'files' : 'workRef',
-                        ...(explicitFiles.length === 0 && workRecord ? { workRef: workRecord.workRef } : {}),
-                    },
-                guard: guardEnvelope,
-                guardResultRef,
-                result,
-                unsupportedScopeFields,
-            },
-            message: result.summary.compact,
-            meta: { tool: 'alembic_code_guard' },
+        return createAgentPublicToolOutput(result, {
+            detailRefs,
+            explicitScope: hasCode
+                ? { kind: 'code', filePath: args.filePath ?? null }
+                : {
+                    files,
+                    kind: explicitFiles.length > 0 ? 'files' : 'workRef',
+                    ...(explicitFiles.length === 0 && workRecord ? { workRef: workRecord.workRef } : {}),
+                },
+            guard: projectGuardBusinessPayload(guardEnvelope),
+            guardResultRef,
+            unsupportedScopeFields,
         });
     }
     catch (err) {
@@ -662,15 +575,10 @@ export async function codeGuardHandler(ctx, args) {
             },
             refs: { detailRefs },
             status: 'failed',
-            summary: buildResultSummary('Scoped Code Guard failed before producing results.', args.outputBudget),
+            summary: buildResultSummary('Scoped Code Guard failed before producing results.'),
             toolName: 'alembic_code_guard',
         });
-        return envelope({
-            success: false,
-            data: { result },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_code_guard' },
-        });
+        return createAgentPublicToolOutput(result);
     }
 }
 export async function decisionRecordHandler(ctx, args) {
@@ -693,15 +601,10 @@ export async function decisionRecordHandler(ctx, args) {
             },
             refs: { detailRefs },
             status: 'blocked',
-            summary: buildResultSummary('Decision record blocked because decision scope is incomplete.', args.outputBudget),
+            summary: buildResultSummary('Decision record blocked because decision scope is incomplete.'),
             toolName: 'alembic_decision_record',
         });
-        return envelope({
-            success: false,
-            data: { result },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_decision_record' },
-        });
+        return createAgentPublicToolOutput(result);
     }
     const client = resolveResidentDecisionRegisterClient(ctx.container);
     if (!client) {
@@ -714,19 +617,13 @@ export async function decisionRecordHandler(ctx, args) {
             retryable: false,
             summary: 'Decision durable route unavailable; no local fake record was written.',
         });
-        return envelope({
-            success: false,
-            data: {
-                durablePersistence: {
-                    action,
-                    available: false,
-                    requiredRoute: 'Alembic durable Decision Register route',
-                },
-                requestedDecision: buildRequestedDecision(action, args),
-                result,
+        return createAgentPublicToolOutput(result, {
+            durablePersistence: {
+                action,
+                available: false,
+                requiredRoute: 'Alembic durable Decision Register route',
             },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_decision_record' },
+            requestedDecision: buildRequestedDecision(action, args),
         });
     }
     const residentRequest = buildDecisionRegisterRequest({
@@ -753,23 +650,14 @@ export async function decisionRecordHandler(ctx, args) {
                 ? 'Decision Register capability mismatch; no local fake record was written.'
                 : 'Decision durable route unavailable; no local fake record was written.',
         });
-        return envelope({
-            success: false,
-            data: {
-                durablePersistence: {
-                    action,
-                    available: false,
-                    reason: residentResult.reason,
-                    requiredRoute: 'Alembic durable Decision Register route',
-                    route: residentResult.status?.route ?? null,
-                    owner: residentResult.status?.owner ?? null,
-                    telemetry: residentResult.telemetry ?? null,
-                },
-                requestedDecision: buildRequestedDecision(action, args),
-                result,
+        return createAgentPublicToolOutput(result, {
+            durablePersistence: {
+                action,
+                available: false,
+                reason: residentResult.reason,
+                requiredRoute: 'Alembic durable Decision Register route',
             },
-            message: result.reason?.message ?? result.summary.compact,
-            meta: { tool: 'alembic_decision_record' },
+            requestedDecision: buildRequestedDecision(action, args),
         });
     }
     const decisionId = resolveDecisionId(residentResult.value, args);
@@ -780,27 +668,19 @@ export async function decisionRecordHandler(ctx, args) {
         intentKind: intake.intentKind,
         refs: buildDecisionRecordRefs(args, detailRefs, decisionId),
         status: 'ready',
-        summary: buildResultSummary(formatDecisionRecordSuccessSummary(action, residentResult.value, decisionId), args.outputBudget),
+        summary: buildResultSummary(formatDecisionRecordSuccessSummary(action, residentResult.value, decisionId)),
         toolName: 'alembic_decision_record',
     });
-    return envelope({
-        success: true,
-        data: {
-            count: residentResult.value.count ?? null,
-            decision: residentResult.value.decision,
-            decisionRef: decisionId,
-            decisions: residentResult.value.decisions ?? [],
-            durablePersistence: {
-                action,
-                available: true,
-                capability: residentResult.value.capability,
-                owner: residentResult.status?.owner ?? null,
-                route: residentResult.status?.route ?? null,
-            },
-            result,
+    return createAgentPublicToolOutput(result, {
+        count: residentResult.value.count ?? null,
+        decision: residentResult.value.decision,
+        decisionRef: decisionId,
+        decisions: residentResult.value.decisions ?? [],
+        durablePersistence: {
+            action,
+            available: true,
+            capability: residentResult.value.capability,
         },
-        message: result.summary.compact,
-        meta: { tool: 'alembic_decision_record' },
     });
 }
 function buildIntentIntake(ctx, args) {
@@ -1082,11 +962,19 @@ function buildGuardRecommendation(decision) {
         tool: 'alembic_code_guard',
     };
 }
-function formatGuardRecommendationMessage(decision) {
-    if (decision.action === 'run') {
-        return `Guard recommended: call alembic_code_guard with files=${JSON.stringify(decision.taskScopedFiles)}.`;
+function projectGuardBusinessPayload(guardEnvelope) {
+    if (!guardEnvelope || typeof guardEnvelope !== 'object') {
+        return { guardResult: guardEnvelope };
     }
-    return `Guard skipped: ${decision.reasonCode}.`;
+    const record = guardEnvelope;
+    return {
+        ok: record.success !== false,
+        ...(typeof record.errorCode === 'string' && record.errorCode
+            ? { guardErrorCode: record.errorCode }
+            : {}),
+        ...(typeof record.message === 'string' && record.message ? { summary: record.message } : {}),
+        guardResult: record.data ?? guardEnvelope,
+    };
 }
 const UNSUPPORTED_CODE_GUARD_SCOPE_FIELDS = [
     'diffRef',
@@ -1136,7 +1024,7 @@ function buildDecisionRecordBlockedResult(input) {
         },
         refs: buildDecisionRecordRefs(input.args, input.detailRefs, null),
         status: 'blocked',
-        summary: buildResultSummary(input.summary, input.args.outputBudget),
+        summary: buildResultSummary(input.summary),
         toolName: 'alembic_decision_record',
     });
 }
@@ -1437,50 +1325,33 @@ function buildVectorPlan(extracted, options = {}) {
         vectorUseKind: options.vectorUseKind ?? 'semantic-expand',
     };
 }
-function buildRecipeRetrievalHint(intake, vectorPlan) {
+function buildIntentClassification(intake, persistence, vectorPlan) {
     return {
-        filters: {
-            language: intake.extracted.language,
-            module: intake.extracted.module,
-            sourceRefs: intake.sourceRefs.slice(0, 8),
-        },
-        profiles: resolveRecipeRetrievalProfiles(intake),
-        querySeeds: vectorPlan.queries,
+        actionKind: intake.hostIntentFrame.recognizedIntentDraft.action || 'unknown',
+        confidenceBand: resolveConfidenceBand(intake.hostIntentFrame.recognizedIntentDraft.confidence),
+        objectKind: resolveObjectKind(intake),
+        scopeKind: resolveScopeKind(intake),
+    };
+}
+function buildIntentPersistenceReceipt(persistence) {
+    return {
+        consumable: persistence.consumable,
+        created: persistence.localRecordCreated,
+        kind: persistence.kind,
+    };
+}
+function buildIntentRetrievalPlan(vectorPlan) {
+    return {
         route: 'structure-first',
         vectorUseKind: vectorPlan.vectorUseKind,
     };
 }
-function buildIntentDiagnostics(intake, persistence, vectorPlan) {
+function buildIntentToolPlan(intake, persistence) {
     return {
-        contractMappingVersion: 1,
-        enumRequirementMapping: AGENT_INTENT_DESIGN_FIELD_MAPPINGS,
-        normalized: {
-            actionKind: intake.hostIntentFrame.recognizedIntentDraft.action || 'unknown',
-            confidenceBand: resolveConfidenceBand(intake.hostIntentFrame.recognizedIntentDraft.confidence),
-            hostSurface: intake.hostIntentFrame.hostTurnMeta?.surface ?? 'unknown',
-            objectKind: resolveObjectKind(intake),
-            persistenceKind: persistence.kind,
-            scopeKind: resolveScopeKind(intake),
-            vectorUseKind: vectorPlan.vectorUseKind,
-        },
-        toolNeeds: {
-            guardNeed: resolveGuardNeed(intake),
-            primeNeed: resolvePrimeNeed(intake, persistence),
-            workNeed: resolveWorkNeed(intake),
-        },
+        guardNeed: resolveGuardNeed(intake),
+        primeNeed: resolvePrimeNeed(intake, persistence),
+        workNeed: resolveWorkNeed(intake),
     };
-}
-function resolveRecipeRetrievalProfiles(intake) {
-    if (!isConsumableIntentKind(intake.intentKind)) {
-        return [];
-    }
-    if (intake.intentKind === 'fix-task') {
-        return ['guard-rule', 'source-ref-focused', 'implementation-pattern'];
-    }
-    if (intake.intentKind === 'review-task' || intake.intentKind === 'read-only-analysis') {
-        return ['source-ref-focused', 'relationship-expansion', 'semantic-supplement'];
-    }
-    return ['structured-recipe', 'implementation-pattern', 'semantic-supplement'];
 }
 function resolveVectorUseKind(intake, persistence) {
     if (!persistence.consumable) {
@@ -1570,7 +1441,7 @@ function buildBaseDetailRefs(toolName, sourceRefs) {
             id: 'agent-public-contract',
             kind: 'contract',
             requiredForCompletion: true,
-            summary: 'Agent-facing public tool result envelope contract',
+            summary: 'Agent-facing public tool clean output contract',
             uri: 'lib/codex/mcp/public-tools/contract.ts',
         }),
         createAgentDetailRef({
@@ -1599,27 +1470,10 @@ function buildBaseDetailRefs(toolName, sourceRefs) {
     }
     return refs;
 }
-function buildSourcePolicy(intake, persistence) {
-    return {
-        automationEnvelope: intake.inputSource === 'automation-envelope'
-            ? {
-                requiredSourceRefsForPrime: true,
-                sourceRefsCount: intake.sourceRefs.length,
-            }
-            : null,
-        hostTurnMetaRedacted: Boolean(intake.hostIntentFrame.hostTurnMeta),
-        localIntentRecord: {
-            consumable: persistence.consumable,
-            created: persistence.localRecordCreated,
-            persistenceKind: persistence.kind,
-        },
-        rawThreadIdsPersisted: false,
-    };
-}
 function buildPrimePublicPackage(input) {
     const producerBoundary = buildPrimeProducerBoundary(input.searchResult);
     // 这里生成的是 Codex host 可稳定消费的 compact 投影；完整 Recipe / Guard
-    // material 仍留在 primeKnowledgeMaterial，避免突破 outputBudget。
+    // material 仍留在 primeKnowledgeMaterial，避免把长知识包塞进可见 summary。
     return createPrimePublicPackage({
         compactPackage: {
             acceptedGuards: (input.primeKnowledgeMaterial?.acceptedGuards ?? [])
@@ -1653,44 +1507,12 @@ function buildPrimePublicPackage(input) {
             evidenceDelivery: 'detailRefs-and-primeKnowledgeMaterial',
             primeInjectionPackage: producerBoundary,
         },
-        diagnostics: {
-            outputBudget: input.result.summary.outputBudget,
-            producerBoundary: {
-                missingProducerFields: producerBoundary.missingProducerFields,
-                pluginSynthesizedPrimeInjectionPackage: false,
-                primeInjectionPackageProducedBy: 'Alembic resident service',
-            },
-            retrieval: {
-                filteredCount: input.searchResult?.searchMeta.filteredCount ?? null,
-                queries: compactPrimeQueryList(input.searchResult?.searchMeta.queries ?? input.intake.vectorPlan.queries),
-                residentAttempted: input.searchResult?.searchMeta.residentSearch?.attempted ?? false,
-                residentAvailable: input.searchResult?.searchMeta.residentSearch?.available ?? null,
-                residentReason: input.searchResult?.searchMeta.residentSearch?.reason ?? null,
-                resultCount: input.searchResult?.searchMeta.resultCount ?? null,
-                searchAttempted: Boolean(input.searchResult) || input.searchDegraded,
-                searchDegraded: input.searchDegraded,
-            },
-        },
+        feedbackDigest: buildPrimeFeedbackDigest(input.searchResult),
         kind: 'PrimePublicPackage',
         primeRef: input.primeRef,
         reason: input.result.reason,
         refs: input.result.refs,
-        retrievalConsumer: input.searchResult?.searchMeta.retrievalConsumer
-            ? { ...input.searchResult.searchMeta.retrievalConsumer }
-            : null,
-        runtimePolicy: buildPrimeRuntimePolicy(input.projectRuntime),
-        sourcePolicy: buildPrimeSourcePolicy(input.intake, input.detailRefs),
         status: input.result.status,
-        structureFirst: {
-            keywordQueries: compactPrimeQueryList(input.intake.vectorPlan.keywordQueries),
-            language: input.intake.vectorPlan.language,
-            module: input.intake.vectorPlan.module,
-            queries: compactPrimeQueryList(input.intake.vectorPlan.queries),
-            retrievalOrder: compactPrimeQueryList(input.intake.vectorPlan.retrievalOrder),
-            route: input.intake.vectorPlan.route,
-            scenario: input.intake.vectorPlan.scenario,
-            vectorUseKind: input.intake.vectorPlan.vectorUseKind,
-        },
         summary: input.result.summary,
         trustPosture: buildPrimeTrustPostureProjection(input.primeKnowledgeMaterial, input.result),
         trustReceipt: {
@@ -1702,8 +1524,19 @@ function buildPrimePublicPackage(input) {
         },
     });
 }
-function compactPrimeQueryList(values) {
-    return values.filter((value) => value.trim().length > 0).slice(0, 12);
+function buildPrimeFeedbackDigest(searchResult) {
+    const consumer = searchResult?.searchMeta.retrievalConsumer;
+    if (!consumer) {
+        return null;
+    }
+    return {
+        decisionRefCount: consumer.retrievalQuality?.decisionRefCount ?? null,
+        feedbackSignalCount: consumer.retrievalQuality?.feedbackSignalCount ?? null,
+        observeOnly: consumer.feedback?.observeOnly ?? null,
+        relationEvidenceCount: consumer.retrievalQuality?.relationEvidenceCount ?? null,
+        sourceRefCoverage: consumer.retrievalQuality?.sourceRefCoverage ?? null,
+        supportedSignals: consumer.feedback?.supportedSignals ?? [],
+    };
 }
 function buildPrimeTrustPostureProjection(primeKnowledgeMaterial, result) {
     const status = primeKnowledgeMaterial?.status ?? primeTrustStatusFromResult(result);
@@ -1739,60 +1572,6 @@ function primeTrustStatusFromResult(result) {
         return 'skipped';
     }
     return 'degraded';
-}
-function buildPrimeSourcePolicy(intake, detailRefs) {
-    return {
-        automationEnvelope: intake.inputSource === 'automation-envelope'
-            ? {
-                blockedWithoutSourceRefs: intake.sourceRefs.length === 0,
-                requiredSourceRefsForPrime: true,
-                sourceRefsCount: intake.sourceRefs.length,
-            }
-            : null,
-        detailRefs: {
-            count: detailRefs.length,
-            mode: 'bounded-source-ref-details',
-        },
-        inputSource: intake.inputSource,
-        rawAutomationEnvelopeUsedAsQuery: false,
-        rawThreadIdsPersisted: false,
-        sourceRefsCount: intake.sourceRefs.length,
-    };
-}
-function buildPrimeRuntimePolicy(projectRuntime) {
-    if (!projectRuntime) {
-        return {
-            available: false,
-            identity: null,
-            projectRuntimeContractVersion: null,
-            readinessState: null,
-            reason: 'runtime-policy-not-resolved-before-prime-block',
-            sourcePolicy: {
-                effectiveIdentitySource: null,
-                projectScopeSource: null,
-                runtimeControlSource: null,
-                selectedOrActiveCanOverrideEffectiveIdentity: false,
-            },
-        };
-    }
-    return {
-        available: true,
-        identity: {
-            currentFolderId: projectRuntime.identity.currentFolderId ?? null,
-            dataRootSource: projectRuntime.identity.dataRootSource ?? null,
-            projectId: projectRuntime.identity.projectId ?? null,
-            projectRoot: projectRuntime.identity.projectRoot ?? null,
-            projectScopeId: projectRuntime.identity.projectScopeId ?? null,
-        },
-        projectRuntimeContractVersion: projectRuntime.contractVersion,
-        readinessState: String(projectRuntime.readinessState),
-        sourcePolicy: {
-            effectiveIdentitySource: projectRuntime.sourcePolicy.effectiveIdentitySource,
-            projectScopeSource: projectRuntime.sourcePolicy.projectScopeSource,
-            runtimeControlSource: projectRuntime.sourcePolicy.runtimeControlSource,
-            selectedOrActiveCanOverrideEffectiveIdentity: projectRuntime.sourcePolicy.selectedOrActiveCanOverrideEffectiveIdentity,
-        },
-    };
 }
 function buildPrimeProducerBoundary(searchResult) {
     const residentPackage = searchResult?.searchMeta.primeInjectionPackage;
@@ -1861,34 +1640,9 @@ function primeTrustLayerDirectiveForPublicPackage(layer) {
             return 'Say no usable project knowledge was delivered.';
     }
 }
-function buildResultSummary(compact, outputBudget) {
-    const maxChars = Math.max(1, Math.min(outputBudget?.maxChars ?? 1600, 2000));
-    const truncated = compact.length > maxChars;
-    const visible = truncated ? compact.slice(0, Math.max(0, maxChars - 1)) : compact;
-    return {
-        compact: visible,
-        outputBudget: {
-            maxChars,
-            mode: outputBudget?.mode ?? 'compact',
-            truncated,
-            usedChars: visible.length,
-        },
-    };
-}
-function formatIntentMessage(result, hostIntentFrame) {
-    const draft = hostIntentFrame.recognizedIntentDraft;
-    if (result.status === 'ready') {
-        return `Intent ready: ${draft.action || 'intent'} ${draft.query}`.trim();
-    }
-    return `${result.status}: ${result.reason?.message ?? draft.degradedReasons.join('; ')}`;
-}
-function formatPrimeMessage(result, primeKnowledgeMaterial) {
-    return [
-        result.summary.compact,
-        formatPrimeTrustPostureMessage(primeKnowledgeMaterial.trustPosture),
-    ]
-        .filter(Boolean)
-        .join('\n');
+function buildResultSummary(compact) {
+    const visible = compact.trim() || 'Agent public tool result is ready.';
+    return visible.length > 2000 ? visible.slice(0, 2000) : visible;
 }
 function resolveEffectiveProjectRoot(ctx, args) {
     return typeof args.projectRoot === 'string' && args.projectRoot.trim()

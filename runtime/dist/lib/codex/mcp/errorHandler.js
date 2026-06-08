@@ -1,12 +1,12 @@
 /**
  * MCP 工具统一错误处理
  *
- * 提供 wrapHandler() 包装函数，将所有 handler 的异常统一转换为
- * envelope 格式的错误响应，确保：
+ * 提供 wrapHandler() 包装函数，将 handler 异常统一转换为
+ * clean structured MCP 错误响应，确保：
  *   1. Zod schema 校验 → 结构化 VALIDATION_ERROR (外部输入防御)
  *   2. 已知业务错误 → 结构化 errorCode + message
  *   3. 未知异常 → 通用 INTERNAL_ERROR + 原始 message
- *   4. 一致的 meta.tool + meta.responseTimeMs
+ *   4. 一致的 meta.toolName + meta.responseTimeMs
  *
  * @module codex/mcp/errorHandler
  */
@@ -14,6 +14,7 @@ import Logger from '@alembic/core/logging';
 import { ConflictError, ConstitutionViolation, NotFoundError, PermissionDenied, ValidationError, } from '@alembic/core/shared';
 import { z } from 'zod';
 import { TOOL_SCHEMAS } from '#shared/schemas/mcp-tools.js';
+import { createCleanMcpErrorResponse, createMcpStructuredToolResult } from './output-contract.js';
 const logger = Logger.getInstance();
 /** 从已知错误类型推断 errorCode */
 function inferErrorCode(err) {
@@ -70,20 +71,12 @@ export function wrapHandler(toolName, handlerFn, schema) {
                     .join('; ');
                 const msg = `输入校验失败: ${details}`;
                 logger.warn(`[MCP:${toolName}] VALIDATION_ERROR: ${msg}`);
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: JSON.stringify({
-                                success: false,
-                                message: msg,
-                                errorCode: 'VALIDATION_ERROR',
-                                meta: { tool: toolName, responseTimeMs: elapsed },
-                            }),
-                        },
-                    ],
-                    isError: true,
-                };
+                return createMcpStructuredToolResult(createCleanMcpErrorResponse({
+                    code: 'VALIDATION_ERROR',
+                    message: msg,
+                    responseTimeMs: elapsed,
+                    toolName,
+                }));
             }
             // 业务错误 / 未知异常
             const errorCode = inferErrorCode(err);
@@ -95,23 +88,13 @@ export function wrapHandler(toolName, handlerFn, schema) {
                 durationMs: elapsed,
                 ...(errDetails ? { details: errDetails } : {}),
             });
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({
-                            success: false,
-                            message,
-                            errorCode,
-                            meta: {
-                                tool: toolName,
-                                responseTimeMs: elapsed,
-                            },
-                        }),
-                    },
-                ],
-                isError: true,
-            };
+            return createMcpStructuredToolResult(createCleanMcpErrorResponse({
+                code: errorCode,
+                ...(errDetails ? { details: errDetails } : {}),
+                message,
+                responseTimeMs: elapsed,
+                toolName,
+            }));
         }
     };
 }

@@ -1,4 +1,3 @@
-import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES } from './mcp/tools.js';
 import { CODEX_ADMIN_ENABLE_ENV, CODEX_DEFAULT_MCP_TIER, CODEX_MCP_TIER_ENV, resolveEffectiveCodexTier, } from './runtime/RuntimeContext.js';
 // Codex 插件当前只有 alembic-codex 一个入口；这里维护单插件工具策略，不做多插件抽象。
 export const CODEX_PROJECT_ROOT_PROPERTY = {
@@ -20,6 +19,7 @@ export const CODEX_DISCOVERY_TOOL_NAMES = new Set([
     'alembic_codex_diagnostics',
 ]);
 export const CODEX_INIT_TOOL_NAMES = new Set([...CODEX_DISCOVERY_TOOL_NAMES, 'alembic_codex_init']);
+const CODEX_RETIRED_TOOL_NAMES = new Set(['alembic_task']);
 export const CODEX_HOST_AGENT_WORKFLOW_TOOL_NAMES = new Set([
     'alembic_bootstrap',
     'alembic_rescan',
@@ -173,7 +173,7 @@ export function resolveCodexToolPolicy(input) {
     const effectiveTier = resolveEffectiveCodexTier(tierName, adminEnabled);
     const maxTier = input.tierOrder[effectiveTier] ?? input.tierOrder[CODEX_DEFAULT_MCP_TIER] ?? 0;
     const localTools = CODEX_LOCAL_TOOLS.filter((tool) => allowedLocalToolNames.has(tool.name));
-    const coreTools = input.coreTools.filter((tool) => !LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES.has(tool.name) &&
+    const coreTools = input.coreTools.filter((tool) => !CODEX_RETIRED_TOOL_NAMES.has(tool.name) &&
         (input.knowledge.usable ||
             CODEX_AGENT_PUBLIC_TOOL_NAMES.has(tool.name) ||
             (input.residentProjectScopeAvailable === true &&

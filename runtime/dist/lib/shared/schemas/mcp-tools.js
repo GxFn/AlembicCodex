@@ -95,10 +95,6 @@ const AgentIntentKindSchema = z.enum([
     'mechanical-envelope',
     'unknown',
 ]);
-const AgentOutputBudgetInput = z.object({
-    mode: z.enum(['compact', 'standard', 'detailed']).default('compact').optional(),
-    maxChars: z.number().int().min(1).max(20000).default(1600).optional(),
-});
 const AgentPublicToolBaseInput = z.object({
     agentHost: AgentHostSchema.default('codex').describe('Calling host agent family'),
     inputSource: AgentInputSourceSchema.default('user-message').describe('Enum-first source classification for the current host input'),
@@ -118,7 +114,6 @@ const AgentPublicToolBaseInput = z.object({
         .max(50)
         .optional()
         .describe('Non-private source refs used as detailRefs and automation evidence'),
-    outputBudget: AgentOutputBudgetInput.optional().describe('Compact result output budget'),
     projectRoot: z
         .string()
         .min(1)
@@ -484,7 +479,9 @@ export const DimensionCompleteInput = z.object({
 // ══════════════════════════════════════════════════════
 export const CapabilitiesInput = z.object({});
 // ══════════════════════════════════════════════════════
-//  13. alembic_task (hidden direct-call legacy compatibility; record_decision blocks)
+//  13. Retired task lifecycle schema.
+//  Kept for historical unit coverage and migration evidence only; it is not in
+//  TOOL_SCHEMAS and must not be exposed as a Codex MCP tool.
 // ══════════════════════════════════════════════════════
 export const TaskInput = z.object({
     operation: z
@@ -637,7 +634,6 @@ export const TOOL_SCHEMAS = {
     alembic_bootstrap: BootstrapInput,
     alembic_rescan: RescanInput,
     alembic_dimension_complete: DimensionCompleteInput,
-    alembic_task: TaskInput,
     alembic_enrich_candidates: EnrichCandidatesInput,
     alembic_knowledge_lifecycle: KnowledgeLifecycleInput,
     alembic_panorama: PanoramaInput,

@@ -1,7 +1,7 @@
 import { AGENT_HOSTS, AGENT_PUBLIC_TOOL_CONTRACT_CATALOG, AGENT_PUBLIC_TOOL_CONTRACT_VERSION, AGENT_PUBLIC_TOOL_NAMES, AGENT_RESULT_STATUSES, } from './contract.js';
 export const AGENT_PUBLIC_CROSS_HOST_READINESS_VERSION = 1;
-// 这组词只用于证明 cross-host prompt snapshot 不把旧兼容入口当主入口。
-// 旧工具是否物理保留由 legacy cleanup 阶段裁决，本模块不提前删除。
+// 这组词只用于证明 cross-host prompt snapshot 不把退役入口当主入口。
+// 工具物理保留与否由 cleanup 阶段裁决，本模块只负责 host prompt readiness。
 export const CROSS_HOST_FORBIDDEN_LEGACY_PRIMARY_GUIDANCE = [
     'alembic_task',
     'operation=prime',

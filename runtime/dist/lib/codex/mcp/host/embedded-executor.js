@@ -1,7 +1,8 @@
 import { resetServiceContainer } from '../../../injection/ServiceContainer.js';
 import { ALEMBIC_CODEX_PROJECT_SCOPE_SUMMARY_ENV, serializeCodexProjectScopeSummary, } from '../../../shared/project-scope-runtime.js';
 import { McpServer as EmbeddedMcpServer } from '../McpServer.js';
-import { LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES, TOOLS } from '../tools.js';
+import { isCleanMcpResponse } from '../output-contract.js';
+import { TOOLS } from '../tools.js';
 import { safeProjectRootFallback } from './project-root.js';
 import { attachCodexServiceBoundary, failureResult } from './results.js';
 let sharedPluginOwnedMcpServer = null;
@@ -28,8 +29,7 @@ export class CodexEmbeddedToolExecutor {
         this.#hostProjectRoot = options.hostProjectRoot;
     }
     async execute(name, args, serviceBoundary, executionContext, options = {}) {
-        if (!TOOLS.some((tool) => tool.name === name) &&
-            !LEGACY_DIRECT_CALL_COMPATIBILITY_TOOL_NAMES.has(name)) {
+        if (!TOOLS.some((tool) => tool.name === name)) {
             return attachCodexServiceBoundary(failureResult(name, `Unknown Alembic tool: ${name}`), serviceBoundary);
         }
         try {
@@ -122,15 +122,18 @@ function attachCodexExecutionContext(result, executionContext, hostProjectRoot) 
         return result;
     }
     const record = result;
+    const identity = executionContext.residentProjectScopeAvailable
+        ? executionContext.projectScopeIdentity
+        : null;
+    if (isCleanMcpResponse(record)) {
+        return record;
+    }
     const data = record.data && typeof record.data === 'object' && !Array.isArray(record.data)
         ? record.data
         : {};
     const projectRuntimePatch = executionContext.projectRuntime && !Object.hasOwn(data, 'projectRuntime')
         ? { projectRuntime: executionContext.projectRuntime }
         : {};
-    const identity = executionContext.residentProjectScopeAvailable
-        ? executionContext.projectScopeIdentity
-        : null;
     if (!identity) {
         return Object.keys(projectRuntimePatch).length > 0
             ? {

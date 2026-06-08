@@ -1,7 +1,7 @@
 {
-  "name": "alembic-codex",
+  "name": "gxfn",
   "interface": {
-    "displayName": "Alembic Codex"
+    "displayName": "GxFn"
   },
   "plugins": [
     {

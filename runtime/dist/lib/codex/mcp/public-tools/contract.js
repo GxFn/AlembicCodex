@@ -48,7 +48,7 @@ export const AGENT_INTENT_DESIGN_FIELD_MAPPINGS = [
     {
         field: 'hostSurface',
         disposition: 'internal-derived-field',
-        evidence: ['HostTurnMetaInput.surface', 'alembic_intent.diagnostics.normalized.hostSurface'],
+        evidence: ['HostTurnMetaInput.surface'],
     },
     {
         field: 'inputSource',
@@ -78,32 +78,32 @@ export const AGENT_INTENT_DESIGN_FIELD_MAPPINGS = [
     {
         field: 'persistenceKind',
         disposition: 'public-result-field',
-        evidence: ['alembic_intent.persistence.kind'],
+        evidence: ['alembic_intent.intentPersistence.kind'],
     },
     {
         field: 'primeNeed',
         disposition: 'public-result-field',
-        evidence: ['alembic_intent.diagnostics.toolNeeds.primeNeed'],
+        evidence: ['alembic_intent.toolPlan.primeNeed'],
     },
     {
         field: 'workNeed',
         disposition: 'public-result-field',
-        evidence: ['alembic_intent.diagnostics.toolNeeds.workNeed'],
+        evidence: ['alembic_intent.toolPlan.workNeed'],
     },
     {
         field: 'guardNeed',
         disposition: 'public-result-field',
-        evidence: ['alembic_intent.diagnostics.toolNeeds.guardNeed'],
+        evidence: ['alembic_intent.toolPlan.guardNeed'],
     },
     {
         field: 'vectorUseKind',
         disposition: 'public-result-field',
-        evidence: ['alembic_intent.vectorPlan.vectorUseKind'],
+        evidence: ['alembic_intent.retrievalPlan.vectorUseKind'],
     },
     {
         field: 'confidenceBand',
         disposition: 'public-result-field',
-        evidence: ['alembic_intent.diagnostics.normalized.confidenceBand'],
+        evidence: ['alembic_intent.intentClassification.confidenceBand'],
     },
 ];
 export const AGENT_SKIP_REASON_CODES = [
@@ -181,21 +181,7 @@ export const AgentDetailRefSchema = z.object({
     uri: z.string().min(1).max(1200).optional(),
     requiredForCompletion: z.boolean().default(false),
 });
-export const AgentPublicToolOutputBudgetSchema = z
-    .object({
-    mode: z.enum(['compact', 'standard', 'detailed']).default('compact'),
-    maxChars: z.number().int().min(1).max(20000),
-    usedChars: z.number().int().min(0).max(20000),
-    truncated: z.boolean(),
-})
-    .refine((budget) => budget.usedChars <= budget.maxChars, {
-    message: 'usedChars must be less than or equal to maxChars',
-});
-export const AgentPublicToolResultSummarySchema = z.object({
-    compact: z.string().min(1).max(2000),
-    title: z.string().min(1).max(140).optional(),
-    outputBudget: AgentPublicToolOutputBudgetSchema,
-});
+export const AgentPublicToolResultSummarySchema = z.string().min(1).max(2000);
 export const AgentPublicToolReasonSchema = z.discriminatedUnion('kind', [
     z.object({
         kind: z.literal('skip'),
@@ -231,13 +217,8 @@ export const AgentPublicToolRefsSchema = z.object({
     decisionRef: AgentPublicToolRefSchema.optional(),
     detailRefs: z.array(AgentDetailRefSchema).max(40).default([]),
 });
-export const AgentPublicToolLegacyCompatibilitySchema = z.object({
-    usesLegacyTaskHandler: z.literal(false),
-    compatibilityRole: z.enum(['none', 'consumer-only']).default('none'),
-});
 export const AgentPublicToolResultEnvelopeSchema = z
     .object({
-    contractVersion: z.literal(AGENT_PUBLIC_TOOL_CONTRACT_VERSION),
     toolName: AgentPublicToolNameSchema,
     actionKind: AgentActionKindSchema,
     status: AgentResultStatusSchema,
@@ -247,10 +228,6 @@ export const AgentPublicToolResultEnvelopeSchema = z
     summary: AgentPublicToolResultSummarySchema,
     refs: AgentPublicToolRefsSchema,
     reason: AgentPublicToolReasonSchema.optional(),
-    legacyCompatibility: AgentPublicToolLegacyCompatibilitySchema.default({
-        usesLegacyTaskHandler: false,
-        compatibilityRole: 'none',
-    }),
 })
     .superRefine((envelope, ctx) => {
     const expectedAction = AGENT_PUBLIC_TOOL_ACTION_BY_NAME[envelope.toolName];
@@ -285,7 +262,8 @@ export const PRIME_PUBLIC_TRUST_LAYERS = [
 ];
 // Codex host 只依赖这个稳定投影读取 prime 结果；完整知识和证据仍通过
 // detailRefs / primeKnowledgeMaterial 保留，避免把长知识包塞进可见 message。
-export const PrimePublicPackageSchema = z.object({
+export const PrimePublicPackageSchema = z
+    .object({
     contractVersion: z.literal(AGENT_PUBLIC_TOOL_CONTRACT_VERSION),
     kind: z.literal('PrimePublicPackage'),
     primeRef: z.string().min(1).max(240),
@@ -312,17 +290,16 @@ export const PrimePublicPackageSchema = z.object({
         receiptId: z.string().min(1).max(240).nullable(),
         status: z.enum(['delivered', 'empty', 'degraded', 'blocked', 'skipped']),
     }),
-    retrievalConsumer: z.record(z.string(), z.unknown()).nullable(),
-    structureFirst: z.object({
-        keywordQueries: z.array(z.string().min(1).max(1200)).max(12),
-        language: z.string().max(80).nullable(),
-        module: z.string().max(240).nullable(),
-        queries: z.array(z.string().min(1).max(1200)).max(12),
-        retrievalOrder: z.array(z.string().min(1).max(1200)).max(12),
-        route: z.literal('structure-first-recipe-retrieval'),
-        scenario: z.string().min(1).max(120),
-        vectorUseKind: z.enum(['none', 'semantic-expand', 'hybrid-rerank']),
-    }),
+    feedbackDigest: z
+        .object({
+        decisionRefCount: z.number().int().min(0).max(1000).nullable(),
+        feedbackSignalCount: z.number().int().min(0).max(1000).nullable(),
+        observeOnly: z.boolean().nullable(),
+        relationEvidenceCount: z.number().int().min(0).max(1000).nullable(),
+        sourceRefCoverage: z.number().min(0).max(1).nullable(),
+        supportedSignals: z.array(z.string().min(1).max(80)).max(20),
+    })
+        .nullable(),
     compactPackage: z.object({
         acceptedGuards: z
             .array(z.object({
@@ -382,63 +359,8 @@ export const PrimePublicPackageSchema = z.object({
             status: z.string().min(1).max(120).nullable(),
         }),
     }),
-    sourcePolicy: z.object({
-        automationEnvelope: z
-            .object({
-            blockedWithoutSourceRefs: z.boolean(),
-            requiredSourceRefsForPrime: z.literal(true),
-            sourceRefsCount: z.number().int().min(0).max(50),
-        })
-            .nullable(),
-        detailRefs: z.object({
-            count: z.number().int().min(0).max(40),
-            mode: z.literal('bounded-source-ref-details'),
-        }),
-        inputSource: AgentInputSourceSchema,
-        rawAutomationEnvelopeUsedAsQuery: z.literal(false),
-        rawThreadIdsPersisted: z.literal(false),
-        sourceRefsCount: z.number().int().min(0).max(50),
-    }),
-    runtimePolicy: z.object({
-        available: z.boolean(),
-        identity: z
-            .object({
-            currentFolderId: z.string().nullable(),
-            dataRootSource: z.string().nullable(),
-            projectId: z.string().nullable(),
-            projectRoot: z.string().nullable(),
-            projectScopeId: z.string().nullable(),
-        })
-            .nullable(),
-        projectRuntimeContractVersion: z.number().int().min(1).nullable(),
-        readinessState: z.string().nullable(),
-        reason: z.string().min(1).max(240).optional(),
-        sourcePolicy: z.object({
-            effectiveIdentitySource: z.literal('codex-current-project').nullable(),
-            projectScopeSource: z.enum(['resident-read-only', 'single-folder-baseline']).nullable(),
-            runtimeControlSource: z.literal('read-only-diagnostics').nullable(),
-            selectedOrActiveCanOverrideEffectiveIdentity: z.literal(false),
-        }),
-    }),
-    diagnostics: z.object({
-        outputBudget: AgentPublicToolOutputBudgetSchema,
-        producerBoundary: z.object({
-            missingProducerFields: z.array(z.string().min(1).max(160)).max(40),
-            pluginSynthesizedPrimeInjectionPackage: z.literal(false),
-            primeInjectionPackageProducedBy: z.literal('Alembic resident service'),
-        }),
-        retrieval: z.object({
-            filteredCount: z.number().int().min(0).max(100000).nullable(),
-            queries: z.array(z.string().min(1).max(1200)).max(12),
-            residentAttempted: z.boolean(),
-            residentAvailable: z.boolean().nullable(),
-            residentReason: z.string().max(500).nullable(),
-            resultCount: z.number().int().min(0).max(100000).nullable(),
-            searchAttempted: z.boolean(),
-            searchDegraded: z.boolean(),
-        }),
-    }),
-});
+})
+    .strict();
 export function createPrimePublicPackage(input) {
     return PrimePublicPackageSchema.parse({
         contractVersion: AGENT_PUBLIC_TOOL_CONTRACT_VERSION,
@@ -536,12 +458,5 @@ export function createAgentDetailRef(input) {
     return AgentDetailRefSchema.parse(input);
 }
 export function createAgentPublicToolResultEnvelope(input) {
-    return AgentPublicToolResultEnvelopeSchema.parse({
-        contractVersion: AGENT_PUBLIC_TOOL_CONTRACT_VERSION,
-        legacyCompatibility: {
-            usesLegacyTaskHandler: false,
-            compatibilityRole: 'none',
-        },
-        ...input,
-    });
+    return AgentPublicToolResultEnvelopeSchema.parse(input);
 }
