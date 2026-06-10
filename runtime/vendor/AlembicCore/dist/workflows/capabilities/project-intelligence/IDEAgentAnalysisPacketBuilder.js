@@ -434,7 +434,6 @@ function makeSourceRef({ projectRoot, path, line, symbol, fqn, entityType, role,
         ...(identity?.folderRelativeRoot ? { folderRelativeRoot: identity.folderRelativeRoot } : {}),
         ...(identity?.relativePath ? { relativePath: identity.relativePath } : {}),
         ...(identity?.qualifiedPath ? { qualifiedPath: identity.qualifiedPath } : {}),
-        ...(identity?.legacyPath ? { legacyPath: identity.legacyPath } : {}),
         ...(typeof line === 'number' ? { line } : {}),
         ...(symbol ? { symbol } : {}),
         ...(fqn ? { fqn: normalizeFqn(fqn, projectRoot) } : {}),
@@ -663,7 +662,6 @@ function createFallbackSourceRef(snapshot) {
         ...(identity?.folderRelativeRoot ? { folderRelativeRoot: identity.folderRelativeRoot } : {}),
         ...(identity?.relativePath ? { relativePath: identity.relativePath } : {}),
         ...(identity?.qualifiedPath ? { qualifiedPath: identity.qualifiedPath } : {}),
-        ...(identity?.legacyPath ? { legacyPath: identity.legacyPath } : {}),
         entityType: 'project',
         role: 'entry',
         displayName: snapshot.projectRoot ? 'Project overview' : 'Project',
@@ -672,19 +670,14 @@ function createFallbackSourceRef(snapshot) {
 }
 function findTargetName(sourceRefs, files) {
     const paths = new Set(sourceRefs.flatMap(sourceRefComparablePaths));
-    return (files.find((file) => [
-        file.relativePath,
-        file.path,
-        file.sourceIdentity?.legacyPath,
-        file.sourceIdentity?.qualifiedPath,
-    ].some((candidate) => candidate && paths.has(normalizeComparablePath(candidate))))?.targetName || undefined);
+    return (files.find((file) => [file.relativePath, file.path, file.sourceIdentity?.qualifiedPath].some((candidate) => candidate && paths.has(normalizeComparablePath(candidate))))?.targetName || undefined);
 }
 function findModuleName(sourceRefs, modules) {
     const paths = new Set(sourceRefs.flatMap(sourceRefComparablePaths));
     return modules.find((module) => [
         ...(module.keyFiles ?? []),
         ...(module.keyFileIdentities ?? []).flatMap((identity) => [
-            identity.legacyPath,
+            identity.relativePath,
             identity.qualifiedPath,
         ]),
     ].some((candidate) => paths.has(normalizeComparablePath(candidate))))?.name;
@@ -700,7 +693,6 @@ function buildSourceIdentityIndex(files) {
             file.relativePath,
             file.path,
             identity.relativePath,
-            identity.legacyPath,
             identity.qualifiedPath,
         ]) {
             if (candidate) {
@@ -714,7 +706,7 @@ function readableSourcePath(sourceRef) {
     return sourceRef.qualifiedPath ?? sourceRef.path;
 }
 function sourceRefComparablePaths(sourceRef) {
-    return [sourceRef.path, sourceRef.relativePath, sourceRef.legacyPath, sourceRef.qualifiedPath]
+    return [sourceRef.path, sourceRef.relativePath, sourceRef.qualifiedPath]
         .filter((candidate) => Boolean(candidate))
         .map(normalizeComparablePath);
 }

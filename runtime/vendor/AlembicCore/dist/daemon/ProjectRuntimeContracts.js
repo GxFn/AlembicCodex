@@ -1,3 +1,4 @@
+import { getCoreFailureTaxonomyEntry } from '../shared/FailureTaxonomy.js';
 import { summarizeCoreFieldPolicies, validateCoreFieldPolicies } from '../shared/FieldTaxonomy.js';
 export const PROJECT_RUNTIME_CONTROL_STATE_SCHEMA_VERSION = 1;
 export const PROJECT_CONNECTION_STATES = [
@@ -202,6 +203,176 @@ export function summarizeProjectRuntimeFieldTaxonomy(policies = PROJECT_RUNTIME_
         contracts,
         contractVersion: PROJECT_RUNTIME_CONTRACT_VERSION,
     };
+}
+export const PROJECT_RUNTIME_FAILURE_REASON_TAXONOMY = [
+    {
+        canonicalFailureKind: 'invalid-input',
+        defaultReadinessState: 'blocked',
+        reason: 'project-identity-missing',
+        retryable: false,
+        service: 'project-identity',
+    },
+    {
+        canonicalFailureKind: 'not-found',
+        defaultReadinessState: 'blocked',
+        reason: 'project-not-registered',
+        retryable: false,
+        service: 'project-identity',
+    },
+    {
+        canonicalFailureKind: 'unavailable',
+        defaultReadinessState: 'blocked',
+        reason: 'project-scope-unavailable',
+        retryable: true,
+        service: 'project-scope',
+    },
+    {
+        canonicalFailureKind: 'unavailable',
+        defaultReadinessState: 'degraded',
+        reason: 'daemon-not-checked',
+        retryable: true,
+        service: 'daemon',
+    },
+    {
+        canonicalFailureKind: 'unavailable',
+        defaultReadinessState: 'degraded',
+        reason: 'daemon-starting',
+        retryable: true,
+        service: 'daemon',
+    },
+    {
+        canonicalFailureKind: 'degraded',
+        defaultReadinessState: 'degraded',
+        reason: 'daemon-stale',
+        retryable: true,
+        service: 'daemon',
+    },
+    {
+        canonicalFailureKind: 'host-failure',
+        defaultReadinessState: 'blocked',
+        reason: 'daemon-failed',
+        retryable: false,
+        service: 'daemon',
+    },
+    {
+        canonicalFailureKind: 'host-failure',
+        defaultReadinessState: 'blocked',
+        reason: 'daemon-missing',
+        retryable: false,
+        service: 'daemon',
+    },
+    {
+        canonicalFailureKind: 'unavailable',
+        defaultReadinessState: 'blocked',
+        reason: 'daemon-unavailable',
+        retryable: true,
+        service: 'daemon',
+    },
+    {
+        canonicalFailureKind: 'unavailable',
+        defaultReadinessState: 'blocked',
+        reason: 'jobs-unavailable',
+        retryable: true,
+        service: 'jobs',
+    },
+    {
+        canonicalFailureKind: 'provider-error',
+        defaultReadinessState: 'blocked',
+        reason: 'api-ai-unavailable',
+        retryable: true,
+        service: 'api-ai',
+    },
+    {
+        canonicalFailureKind: 'host-failure',
+        defaultReadinessState: 'blocked',
+        reason: 'dashboard-unavailable',
+        retryable: true,
+        service: 'dashboard',
+    },
+    {
+        canonicalFailureKind: 'host-failure',
+        defaultReadinessState: 'blocked',
+        reason: 'file-monitor-unavailable',
+        retryable: true,
+        service: 'file-monitor',
+    },
+    {
+        canonicalFailureKind: 'unavailable',
+        defaultReadinessState: 'blocked',
+        reason: 'runtime-unavailable',
+        retryable: true,
+        service: 'runtime',
+    },
+];
+export function validateProjectRuntimeFailureReasonTaxonomy(entries = PROJECT_RUNTIME_FAILURE_REASON_TAXONOMY) {
+    const issues = [];
+    const entriesByReason = new Map();
+    const expectedReasons = new Set(PROJECT_RUNTIME_FAILURE_REASONS);
+    for (const entry of entries) {
+        if (!expectedReasons.has(entry.reason)) {
+            issues.push({
+                code: 'unexpected-runtime-reason',
+                message: `Project runtime failure reason ${entry.reason} is not in PROJECT_RUNTIME_FAILURE_REASONS.`,
+                path: `${entry.reason}.reason`,
+                reason: entry.reason,
+            });
+        }
+        if (entriesByReason.has(entry.reason)) {
+            issues.push({
+                code: 'duplicate-runtime-reason',
+                message: `Project runtime failure reason ${entry.reason} is duplicated.`,
+                path: `${entry.reason}`,
+                reason: entry.reason,
+            });
+        }
+        entriesByReason.set(entry.reason, entry);
+        try {
+            getCoreFailureTaxonomyEntry(entry.canonicalFailureKind);
+        }
+        catch {
+            issues.push({
+                code: 'invalid-core-failure-kind',
+                message: `Project runtime failure reason ${entry.reason} maps to missing Core failure kind ${entry.canonicalFailureKind}.`,
+                path: `${entry.reason}.canonicalFailureKind`,
+                reason: entry.reason,
+            });
+        }
+    }
+    for (const reason of PROJECT_RUNTIME_FAILURE_REASONS) {
+        if (!entriesByReason.has(reason)) {
+            issues.push({
+                code: 'missing-runtime-reason',
+                message: `Project runtime failure reason ${reason} is missing a Core taxonomy mapping.`,
+                path: `${reason}`,
+                reason,
+            });
+        }
+    }
+    return {
+        contractVersion: PROJECT_RUNTIME_CONTRACT_VERSION,
+        issues,
+        reasonCount: entries.length,
+        valid: issues.length === 0,
+    };
+}
+export function summarizeProjectRuntimeFailureReasonTaxonomy(entries = PROJECT_RUNTIME_FAILURE_REASON_TAXONOMY) {
+    const byFailureKind = {};
+    for (const entry of entries) {
+        byFailureKind[entry.canonicalFailureKind] =
+            (byFailureKind[entry.canonicalFailureKind] ?? 0) + 1;
+    }
+    return {
+        byFailureKind,
+        contractVersion: PROJECT_RUNTIME_CONTRACT_VERSION,
+        reasonCount: entries.length,
+    };
+}
+export function getProjectRuntimeFailureReasonTaxonomy(reason) {
+    const entry = PROJECT_RUNTIME_FAILURE_REASON_TAXONOMY.find((candidate) => candidate.reason === reason);
+    if (!entry) {
+        throw new Error(`Missing ProjectRuntime failure taxonomy mapping for ${reason}.`);
+    }
+    return entry;
 }
 export function createProjectRuntimeControlState(options = {}) {
     const updatedAt = options.updatedAt ?? new Date(0).toISOString();

@@ -11,7 +11,6 @@ export interface IDEAgentSourceRef {
     folderId?: string;
     folderRelativeRoot?: string;
     line?: number;
-    legacyPath?: string;
     projectScopeId?: string;
     qualifiedPath?: string;
     relativePath?: string;

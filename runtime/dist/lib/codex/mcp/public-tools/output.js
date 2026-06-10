@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { CleanMcpResponseBaseSchema, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
-import { AGENT_PUBLIC_TOOL_ACTION_BY_NAME, AGENT_PUBLIC_TOOL_NAMES, AgentActionKindSchema, AgentDetailRefSchema, AgentHostSchema, AgentInputSourceSchema, AgentIntentKindSchema, AgentPublicToolNameSchema, AgentPublicToolReasonSchema, AgentPublicToolRefsSchema, AgentPublicToolResultEnvelopeSchema, AgentResultStatusSchema, PrimePublicPackageSchema, } from './contract.js';
+import { CleanMcpResponseBaseSchema, createCleanMcpError, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
+import { AGENT_PUBLIC_TOOL_ACTION_BY_NAME, AGENT_PUBLIC_TOOL_NAMES, AgentActionKindSchema, AgentDetailRefSchema, AgentHostSchema, AgentInputSourceSchema, AgentIntentKindSchema, AgentPublicToolNameSchema, AgentPublicToolReasonSchema, AgentPublicToolRefsSchema, AgentResultStatusSchema, PrimePublicPackageSchema, } from './contract.js';
 const PublicStringSchema = z.string().min(1).max(1200);
 const OptionalPublicStringSchema = z.string().max(1200).optional();
 const PublicStringArraySchema = z.array(PublicStringSchema).max(80);
@@ -268,14 +268,57 @@ export function createAgentPublicToolOutput(result, payload = {}, options = {}) 
         ...(result.reason ? { reason: result.reason } : {}),
         ...(!ok && result.reason
             ? {
-                error: {
-                    code: result.reason.code,
-                    message: result.reason.message,
-                },
+                error: createAgentPublicToolCleanError(result),
             }
             : {}),
     }, result.toolName);
     return AGENT_PUBLIC_TOOL_OUTPUT_SCHEMAS[result.toolName].parse(response);
+}
+function createAgentPublicToolCleanError(result) {
+    const reason = result.reason;
+    if (!reason) {
+        return undefined;
+    }
+    const detailRefIds = result.refs.detailRefs.map((ref) => ref.id);
+    const failureKind = mapAgentPublicReasonFailureKind(reason.code);
+    return createCleanMcpError({
+        code: reason.code,
+        details: {
+            publicReason: {
+                code: reason.code,
+                kind: reason.kind,
+                retryable: reason.retryable,
+            },
+            ...(detailRefIds.length > 0 ? { detailRefs: detailRefIds } : {}),
+        },
+        failureKind,
+        message: reason.message,
+        source: {
+            ...(detailRefIds.length > 0 ? { detailRefs: detailRefIds } : {}),
+            reasonCode: failureKind,
+            retryable: reason.retryable,
+        },
+        status: result.status,
+    });
+}
+const AGENT_PUBLIC_REASON_FAILURE_KINDS = {
+    'decision-register-capability-mismatch': 'capability-mismatch',
+    'decision-register-unavailable': 'unavailable',
+    'decision-scope-unconfirmed': 'needs-confirmation',
+    'detail-budget-limited': 'partial',
+    'handler-error': 'internal-error',
+    'knowledge-empty': 'unavailable',
+    'low-confidence-intent': 'degraded',
+    'optional-service-unavailable': 'unavailable',
+    'project-root-untrusted': 'permission-denied',
+    'project-scope-unavailable': 'unavailable',
+    'resident-unavailable': 'unavailable',
+    'result-envelope-invalid': 'schema-drift',
+    'schema-validation-failed': 'schema-drift',
+    'shared-contract-required': 'capability-mismatch',
+};
+function mapAgentPublicReasonFailureKind(reasonCode) {
+    return AGENT_PUBLIC_REASON_FAILURE_KINDS[reasonCode] ?? 'invalid-input';
 }
 function normalizeAgentPublicToolPayload(toolName, payload) {
     const normalized = { ...payload };
@@ -463,20 +506,7 @@ function describePayloadType(value) {
 }
 function projectAgentPublicToolOutput(input, toolName) {
     const schema = AGENT_PUBLIC_TOOL_OUTPUT_SCHEMAS[toolName];
-    const clean = schema.safeParse(input);
-    if (clean.success) {
-        return clean.data;
-    }
-    const legacy = input;
-    const maybeResult = legacy?.data?.result;
-    if (!maybeResult || typeof maybeResult !== 'object') {
-        return schema.parse(input);
-    }
-    const result = AgentPublicToolResultEnvelopeSchema.parse(maybeResult);
-    const { result: _result, ...payload } = legacy.data ?? {};
-    return createAgentPublicToolOutput(result, payload, {
-        ok: legacy.success !== false,
-    });
+    return schema.parse(input);
 }
 for (const toolName of AGENT_PUBLIC_TOOL_NAMES) {
     registerMcpOutputProjector({

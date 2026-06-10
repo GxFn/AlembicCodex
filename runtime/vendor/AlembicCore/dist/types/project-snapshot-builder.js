@@ -205,8 +205,7 @@ function normalizeCanonicalSourceIdentity(raw) {
     const identity = raw;
     const relativePath = normalizeOptionalString(identity.relativePath);
     const qualifiedPath = normalizeOptionalString(identity.qualifiedPath);
-    const legacyPath = normalizeOptionalString(identity.legacyPath) ?? relativePath;
-    if (!relativePath || !qualifiedPath || !legacyPath) {
+    if (!relativePath || !qualifiedPath) {
         return undefined;
     }
     return {
@@ -215,7 +214,6 @@ function normalizeCanonicalSourceIdentity(raw) {
         folderId: normalizeOptionalString(identity.folderId) ?? null,
         folderPath: normalizeOptionalString(identity.folderPath) ?? null,
         folderRelativeRoot: normalizeOptionalString(identity.folderRelativeRoot) ?? null,
-        legacyPath,
         projectScopeId: normalizeOptionalString(identity.projectScopeId) ?? null,
         qualifiedPath,
         relativePath,

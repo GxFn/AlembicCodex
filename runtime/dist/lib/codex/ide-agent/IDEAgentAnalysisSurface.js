@@ -23,8 +23,8 @@ export function buildIDEAgentAnalysisSurface(packet, options = {}) {
         retrieval: {
             requiredReadSet: projectRequiredReadSet(packet.requiredReadSet, packet.sourceRefs),
             retrievalHints: packet.retrievalHints,
-            sourceRefs: packet.sourceRefs,
-            structuralEvidenceRefs: packet.structuralEvidenceRefs,
+            sourceRefs: projectSourceRefsForSurface(packet.sourceRefs),
+            structuralEvidenceRefs: projectStructuralEvidenceRefsForSurface(packet.structuralEvidenceRefs),
         },
         progress: {
             checkpointKind: packet.progressSeed.checkpointKind,
@@ -116,7 +116,7 @@ function projectUnitSurface(unit) {
         moduleName: unit.moduleName,
         priority: unit.priority,
         reason: unit.reason,
-        sourceRefs: unit.sourceRefs,
+        sourceRefs: projectSourceRefsForSurface(unit.sourceRefs),
         requiredReadSet: projectRequiredReadSet(unit.requiredReadSet, unit.sourceRefs),
         completionContract: unit.completionContract,
         degraded: unit.degraded,
@@ -177,15 +177,40 @@ function indexSourceRefsByComparablePath(sourceRefs) {
     return index;
 }
 function comparableSourceRefPaths(sourceRef) {
-    return uniqueStrings([
-        sourceRef.path,
-        sourceRef.legacyPath,
-        sourceRef.relativePath,
-        sourceRef.qualifiedPath,
-    ]);
+    if (sourceRef.projectScopeId && sourceRef.qualifiedPath) {
+        return [sourceRef.qualifiedPath];
+    }
+    return uniqueStrings([sourceRef.qualifiedPath, sourceRef.path, sourceRef.relativePath]);
 }
 function readableSourcePath(sourceRef) {
     return sourceRef.qualifiedPath ?? sourceRef.path;
+}
+function projectStructuralEvidenceRefsForSurface(refs) {
+    return refs.map((ref) => ({
+        ...ref,
+        ...(ref.sourceRefs ? { sourceRefs: projectSourceRefsForSurface(ref.sourceRefs) } : {}),
+    }));
+}
+function projectSourceRefsForSurface(sourceRefs) {
+    return sourceRefs.map(projectSourceRefForSurface);
+}
+function projectSourceRefForSurface(sourceRef) {
+    return {
+        path: sourceRef.path,
+        ...(sourceRef.alias ? { alias: sourceRef.alias } : {}),
+        ...(sourceRef.displayName ? { displayName: sourceRef.displayName } : {}),
+        ...(sourceRef.entityType ? { entityType: sourceRef.entityType } : {}),
+        ...(sourceRef.folderDisplayName ? { folderDisplayName: sourceRef.folderDisplayName } : {}),
+        ...(sourceRef.folderId ? { folderId: sourceRef.folderId } : {}),
+        ...(sourceRef.folderRelativeRoot ? { folderRelativeRoot: sourceRef.folderRelativeRoot } : {}),
+        ...(sourceRef.fqn ? { fqn: sourceRef.fqn } : {}),
+        ...(typeof sourceRef.line === 'number' ? { line: sourceRef.line } : {}),
+        ...(sourceRef.projectScopeId ? { projectScopeId: sourceRef.projectScopeId } : {}),
+        ...(sourceRef.qualifiedPath ? { qualifiedPath: sourceRef.qualifiedPath } : {}),
+        ...(sourceRef.relativePath ? { relativePath: sourceRef.relativePath } : {}),
+        ...(sourceRef.role ? { role: sourceRef.role } : {}),
+        ...(sourceRef.symbol ? { symbol: sourceRef.symbol } : {}),
+    };
 }
 function normalizeComparablePath(pathValue) {
     return pathValue.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+/g, '/');

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CleanMcpFailureTaxonomySchema, createCleanMcpFailureTaxonomy, sanitizeCleanMcpErrorDetails, } from './error-taxonomy.js';
 import { zodToMcpSchema } from './zodToMcpSchema.js';
 export const CLEAN_MCP_OUTPUT_CONTRACT_VERSION = 1;
 export const CleanMcpStatusSchema = z
@@ -6,13 +7,11 @@ export const CleanMcpStatusSchema = z
     .min(1)
     .max(80)
     .regex(/^[a-z][a-z0-9-]*$/);
-export const CleanMcpErrorSchema = z
-    .object({
+export const CleanMcpErrorSchema = CleanMcpFailureTaxonomySchema.extend({
     code: z.string().min(1).max(120),
-    message: z.string().min(1),
     details: z.unknown().optional(),
-})
-    .strict();
+    message: z.string().min(1),
+}).strict();
 export const CleanMcpMetaSchema = z
     .object({
     contractVersion: z.literal(CLEAN_MCP_OUTPUT_CONTRACT_VERSION),
@@ -82,16 +81,33 @@ export function createCleanMcpResponse(input, toolName) {
         },
     });
 }
+export function createCleanMcpError(input) {
+    const details = sanitizeCleanMcpErrorDetails(input.details);
+    return CleanMcpErrorSchema.parse({
+        code: input.code,
+        message: input.message,
+        ...createCleanMcpFailureTaxonomy({
+            code: input.code,
+            details,
+            failureKind: input.failureKind,
+            source: input.source,
+            status: input.status,
+        }),
+        ...(details === undefined ? {} : { details }),
+    });
+}
 export function createCleanMcpErrorResponse(input) {
     return createCleanMcpResponse({
         ok: false,
         status: input.status ?? 'failed',
         summary: input.message,
-        error: {
+        error: createCleanMcpError({
             code: input.code,
+            failureKind: input.failureKind,
             message: input.message,
+            status: input.status,
             ...(input.details === undefined ? {} : { details: input.details }),
-        },
+        }),
         meta: {
             ...(input.responseTimeMs === undefined ? {} : { responseTimeMs: input.responseTimeMs }),
         },
@@ -141,16 +157,21 @@ function projectLegacyErrorAsCleanResponse(toolName, value) {
     const record = value && typeof value === 'object' ? value : {};
     const data = record.data && typeof record.data === 'object' ? record.data : {};
     const code = (typeof record.errorCode === 'string' && record.errorCode) ||
+        readErrorDetailString(record.error, 'code') ||
+        readErrorDetailString(record.error, 'mcpErrorCode') ||
         (typeof data.errorCode === 'string' && data.errorCode) ||
+        readErrorDetailString(data.error, 'code') ||
+        readErrorDetailString(data.error, 'mcpErrorCode') ||
         'TOOL_FAILED';
     const message = (typeof record.message === 'string' && record.message) ||
+        readErrorDetailString(record.error, 'message') ||
         (typeof data.message === 'string' && data.message) ||
+        readErrorDetailString(data.error, 'message') ||
         `MCP tool ${toolName} failed.`;
+    const errorDetails = pickLegacyErrorDetails(record, data);
     return createCleanMcpErrorResponse({
         code,
-        details: {
-            payloadType: describePayloadType(value),
-        },
+        details: errorDetails ?? { payloadType: describePayloadType(value) },
         message,
         status: normalizeStatus(record.status) ?? 'failed',
         toolName,
@@ -170,4 +191,26 @@ function describePayloadType(value) {
         return 'array';
     }
     return typeof value;
+}
+function pickLegacyErrorDetails(record, data) {
+    if (record.error && typeof record.error === 'object') {
+        return {
+            ...record.error,
+            payloadType: describePayloadType(record),
+        };
+    }
+    if (data.error && typeof data.error === 'object') {
+        return {
+            ...data.error,
+            payloadType: describePayloadType(record),
+        };
+    }
+    return null;
+}
+function readErrorDetailString(value, key) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
+    }
+    const field = value[key];
+    return typeof field === 'string' && field.length > 0 ? field : null;
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CleanMcpResponseBaseSchema, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
+import { CleanMcpResponseBaseSchema, createCleanMcpError, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
 export const CODEX_LOCAL_CLEAN_OUTPUT_TOOL_NAMES = [
     'alembic_codex_status',
     'alembic_codex_diagnostics',
@@ -40,6 +40,22 @@ export const CODEX_LOCAL_IMPLICIT_RUNTIME_OUTPUT_KEYS = new Set([
     'projectRuntime',
     'residentService',
     'serviceBoundary',
+]);
+const CODEX_LOCAL_SENSITIVE_OUTPUT_KEYS = new Set([
+    'accesstoken',
+    'apikey',
+    'authheader',
+    'authorization',
+    'bearertoken',
+    'cookie',
+    'internaltelemetry',
+    'password',
+    'privatedaemonurl',
+    'providerprivatetrace',
+    'refreshtoken',
+    'secret',
+    'secrettoken',
+    'setcookie',
 ]);
 const RESERVED_TOP_LEVEL_FIELD_RENAMES = {
     data: 'businessData',
@@ -144,24 +160,30 @@ export function projectCodexLocalToolOutput(input, toolName) {
     const business = sanitizeBusinessFields(businessSource, toolName);
     const ok = typeof legacy.success === 'boolean' ? legacy.success : legacy.errorCode == null;
     const cleanMeta = pickCleanMeta(legacy.meta);
-    const reasonCode = extractReasonCode(legacy, businessSource);
+    const errorDetails = pickLegacyErrorDetails(legacy, businessSource);
+    const reasonCode = extractReasonCode(legacy, businessSource, errorDetails);
     const summary = buildCodexLocalToolSummary(toolName, {
         business,
+        errorDetails,
         message: typeof legacy.message === 'string' ? legacy.message : '',
         ok,
     });
+    const status = deriveCodexLocalToolStatus({ business, ok, reasonCode, toolName });
     const response = createCleanMcpResponse({
         ...business,
         ok,
-        status: deriveCodexLocalToolStatus({ business, ok, reasonCode, toolName }),
+        status,
         summary,
         toolName,
         ...(!ok
             ? {
-                error: {
+                error: createCleanMcpError({
                     code: reasonCode || 'CODEX_MCP_ERROR',
+                    ...(errorDetails === null ? {} : { details: errorDetails }),
                     message: summary,
-                },
+                    source: errorDetails ?? legacy,
+                    status,
+                }),
             }
             : {}),
         ...(cleanMeta ? { meta: cleanMeta } : {}),
@@ -184,6 +206,9 @@ export function findForbiddenCodexLocalOutputField(value, toolName, path = []) {
     for (const [key, child] of Object.entries(value)) {
         if (path.length === 0 && CODEX_LOCAL_FORBIDDEN_TOP_LEVEL_OUTPUT_KEYS.has(key)) {
             return { path: [key] };
+        }
+        if (path[0] !== 'meta' && isSensitiveCodexLocalOutputKey(key)) {
+            return { path: [...path, key] };
         }
         if (path[0] !== 'meta' && shouldForbidRuntimeField(key, toolName)) {
             return { path: [...path, key] };
@@ -281,7 +306,7 @@ function sanitizeBusinessValue(value, toolName) {
     }
     const out = {};
     for (const [key, child] of Object.entries(value)) {
-        if (shouldStripRuntimeField(key, toolName)) {
+        if (shouldStripRuntimeField(key, toolName) || isSensitiveCodexLocalOutputKey(key)) {
             continue;
         }
         const sanitized = sanitizeBusinessValue(child, toolName);
@@ -324,6 +349,10 @@ function shouldForbidRuntimeField(key, toolName) {
 function isRuntimeDiagnosticTool(toolName) {
     return CODEX_LOCAL_RUNTIME_DIAGNOSTIC_TOOL_NAMES.includes(toolName);
 }
+function isSensitiveCodexLocalOutputKey(key) {
+    const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    return CODEX_LOCAL_SENSITIVE_OUTPUT_KEYS.has(normalized);
+}
 function pickCleanMeta(value) {
     if (!isRecord(value)) {
         return null;
@@ -336,11 +365,29 @@ function pickCleanMeta(value) {
     }
     return Object.keys(out).length > 0 ? out : null;
 }
-function extractReasonCode(legacy, businessSource) {
+function extractReasonCode(legacy, businessSource, errorDetails) {
     if (isRecord(businessSource) && typeof businessSource.errorCode === 'string') {
         return businessSource.errorCode;
     }
-    return typeof legacy.errorCode === 'string' ? legacy.errorCode : null;
+    if (typeof legacy.errorCode === 'string') {
+        return legacy.errorCode;
+    }
+    for (const key of ['code', 'mcpErrorCode', 'reasonCode']) {
+        const value = errorDetails?.[key];
+        if (typeof value === 'string' && value.length > 0) {
+            return value;
+        }
+    }
+    return null;
+}
+function pickLegacyErrorDetails(legacy, businessSource) {
+    if (isRecord(legacy.error)) {
+        return legacy.error;
+    }
+    if (isRecord(businessSource) && isRecord(businessSource.error)) {
+        return businessSource.error;
+    }
+    return null;
 }
 function deriveCodexLocalToolStatus(input) {
     if (!input.ok) {
@@ -360,6 +407,9 @@ function deriveCodexLocalToolStatus(input) {
 function buildCodexLocalToolSummary(toolName, input) {
     if (input.message.trim()) {
         return input.message.trim();
+    }
+    if (!input.ok && typeof input.errorDetails?.message === 'string') {
+        return input.errorDetails.message;
     }
     if (!input.ok) {
         return `${toolName} blocked.`;

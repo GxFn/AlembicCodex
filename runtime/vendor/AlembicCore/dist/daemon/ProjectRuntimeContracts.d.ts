@@ -1,4 +1,4 @@
-import type { CoreFieldPolicy, CoreFieldPolicySummary, CoreFieldPolicyValidationResult } from '../shared/FieldTaxonomy.js';
+import type { CoreFieldFailureKind, CoreFieldPolicy, CoreFieldPolicySummary, CoreFieldPolicyValidationResult } from '../shared/FieldTaxonomy.js';
 import type { WorkspaceMode } from '../shared/ProjectRegistry.js';
 import type { ProjectScopeSummary } from '../shared/ProjectScope.js';
 import type { DaemonJobStatus } from './JobStore.js';
@@ -343,6 +343,118 @@ export declare const PROJECT_RUNTIME_FIELD_POLICIES: readonly [{
 }];
 export declare function validateProjectRuntimeFieldTaxonomy(policies?: readonly ProjectRuntimeFieldPolicy[]): ProjectRuntimeFieldTaxonomyValidationResult;
 export declare function summarizeProjectRuntimeFieldTaxonomy(policies?: readonly ProjectRuntimeFieldPolicy[]): ProjectRuntimeFieldTaxonomySummary;
+export interface ProjectRuntimeFailureReasonTaxonomyEntry {
+    canonicalFailureKind: CoreFieldFailureKind;
+    defaultReadinessState: ProjectRuntimeReadinessState;
+    reason: ProjectRuntimeFailureReason;
+    retryable: boolean;
+    service: ProjectRuntimeRequiredService | 'runtime';
+}
+export interface ProjectRuntimeFailureReasonTaxonomyValidationIssue {
+    code: 'missing-runtime-reason' | 'unexpected-runtime-reason' | 'duplicate-runtime-reason' | 'invalid-core-failure-kind';
+    message: string;
+    path: string;
+    reason?: string;
+}
+export interface ProjectRuntimeFailureReasonTaxonomyValidationResult {
+    contractVersion: typeof PROJECT_RUNTIME_CONTRACT_VERSION;
+    issues: ProjectRuntimeFailureReasonTaxonomyValidationIssue[];
+    reasonCount: number;
+    valid: boolean;
+}
+export interface ProjectRuntimeFailureReasonTaxonomySummary {
+    byFailureKind: Partial<Record<CoreFieldFailureKind, number>>;
+    contractVersion: typeof PROJECT_RUNTIME_CONTRACT_VERSION;
+    reasonCount: number;
+}
+export declare const PROJECT_RUNTIME_FAILURE_REASON_TAXONOMY: readonly [{
+    readonly canonicalFailureKind: "invalid-input";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "project-identity-missing";
+    readonly retryable: false;
+    readonly service: "project-identity";
+}, {
+    readonly canonicalFailureKind: "not-found";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "project-not-registered";
+    readonly retryable: false;
+    readonly service: "project-identity";
+}, {
+    readonly canonicalFailureKind: "unavailable";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "project-scope-unavailable";
+    readonly retryable: true;
+    readonly service: "project-scope";
+}, {
+    readonly canonicalFailureKind: "unavailable";
+    readonly defaultReadinessState: "degraded";
+    readonly reason: "daemon-not-checked";
+    readonly retryable: true;
+    readonly service: "daemon";
+}, {
+    readonly canonicalFailureKind: "unavailable";
+    readonly defaultReadinessState: "degraded";
+    readonly reason: "daemon-starting";
+    readonly retryable: true;
+    readonly service: "daemon";
+}, {
+    readonly canonicalFailureKind: "degraded";
+    readonly defaultReadinessState: "degraded";
+    readonly reason: "daemon-stale";
+    readonly retryable: true;
+    readonly service: "daemon";
+}, {
+    readonly canonicalFailureKind: "host-failure";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "daemon-failed";
+    readonly retryable: false;
+    readonly service: "daemon";
+}, {
+    readonly canonicalFailureKind: "host-failure";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "daemon-missing";
+    readonly retryable: false;
+    readonly service: "daemon";
+}, {
+    readonly canonicalFailureKind: "unavailable";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "daemon-unavailable";
+    readonly retryable: true;
+    readonly service: "daemon";
+}, {
+    readonly canonicalFailureKind: "unavailable";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "jobs-unavailable";
+    readonly retryable: true;
+    readonly service: "jobs";
+}, {
+    readonly canonicalFailureKind: "provider-error";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "api-ai-unavailable";
+    readonly retryable: true;
+    readonly service: "api-ai";
+}, {
+    readonly canonicalFailureKind: "host-failure";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "dashboard-unavailable";
+    readonly retryable: true;
+    readonly service: "dashboard";
+}, {
+    readonly canonicalFailureKind: "host-failure";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "file-monitor-unavailable";
+    readonly retryable: true;
+    readonly service: "file-monitor";
+}, {
+    readonly canonicalFailureKind: "unavailable";
+    readonly defaultReadinessState: "blocked";
+    readonly reason: "runtime-unavailable";
+    readonly retryable: true;
+    readonly service: "runtime";
+}];
+export declare function validateProjectRuntimeFailureReasonTaxonomy(entries?: readonly ProjectRuntimeFailureReasonTaxonomyEntry[]): ProjectRuntimeFailureReasonTaxonomyValidationResult;
+export declare function summarizeProjectRuntimeFailureReasonTaxonomy(entries?: readonly ProjectRuntimeFailureReasonTaxonomyEntry[]): ProjectRuntimeFailureReasonTaxonomySummary;
+export declare function getProjectRuntimeFailureReasonTaxonomy(reason: ProjectRuntimeFailureReason): ProjectRuntimeFailureReasonTaxonomyEntry;
 export declare function createProjectRuntimeControlState(options?: CreateProjectRuntimeControlStateOptions): ProjectRuntimeControlState;
 export declare function createProjectRuntimeIdentityContract(options?: CreateProjectRuntimeIdentityContractOptions): ProjectRuntimeIdentityContract;
 export declare function createProjectRuntimeIdentityContractFromScopeSummary(scope: ProjectRuntimeScopeSummary | null): ProjectRuntimeIdentityContract | null;

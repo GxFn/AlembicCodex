@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CleanMcpResponseBaseSchema, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
+import { CleanMcpResponseBaseSchema, createCleanMcpError, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
 export const CORE_CLEAN_OUTPUT_TOOL_NAMES = [
     'alembic_health',
     'alembic_search',
@@ -49,6 +49,22 @@ export const CORE_FORBIDDEN_TOP_LEVEL_OUTPUT_KEYS = new Set([
     'message',
     'result',
     'success',
+]);
+const CORE_SENSITIVE_BUSINESS_OUTPUT_KEYS = new Set([
+    'accesstoken',
+    'apikey',
+    'authheader',
+    'authorization',
+    'bearertoken',
+    'cookie',
+    'internaltelemetry',
+    'password',
+    'privatedaemonurl',
+    'providerprivatetrace',
+    'refreshtoken',
+    'secret',
+    'secrettoken',
+    'setcookie',
 ]);
 const RESERVED_TOP_LEVEL_FIELD_RENAMES = {
     data: 'businessData',
@@ -355,24 +371,30 @@ export function projectCoreToolOutput(input, toolName) {
     const ok = typeof legacy.success === 'boolean' ? legacy.success : legacy.errorCode == null;
     const business = sanitizeBusinessFields(extractLegacyBusinessValue(legacy), toolName);
     const cleanMeta = pickCleanMeta(legacy.meta);
+    const errorDetails = pickLegacyErrorDetails(legacy);
     const summary = buildCoreToolSummary(toolName, {
         business,
+        errorDetails,
         message: typeof legacy.message === 'string' ? legacy.message : '',
         ok,
     });
-    const errorCode = typeof legacy.errorCode === 'string' ? legacy.errorCode : null;
+    const errorCode = extractLegacyErrorCode(legacy, errorDetails);
+    const status = deriveCoreToolStatus({ business, errorCode, ok });
     const response = createCleanMcpResponse({
         ...business,
         ok,
-        status: deriveCoreToolStatus({ business, errorCode, ok }),
+        status,
         summary,
         toolName,
         ...(!ok
             ? {
-                error: {
+                error: createCleanMcpError({
                     code: errorCode || 'TOOL_FAILED',
+                    ...(errorDetails === null ? {} : { details: errorDetails }),
                     message: summary,
-                },
+                    source: errorDetails ?? legacy,
+                    status,
+                }),
             }
             : {}),
         ...(cleanMeta ? { meta: cleanMeta } : {}),
@@ -395,6 +417,9 @@ export function findForbiddenCoreOutputField(value, path = []) {
     for (const [key, child] of Object.entries(value)) {
         if (path.length === 0 && CORE_FORBIDDEN_TOP_LEVEL_OUTPUT_KEYS.has(key)) {
             return { path: [key] };
+        }
+        if (path[0] !== 'meta' && isSensitiveCoreOutputKey(key)) {
+            return { path: [...path, key] };
         }
         if (path[0] !== 'meta' && CORE_FORBIDDEN_BUSINESS_OUTPUT_KEYS.has(key)) {
             return { path: [...path, key] };
@@ -463,7 +488,7 @@ function sanitizeBusinessValue(value) {
     }
     const out = {};
     for (const [key, child] of Object.entries(value)) {
-        if (CORE_FORBIDDEN_BUSINESS_OUTPUT_KEYS.has(key)) {
+        if (CORE_FORBIDDEN_BUSINESS_OUTPUT_KEYS.has(key) || isSensitiveCoreOutputKey(key)) {
             continue;
         }
         const sanitized = sanitizeBusinessValue(child);
@@ -503,6 +528,27 @@ function pickCleanMeta(value) {
     }
     return Object.keys(out).length > 0 ? out : null;
 }
+function extractLegacyErrorCode(legacy, errorDetails) {
+    if (typeof legacy.errorCode === 'string' && legacy.errorCode.length > 0) {
+        return legacy.errorCode;
+    }
+    for (const key of ['code', 'mcpErrorCode', 'reasonCode']) {
+        const value = errorDetails?.[key];
+        if (typeof value === 'string' && value.length > 0) {
+            return value;
+        }
+    }
+    return null;
+}
+function pickLegacyErrorDetails(legacy) {
+    if (isRecord(legacy.error)) {
+        return legacy.error;
+    }
+    if (isRecord(legacy.data) && isRecord(legacy.data.error)) {
+        return legacy.data.error;
+    }
+    return null;
+}
 function deriveCoreToolStatus(input) {
     if (!input.ok) {
         return 'blocked';
@@ -524,6 +570,9 @@ function deriveCoreToolStatus(input) {
 function buildCoreToolSummary(toolName, input) {
     if (input.message.trim()) {
         return input.message.trim();
+    }
+    if (!input.ok && typeof input.errorDetails?.message === 'string') {
+        return input.errorDetails.message;
     }
     if (!input.ok) {
         return `${toolName} blocked.`;
@@ -567,6 +616,10 @@ function buildCoreToolSummary(toolName, input) {
 }
 function numberField(value) {
     return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+function isSensitiveCoreOutputKey(key) {
+    const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    return CORE_SENSITIVE_BUSINESS_OUTPUT_KEYS.has(normalized);
 }
 function isRecord(value) {
     return !!value && typeof value === 'object' && !Array.isArray(value);

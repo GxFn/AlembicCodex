@@ -3,7 +3,7 @@ export declare const CORE_PRIVATE_FIELD_CLASSES: readonly ["internal", "sensitiv
 export declare const CORE_SCHEMA_CLOSURE_POLICIES: readonly ["strict", "typed-extension", "diagnostic-ref", "detailRef-only", "artifactRef-only", "compatibility-gated", "private-adapter"];
 export declare const CORE_INTERFACE_ROLES: readonly ["producer-contract", "consumer-projection", "diagnostic-extension", "compatibility-bridge", "internal-runtime"];
 export declare const CORE_DIAGNOSTIC_POLICIES: readonly ["none", "diagnostic-context", "redacted-summary", "detailRef", "artifactRef"];
-export declare const CORE_FIELD_FAILURE_KINDS: readonly ["invalid-input", "unavailable", "capability-mismatch", "not-found", "conflict", "permission-denied", "timeout", "cancelled", "partial", "degraded", "internal-error", "schema-drift", "sensitive-leak"];
+export declare const CORE_FIELD_FAILURE_KINDS: readonly ["invalid-input", "unavailable", "capability-mismatch", "not-found", "conflict", "permission-denied", "timeout", "cancelled", "partial", "degraded", "needs-confirmation", "provider-error", "host-failure", "internal-error", "schema-drift", "sensitive-leak"];
 export type CoreFieldClass = (typeof CORE_FIELD_CLASSES)[number];
 export type CorePrivateFieldClass = (typeof CORE_PRIVATE_FIELD_CLASSES)[number];
 export type CoreSchemaClosurePolicy = (typeof CORE_SCHEMA_CLOSURE_POLICIES)[number];

@@ -74,29 +74,29 @@ export async function auditRecipesForRescan(opts) {
 }
 function buildComparableFilePathSet(allFiles, projectRoot) {
     const paths = new Set();
-    const legacyBuckets = new Map();
+    const unqualifiedBuckets = new Map();
     for (const file of allFiles) {
         addComparablePath(paths, file.sourceIdentity?.qualifiedPath);
         addComparablePath(paths, file.relativePath);
         addComparablePath(paths, file.name);
         addComparablePath(paths, file.path);
-        if (file.sourceIdentity?.legacyPath && file.sourceIdentity.qualifiedPath) {
-            const legacy = normalizeComparablePath(file.sourceIdentity.legacyPath);
-            const bucket = legacyBuckets.get(legacy) ?? new Set();
+        if (file.sourceIdentity?.relativePath && file.sourceIdentity.qualifiedPath) {
+            const unqualified = normalizeComparablePath(file.sourceIdentity.relativePath);
+            const bucket = unqualifiedBuckets.get(unqualified) ?? new Set();
             bucket.add(normalizeComparablePath(file.sourceIdentity.qualifiedPath));
-            legacyBuckets.set(legacy, bucket);
+            unqualifiedBuckets.set(unqualified, bucket);
         }
         if (file.path && projectRoot && path.isAbsolute(file.path)) {
             addComparablePath(paths, path.relative(projectRoot, file.path));
         }
     }
-    const ambiguousLegacyPaths = new Set([...legacyBuckets.entries()]
+    const ambiguousUnqualifiedPaths = new Set([...unqualifiedBuckets.entries()]
         .filter(([, qualifiedPaths]) => qualifiedPaths.size > 1)
-        .map(([legacyPath]) => legacyPath));
-    for (const ambiguous of ambiguousLegacyPaths) {
+        .map(([unqualifiedPath]) => unqualifiedPath));
+    for (const ambiguous of ambiguousUnqualifiedPaths) {
         paths.delete(ambiguous);
     }
-    return { ambiguousLegacyPaths, paths };
+    return { ambiguousUnqualifiedPaths, paths };
 }
 function addComparablePath(paths, value) {
     const normalized = normalizeComparablePath(value);
@@ -280,7 +280,7 @@ function buildLifecycleEvidence(entry, filePathSet) {
 function hasComparablePath(index, value) {
     const normalized = normalizeComparablePath(value);
     return (Boolean(normalized) &&
-        !index.ambiguousLegacyPaths.has(normalized) &&
+        !index.ambiguousUnqualifiedPaths.has(normalized) &&
         index.paths.has(normalized));
 }
 // ── 共用工具 ────────────────────────────────────────────

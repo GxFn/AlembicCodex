@@ -114,7 +114,6 @@ export interface CanonicalSourceIdentity {
     folderId: string | null;
     folderPath: string | null;
     folderRelativeRoot: string | null;
-    legacyPath: string;
     projectScopeId: string | null;
     qualifiedPath: string;
     relativePath: string;
@@ -128,7 +127,7 @@ export interface CanonicalSourceIdentityInput {
     relativePath?: string | null;
     sourcePath: string;
 }
-export type ProjectScopeSourceRefResolutionStatus = 'resolved' | 'missing' | 'ambiguous';
+export type ProjectScopeSourceRefResolutionStatus = 'resolved' | 'missing';
 export interface ProjectScopeSourceRefResolution {
     identity: CanonicalSourceIdentity | null;
     input: string;
@@ -136,21 +135,16 @@ export interface ProjectScopeSourceRefResolution {
     status: ProjectScopeSourceRefResolutionStatus;
 }
 export interface ProjectScopeSourceRefIndex {
-    ambiguousBasenames?: ReadonlySet<string>;
-    ambiguousLegacyPaths: ReadonlySet<string>;
-    byBasename?: ReadonlyMap<string, CanonicalSourceIdentity>;
-    byLegacyPath: ReadonlyMap<string, CanonicalSourceIdentity>;
     byQualifiedPath: ReadonlyMap<string, CanonicalSourceIdentity>;
 }
-export type ProjectScopeSourceRefNormalizationStatus = 'active' | 'missing' | 'ambiguous';
-export type ProjectScopeSourceRefNormalizationReason = 'qualified-path' | 'unique-legacy-path' | 'unique-basename' | 'ambiguous-legacy-path' | 'ambiguous-basename' | 'not-found';
+export type ProjectScopeSourceRefNormalizationStatus = 'active' | 'missing';
+export type ProjectScopeSourceRefNormalizationReason = 'qualified-path' | 'not-found';
 export interface NormalizedProjectScopeSourceRef {
     absolutePath: string | null;
     folderDisplayName: string | null;
     folderId: string | null;
     folderPath: string | null;
     input: string;
-    legacyPath: string | null;
     normalizedRef: string | null;
     projectScopeId: string | null;
     qualifiedPath: string | null;

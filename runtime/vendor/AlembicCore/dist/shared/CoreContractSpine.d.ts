@@ -324,15 +324,14 @@ export declare const CORE_CONTRACT_SPINE_FIELD_POLICIES: readonly [{
     readonly rowId: "I04";
     readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts", "npm run build:check"];
 }, {
-    readonly cleanupTrigger: "Remove after D24/D29 import scans and fixture replay prove no product consumer reads legacyPath/byLegacyPath.";
     readonly consumers: readonly ["Alembic", "AlembicAgent", "AlembicPlugin", "AlembicDashboard"];
     readonly diagnosticPolicy: "none";
-    readonly extensionPolicy: "compatibility-gated";
+    readonly extensionPolicy: "strict";
     readonly failureKinds: readonly ["invalid-input", "conflict", "not-found"];
-    readonly fieldClass: "compatibility-private";
-    readonly fieldPath: "rows.I05.projectScope.legacyPath";
-    readonly interfaceRole: "compatibility-bridge";
-    readonly ordinaryOutputAllowed: false;
+    readonly fieldClass: "consumer-needed";
+    readonly fieldPath: "rows.I05.projectScope.qualifiedPath";
+    readonly interfaceRole: "consumer-projection";
+    readonly ordinaryOutputAllowed: true;
     readonly owner: "AlembicCore";
     readonly rowId: "I05";
     readonly validationCommands: readonly ["npm run test -- ProjectScopeContracts", "npm run check"];
@@ -465,20 +464,20 @@ export declare const CORE_LEGACY_CONTRACT_CONVERGENCE_CANDIDATES: readonly [{
     readonly status: "preserved-with-owner";
     readonly validationCommands: readonly ["npm run test -- RuntimeContracts SourceContracts", "rg -n \"compatibilityAliases|ide-edit\" Alembic AlembicDashboard -g \"!**/vendor/**\" -g \"!**/dist/**\""];
 }, {
-    readonly cleanupBlocker: "Alembic provider project-scope analysis, AlembicAgent evidence, Plugin IDE-agent surfaces, and Dashboard project-scope UI still consume legacyPath compatibility data.";
-    readonly currentCompatibilityOwner: readonly ["Alembic provider ProjectScopeAnalysis", "AlembicAgent source evidence", "AlembicPlugin IDEAgentAnalysisSurface", "AlembicDashboard ProjectScopePanel"];
-    readonly currentConsumers: readonly ["Alembic", "AlembicAgent", "AlembicPlugin", "AlembicDashboard"];
-    readonly decisionRationale: "Qualified refs are mandatory for new Core-normalized paths, while legacyPath stays as compatibility input/output with explicit ambiguity behavior.";
+    readonly cleanupBlocker: "Already satisfied by CR1 accepted consumer commits and Core canonical-only source-ref deletion.";
+    readonly currentCompatibilityOwner: readonly [];
+    readonly currentConsumers: readonly [];
+    readonly decisionRationale: "CR1 moved active consumers to projectScopeId and repo-qualified paths, so Core no longer keeps short-path alias lookup as a product contract.";
     readonly id: "D9-C03";
-    readonly legacySurface: "legacyPath, byLegacyPath, unique-legacy-path, and ambiguous-legacy-path source-ref compatibility.";
-    readonly publicExposurePolicy: "qualifiedPath/projectScopeId are first-class; legacyPath is compatibility-only and ambiguous legacy refs must be rejected.";
+    readonly legacySurface: "Old ProjectScope short-path source-ref alias index and resolution reasons.";
+    readonly publicExposurePolicy: "Deleted; product-facing ProjectScope lookup and output use projectScopeId plus repo-qualified paths only.";
     readonly registryRows: readonly ["I05"];
-    readonly removalTrigger: "No current product source or fixture consumes legacyPath/byLegacyPath and qualifiedPath fixture replay passes across provider, Agent, Plugin, and Dashboard.";
+    readonly removalTrigger: "Satisfied by CR1 accepted consumer commits cd501f9215da3ee1fa2f1af5c99ec485d92b6aa6, fce85ee581dec99f37658e025a7eef331f4db009, and 8bf5115782929514ac762f307cde3f7378936516.";
     readonly replacementContract: "ProjectScope source refs keyed by projectScopeId and repo-qualified qualifiedPath.";
     readonly requiredExportPaths: readonly ["./shared"];
     readonly sourceFiles: readonly ["src/shared/ProjectScope.ts"];
-    readonly status: "preserved-with-owner";
-    readonly validationCommands: readonly ["npm run test -- ProjectScopeContracts", "rg -n \"legacyPath|byLegacyPath|ambiguous-legacy-path|unique-legacy-path\" Alembic AlembicAgent AlembicPlugin AlembicDashboard -g \"!**/vendor/**\" -g \"!**/dist/**\""];
+    readonly status: "deleted";
+    readonly validationCommands: readonly ["npm run test -- ProjectScopeContracts CoreContractSpine", "npm run smoke:public-api"];
 }, {
     readonly cleanupBlocker: "No active product consumer remains after D9 alias import scan; keep BM25Scorer class but do not reintroduce BM25* type aliases.";
     readonly currentCompatibilityOwner: readonly [];

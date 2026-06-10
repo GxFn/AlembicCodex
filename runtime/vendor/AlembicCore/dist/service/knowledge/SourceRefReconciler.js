@@ -60,88 +60,14 @@ export class SourceRefReconciler {
         const rows = await this.#knowledgeRepo.findAllIdAndReasoning();
         const now = Date.now();
         for (const row of rows) {
-            let sources = [];
-            try {
-                const reasoning = JSON.parse(row.reasoning);
-                sources = Array.isArray(reasoning.sources)
-                    ? reasoning.sources.filter((s) => typeof s === 'string' && s.length > 0)
-                    : [];
-            }
-            catch {
-                continue;
-            }
+            const sources = this.#parseReasoningSources(row.reasoning);
             if (sources.length === 0) {
                 continue;
             }
             report.recipesProcessed++;
-            const sourcesSet = new Set(sources);
-            // 反向清理：删除不再出现在 reasoning.sources 中的旧行
-            const existingRefs = this.#sourceRefRepo.findByRecipeId(row.id);
-            for (const ref of existingRefs) {
-                if (!sourcesSet.has(ref.sourcePath)) {
-                    this.#sourceRefRepo.deleteOne(row.id, ref.sourcePath);
-                    report.cleaned = (report.cleaned ?? 0) + 1;
-                }
-            }
+            this.#deleteDroppedSourceRefs(row.id, sources, report);
             for (const sourcePath of sources) {
-                // 检查是否已有记录
-                const existing = this.#sourceRefRepo.findOne(row.id, sourcePath);
-                if (existing && !force) {
-                    // TTL 检查：跳过近期已验证的条目
-                    if (now - existing.verifiedAt < this.#ttlMs) {
-                        report.skipped++;
-                        if (existing.status === 'active') {
-                            report.active++;
-                        }
-                        else if (existing.status === 'stale') {
-                            report.stale++;
-                        }
-                        continue;
-                    }
-                }
-                // ProjectScope 场景先用 qualifiedPath / 唯一 legacyPath 定位；legacyPath 歧义时
-                // 不自动写错仓库，保持 stale 并等待外层补充 folder identity。
-                const resolvedSource = this.#resolveSourcePath(sourcePath);
-                const exists = resolvedSource.status === 'resolved' && fs.existsSync(resolvedSource.absolutePath);
-                if (existing) {
-                    // 更新已有记录
-                    if (exists) {
-                        this.#sourceRefRepo.upsert({
-                            recipeId: row.id,
-                            sourcePath,
-                            status: 'active',
-                            newPath: null,
-                            verifiedAt: now,
-                        });
-                        report.active++;
-                    }
-                    else {
-                        this.#sourceRefRepo.upsert({
-                            recipeId: row.id,
-                            sourcePath,
-                            status: 'stale',
-                            verifiedAt: now,
-                        });
-                        report.stale++;
-                    }
-                }
-                else {
-                    // 新增记录
-                    const status = exists ? 'active' : 'stale';
-                    this.#sourceRefRepo.upsert({
-                        recipeId: row.id,
-                        sourcePath,
-                        status,
-                        verifiedAt: now,
-                    });
-                    report.inserted++;
-                    if (exists) {
-                        report.active++;
-                    }
-                    else {
-                        report.stale++;
-                    }
-                }
+                this.#reconcileSourceRef(row.id, sourcePath, { force, now, report });
             }
         }
         this.#logger.info('SourceRefReconciler: reconcile complete', {
@@ -156,6 +82,88 @@ export class SourceRefReconciler {
             this.#emitStaleSignals();
         }
         return report;
+    }
+    #parseReasoningSources(reasoningJson) {
+        try {
+            const reasoning = JSON.parse(reasoningJson);
+            return Array.isArray(reasoning.sources)
+                ? reasoning.sources.filter((source) => typeof source === 'string' && source.length > 0)
+                : [];
+        }
+        catch {
+            return [];
+        }
+    }
+    #deleteDroppedSourceRefs(recipeId, sources, report) {
+        const sourcesSet = new Set(sources);
+        for (const ref of this.#sourceRefRepo.findByRecipeId(recipeId)) {
+            if (!sourcesSet.has(ref.sourcePath)) {
+                this.#sourceRefRepo.deleteOne(recipeId, ref.sourcePath);
+                report.cleaned = (report.cleaned ?? 0) + 1;
+            }
+        }
+    }
+    #reconcileSourceRef(recipeId, sourcePath, opts) {
+        const existing = this.#sourceRefRepo.findOne(recipeId, sourcePath);
+        if (existing && !opts.force && opts.now - existing.verifiedAt < this.#ttlMs) {
+            this.#recordSkippedExisting(existing.status, opts.report);
+            return;
+        }
+        const exists = this.#sourcePathExists(sourcePath);
+        if (existing) {
+            this.#updateExistingSourceRef(recipeId, sourcePath, exists, opts.now, opts.report);
+            return;
+        }
+        this.#insertSourceRef(recipeId, sourcePath, exists, opts.now, opts.report);
+    }
+    #recordSkippedExisting(status, report) {
+        report.skipped++;
+        if (status === 'active') {
+            report.active++;
+        }
+        else if (status === 'stale') {
+            report.stale++;
+        }
+    }
+    #sourcePathExists(sourcePath) {
+        // ProjectScope 场景只接受 repo-qualified qualifiedPath 定位，避免裸相对路径跨仓库误解析。
+        const resolvedSource = this.#resolveSourcePath(sourcePath);
+        return resolvedSource.status === 'resolved' && fs.existsSync(resolvedSource.absolutePath);
+    }
+    #updateExistingSourceRef(recipeId, sourcePath, exists, verifiedAt, report) {
+        if (exists) {
+            this.#sourceRefRepo.upsert({
+                recipeId,
+                sourcePath,
+                status: 'active',
+                newPath: null,
+                verifiedAt,
+            });
+            report.active++;
+            return;
+        }
+        this.#sourceRefRepo.upsert({
+            recipeId,
+            sourcePath,
+            status: 'stale',
+            verifiedAt,
+        });
+        report.stale++;
+    }
+    #insertSourceRef(recipeId, sourcePath, exists, verifiedAt, report) {
+        this.#sourceRefRepo.upsert({
+            recipeId,
+            sourcePath,
+            status: exists ? 'active' : 'stale',
+            verifiedAt,
+        });
+        report.inserted++;
+        if (exists) {
+            report.active++;
+        }
+        else {
+            report.stale++;
+        }
     }
     /**
      * 为每个有 stale sourceRef 的 Recipe 发射 quality 信号。
@@ -321,16 +329,6 @@ export class SourceRefReconciler {
     #resolveSourcePath(sourcePath) {
         if (this.#sourceRefIndex) {
             const resolution = resolveProjectScopeSourceRef(sourcePath, this.#sourceRefIndex);
-            if (resolution.status === 'ambiguous') {
-                this.#logger.warn('SourceRefReconciler: ambiguous ProjectScope sourceRef', {
-                    sourcePath,
-                });
-                return {
-                    absolutePath: path.resolve(this.#projectRoot, sourcePath),
-                    reason: resolution.reason,
-                    status: 'ambiguous',
-                };
-            }
             if (resolution.identity?.absolutePath) {
                 return {
                     absolutePath: resolution.identity.absolutePath,
@@ -338,6 +336,11 @@ export class SourceRefReconciler {
                     status: 'resolved',
                 };
             }
+            return {
+                absolutePath: path.resolve(this.#projectRoot, sourcePath),
+                reason: resolution.reason,
+                status: 'missing',
+            };
         }
         return {
             absolutePath: path.resolve(this.#projectRoot, sourcePath),

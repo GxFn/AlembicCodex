@@ -1,7 +1,7 @@
 import { CODEX_LOCAL_CLEAN_OUTPUT_TOOL_NAMES } from './codex-local-tools/output.js';
 import { CORE_CLEAN_OUTPUT_TOOL_NAMES } from './core-tools/output.js';
 import { listPluginToolSurfaceCatalog, } from './PluginToolSurfaceCatalog.js';
-import { AGENT_LEGACY_COMPATIBILITY_INPUT_POLICY, AGENT_PUBLIC_TOOL_NAMES, } from './public-tools/contract.js';
+import { AGENT_PUBLIC_TOOL_NAMES } from './public-tools/contract.js';
 export const PLUGIN_HOST_MCP_CONTRACT_VERSION = 1;
 export const PLUGIN_HOST_MCP_D4_REGISTRY_ROW_IDS = [
     'I10',
@@ -82,20 +82,91 @@ export const PLUGIN_HOST_RESIDENT_PROVIDER_FIXTURE_REPLAY = [
         fixtureIds: ['diagnostic.success', 'diagnostic.failure'],
     },
 ];
-export const PLUGIN_HOST_LEGACY_REWRITE_CANDIDATES = [
+const MCP_PROJECTION_FAILURE_CLASSIFICATION = {
+    forbiddenFieldOwner: 'plugin-mcp-projection',
+    missingExpectedFieldOwner: 'consumer-expectation',
+    missingFixtureOwner: 'contract-registry',
+    providerShapeOwner: 'producer-fixture',
+};
+export const PLUGIN_HOST_D24_CONSUMER_REPLAY_SCENARIOS = [
     {
-        candidateId: 'D12-P01',
-        cleanupTrigger: AGENT_LEGACY_COMPATIBILITY_INPUT_POLICY.cleanupTrigger,
-        currentCompatibilityOwner: AGENT_LEGACY_COMPATIBILITY_INPUT_POLICY.currentCompatibilityOwner,
-        diagnosticOnlyFields: ['inputSource', 'reason', 'refs.detailRefs'],
-        ordinaryOutputAllowed: AGENT_LEGACY_COMPATIBILITY_INPUT_POLICY.ordinaryReadyOutputAllowed,
-        replacementContract: 'Agent public tools use contract-first inputSource values and degrade legacy-compatibility input.',
-        status: 'rewritten',
-        validationRefs: [
-            'test/unit/AgentPublicToolsContract.test.ts',
-            'test/unit/AgentPublicToolsEvaluation.test.ts',
+        consumerScenario: 'Plugin MCP health projection consumes daemon health fixture',
+        expectedFields: ['checks', 'services', 'version'],
+        forbiddenOrdinaryOutputFields: [
+            'apiKey',
+            'diagnostics',
+            'internalTelemetry',
+            'projectRuntime',
+            'providerPrivateTrace',
+            'secretToken',
+            'telemetry',
         ],
+        failureClassification: MCP_PROJECTION_FAILURE_CLASSIFICATION,
+        producerContract: '/api/v1/daemon/health',
+        providerFixtureId: 'runtime-health.ready',
+        registryRowId: 'I03',
+        toolName: 'alembic_health',
     },
+    {
+        consumerScenario: 'Plugin MCP search projection consumes resident knowledge search fixture',
+        expectedFields: ['items', 'kindCounts', 'query', 'totalResults'],
+        forbiddenOrdinaryOutputFields: [
+            'apiKey',
+            'diagnostics',
+            'providerPrivateTrace',
+            'residentSearch',
+            'searchMeta',
+            'secretToken',
+            'telemetry',
+        ],
+        failureClassification: MCP_PROJECTION_FAILURE_CLASSIFICATION,
+        producerContract: '/api/v1/search',
+        providerFixtureId: 'knowledge.success',
+        registryRowId: 'I22',
+        toolName: 'alembic_search',
+    },
+    {
+        consumerScenario: 'Plugin Codex status projection consumes runtime status fixture',
+        expectedFields: [
+            'initialized',
+            'projectRoot',
+            'projectRuntime.identity.projectRoot',
+            'statusDiagnostics',
+            'workspace',
+        ],
+        forbiddenOrdinaryOutputFields: [
+            'apiKey',
+            'diagnostics',
+            'internalTelemetry',
+            'privateDaemonUrl',
+            'providerPrivateTrace',
+            'secretToken',
+        ],
+        failureClassification: MCP_PROJECTION_FAILURE_CLASSIFICATION,
+        producerContract: '/api/v1/daemon/health',
+        providerFixtureId: 'runtime-health.partial',
+        registryRowId: 'I03',
+        toolName: 'alembic_codex_status',
+    },
+    {
+        consumerScenario: 'Plugin Codex job projection consumes resident job queue fixture',
+        expectedFields: ['jobRoute', 'jobs', 'projectRuntime.identity.projectRoot'],
+        forbiddenOrdinaryOutputFields: [
+            'apiKey',
+            'diagnostics',
+            'internalTelemetry',
+            'privateDaemonUrl',
+            'providerPrivateTrace',
+            'secretToken',
+        ],
+        failureClassification: MCP_PROJECTION_FAILURE_CLASSIFICATION,
+        producerContract: '/api/v1/jobs',
+        providerFixtureId: 'jobs.queued',
+        registryRowId: 'I06',
+        toolName: 'alembic_codex_job',
+    },
+];
+export const PLUGIN_HOST_LEGACY_REWRITE_CANDIDATES = [
     {
         candidateId: 'D12-P02',
         cleanupTrigger: 'Remove no-scope guard compatibility metadata only after host callers stop making unscoped alembic_guard calls.',
@@ -143,6 +214,7 @@ export function summarizePluginHostMcpContracts() {
     return {
         activeToolCount: PLUGIN_HOST_MCP_ACTIVE_TOOL_NAMES.length,
         cleanOutputToolCount: PLUGIN_HOST_MCP_ACTIVE_TOOL_NAMES.length,
+        d24ConsumerReplayScenarioCount: PLUGIN_HOST_D24_CONSUMER_REPLAY_SCENARIOS.length,
         legacyRewriteCandidateCount: PLUGIN_HOST_LEGACY_REWRITE_CANDIDATES.length,
         providerReplayFixtureCount: uniqueStrings(PLUGIN_HOST_RESIDENT_PROVIDER_FIXTURE_REPLAY.flatMap((entry) => entry.fixtureIds)).length,
         registryRowIds: PLUGIN_HOST_MCP_D4_REGISTRY_ROW_IDS,
