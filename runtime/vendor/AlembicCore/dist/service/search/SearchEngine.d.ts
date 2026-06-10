@@ -10,7 +10,7 @@ import { MultiSignalRanker } from './MultiSignalRanker.js';
 import type { DbRow, RankingContext, Scorer, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResultItem, SearchVectorService, SearchVectorStore } from './SearchTypes.js';
 export { BM25Scorer } from './BM25Scorer.js';
 export { FieldWeightedScorer } from './FieldWeightedScorer.js';
-export type { BM25DocMeta, DbRow, DocMeta, RankingContext, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResponseMeta, SearchResultItem, SearchVectorService, SearchVectorStore, SlimSearchResult, VectorHit, } from './SearchTypes.js';
+export type { DbRow, DocMeta, RankingContext, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResponseMeta, SearchResultItem, SearchVectorService, SearchVectorStore, SlimSearchResult, VectorHit, } from './SearchTypes.js';
 export { buildSearchResponseMeta, groupByKind, inferSearchSemanticUsage, inferSearchVectorUsage, slimSearchResult, } from './SearchTypes.js';
 export { tokenize } from './tokenizer.js';
 /**

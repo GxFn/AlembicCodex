@@ -13,7 +13,7 @@
  *
  * @module FieldWeightedScorer
  */
-import type { BM25SearchResult, Scorer } from './SearchTypes.js';
+import type { Scorer, ScorerResult } from './SearchTypes.js';
 /** 字段加权文档内部表示 */
 interface FieldWeightedDocument {
     id: string;
@@ -64,7 +64,7 @@ export declare class FieldWeightedScorer implements Scorer {
     /** 压缩 documents 数组，清除 tombstone 空洞 */
     _compact(): void;
     /** 搜索：对每个文档按字段加权评分，返回降序结果 */
-    search(query: string, limit?: number): BM25SearchResult[];
+    search(query: string, limit?: number): ScorerResult[];
     /** 字符串级别匹配评分（用于 trigger / title） */
     _stringMatchScore(query: string, field: string): number;
     /** Token 集合重叠率（查询侧召回） */

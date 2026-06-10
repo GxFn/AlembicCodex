@@ -1,3 +1,4 @@
+import type { CoreFieldPolicy, CoreFieldPolicySummary, CoreFieldPolicyValidationResult } from '../shared/FieldTaxonomy.js';
 import type { WorkspaceMode } from '../shared/ProjectRegistry.js';
 import type { ProjectScopeSummary } from '../shared/ProjectScope.js';
 import type { DaemonJobStatus } from './JobStore.js';
@@ -208,6 +209,140 @@ export interface ProjectRuntimeControlSnapshot {
     selectedProject: ProjectRuntimeScopeSummary | null;
     state: ProjectRuntimeControlState;
 }
+export type ProjectRuntimeFieldPolicyContract = 'ProjectRuntimeTarget' | 'ProjectRuntimeIdentityContract' | 'ProjectRuntimeFailureEnvelope' | 'ProjectRuntimeReadinessSummary' | 'ProjectRuntimeScopeSummary';
+export interface ProjectRuntimeFieldPolicy extends CoreFieldPolicy {
+    contract: ProjectRuntimeFieldPolicyContract;
+}
+export interface ProjectRuntimeFieldTaxonomyValidationResult extends CoreFieldPolicyValidationResult {
+    contractVersion: typeof PROJECT_RUNTIME_CONTRACT_VERSION;
+}
+export interface ProjectRuntimeFieldTaxonomySummary extends CoreFieldPolicySummary {
+    contracts: Record<ProjectRuntimeFieldPolicyContract, number>;
+    contractVersion: typeof PROJECT_RUNTIME_CONTRACT_VERSION;
+}
+export declare const PROJECT_RUNTIME_FIELD_POLICIES: readonly [{
+    readonly consumers: readonly ["Alembic", "AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeTarget";
+    readonly diagnosticPolicy: "none";
+    readonly extensionPolicy: "strict";
+    readonly failureKinds: readonly ["invalid-input", "not-found", "unavailable"];
+    readonly fieldClass: "consumer-needed";
+    readonly fieldPath: "ProjectRuntimeTarget.projectId";
+    readonly interfaceRole: "consumer-projection";
+    readonly ordinaryOutputAllowed: true;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts", "npm run build:check"];
+}, {
+    readonly consumers: readonly [];
+    readonly contract: "ProjectRuntimeTarget";
+    readonly diagnosticPolicy: "redacted-summary";
+    readonly extensionPolicy: "private-adapter";
+    readonly failureKinds: readonly ["invalid-input", "permission-denied", "sensitive-leak"];
+    readonly fieldClass: "sensitive";
+    readonly fieldPath: "ProjectRuntimeTarget.projectRoot";
+    readonly interfaceRole: "internal-runtime";
+    readonly ordinaryOutputAllowed: false;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}, {
+    readonly consumers: readonly ["AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeIdentityContract";
+    readonly diagnosticPolicy: "none";
+    readonly extensionPolicy: "strict";
+    readonly failureKinds: readonly ["not-found", "unavailable", "capability-mismatch"];
+    readonly fieldClass: "consumer-needed";
+    readonly fieldPath: "ProjectRuntimeIdentityContract.projectScopeId";
+    readonly interfaceRole: "consumer-projection";
+    readonly ordinaryOutputAllowed: true;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts", "npm run build:check"];
+}, {
+    readonly consumers: readonly ["AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeIdentityContract";
+    readonly diagnosticPolicy: "diagnostic-context";
+    readonly extensionPolicy: "diagnostic-ref";
+    readonly failureKinds: readonly ["not-found", "permission-denied", "unavailable"];
+    readonly fieldClass: "diagnostic";
+    readonly fieldPath: "ProjectRuntimeIdentityContract.projectRoot";
+    readonly interfaceRole: "diagnostic-extension";
+    readonly ordinaryOutputAllowed: false;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}, {
+    readonly consumers: readonly [];
+    readonly contract: "ProjectRuntimeIdentityContract";
+    readonly diagnosticPolicy: "redacted-summary";
+    readonly extensionPolicy: "private-adapter";
+    readonly failureKinds: readonly ["permission-denied", "sensitive-leak", "unavailable"];
+    readonly fieldClass: "sensitive";
+    readonly fieldPath: "ProjectRuntimeIdentityContract.databasePath";
+    readonly interfaceRole: "internal-runtime";
+    readonly ordinaryOutputAllowed: false;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}, {
+    readonly consumers: readonly ["Alembic", "AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeFailureEnvelope";
+    readonly diagnosticPolicy: "none";
+    readonly extensionPolicy: "strict";
+    readonly failureKinds: readonly ["unavailable", "capability-mismatch", "internal-error"];
+    readonly fieldClass: "public";
+    readonly fieldPath: "ProjectRuntimeFailureEnvelope.reason";
+    readonly interfaceRole: "producer-contract";
+    readonly ordinaryOutputAllowed: true;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts", "npm run build:check"];
+}, {
+    readonly consumers: readonly ["AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeFailureEnvelope";
+    readonly diagnosticPolicy: "diagnostic-context";
+    readonly extensionPolicy: "diagnostic-ref";
+    readonly failureKinds: readonly ["unavailable", "degraded", "internal-error"];
+    readonly fieldClass: "diagnostic";
+    readonly fieldPath: "ProjectRuntimeFailureEnvelope.identity";
+    readonly interfaceRole: "diagnostic-extension";
+    readonly ordinaryOutputAllowed: false;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}, {
+    readonly consumers: readonly ["AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeReadinessSummary";
+    readonly diagnosticPolicy: "diagnostic-context";
+    readonly extensionPolicy: "diagnostic-ref";
+    readonly failureKinds: readonly ["partial", "degraded", "unavailable"];
+    readonly fieldClass: "diagnostic";
+    readonly fieldPath: "ProjectRuntimeReadinessSummary.failureEnvelopes";
+    readonly interfaceRole: "diagnostic-extension";
+    readonly ordinaryOutputAllowed: false;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}, {
+    readonly consumers: readonly [];
+    readonly contract: "ProjectRuntimeScopeSummary";
+    readonly diagnosticPolicy: "none";
+    readonly extensionPolicy: "private-adapter";
+    readonly failureKinds: readonly ["schema-drift", "internal-error"];
+    readonly fieldClass: "internal";
+    readonly fieldPath: "ProjectRuntimeScopeSummary.cacheKey";
+    readonly interfaceRole: "internal-runtime";
+    readonly ordinaryOutputAllowed: false;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}, {
+    readonly consumers: readonly ["AlembicPlugin", "AlembicDashboard"];
+    readonly contract: "ProjectRuntimeScopeSummary";
+    readonly diagnosticPolicy: "none";
+    readonly extensionPolicy: "strict";
+    readonly failureKinds: readonly ["unavailable", "schema-drift"];
+    readonly fieldClass: "consumer-needed";
+    readonly fieldPath: "ProjectRuntimeScopeSummary.fileMonitor.acceptedEventSources";
+    readonly interfaceRole: "consumer-projection";
+    readonly ordinaryOutputAllowed: true;
+    readonly owner: "AlembicCore";
+    readonly validationCommands: readonly ["npm run test -- ProjectRuntimeContracts"];
+}];
+export declare function validateProjectRuntimeFieldTaxonomy(policies?: readonly ProjectRuntimeFieldPolicy[]): ProjectRuntimeFieldTaxonomyValidationResult;
+export declare function summarizeProjectRuntimeFieldTaxonomy(policies?: readonly ProjectRuntimeFieldPolicy[]): ProjectRuntimeFieldTaxonomySummary;
 export declare function createProjectRuntimeControlState(options?: CreateProjectRuntimeControlStateOptions): ProjectRuntimeControlState;
 export declare function createProjectRuntimeIdentityContract(options?: CreateProjectRuntimeIdentityContractOptions): ProjectRuntimeIdentityContract;
 export declare function createProjectRuntimeIdentityContractFromScopeSummary(scope: ProjectRuntimeScopeSummary | null): ProjectRuntimeIdentityContract | null;

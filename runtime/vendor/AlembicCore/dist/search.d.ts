@@ -10,7 +10,7 @@ export { AuthoritySignal, ContextMatchSignal, DifficultySignal, MultiSignalRanke
 export { SearchEngine };
 export type { GuardKnowledgeRepo, SearchDb as SearchAdapterDb, SearchKnowledgeRepo, SearchSourceRefRepo, } from './repository/search/SearchRepoAdapter.js';
 export { queryNonDeprecatedEntries, RawDbGuardAdapter, RawDbKnowledgeAdapter, RawDbSourceRefAdapter, unwrapRawDb, unwrapSearchDb, } from './repository/search/SearchRepoAdapter.js';
-export type { BM25DocMeta, BuildSearchResponseMetaInput, DbRow, DocMeta, RankingContext, ResidentVectorMeta, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResponseMeta, SearchResultItem, SearchRoute, SearchTimingMeta, SearchVectorService, SearchVectorStore, SearchWorkspaceIdentity, SlimSearchResult, VectorHit, } from './service/search/SearchTypes.js';
+export type { BuildSearchResponseMetaInput, DbRow, DocMeta, RankingContext, ResidentVectorMeta, RrfHit, Scorer, ScorerResult, SearchAiProvider, SearchCrossEncoder, SearchDb, SearchEngineOptions, SearchHybridRetriever, SearchOptions, SearchResponse, SearchResponseMeta, SearchResultItem, SearchRoute, SearchTimingMeta, SearchVectorService, SearchVectorStore, SearchWorkspaceIdentity, SlimSearchResult, VectorHit, } from './service/search/SearchTypes.js';
 export { buildSearchResponseMeta, groupByKind, inferSearchSemanticUsage, inferSearchVectorUsage, slimSearchResult, } from './service/search/SearchTypes.js';
 export { tokenize } from './service/search/tokenizer.js';
 export { cosineSimilarity, jaccardSimilarity, textSimilarity, tokenizeForSimilarity, } from './shared/similarity.js';

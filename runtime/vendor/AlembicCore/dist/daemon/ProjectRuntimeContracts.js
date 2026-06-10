@@ -1,3 +1,4 @@
+import { summarizeCoreFieldPolicies, validateCoreFieldPolicies } from '../shared/FieldTaxonomy.js';
 export const PROJECT_RUNTIME_CONTROL_STATE_SCHEMA_VERSION = 1;
 export const PROJECT_CONNECTION_STATES = [
     'ready',
@@ -51,6 +52,157 @@ export const PROJECT_RUNTIME_FAILURE_REASONS = [
     'file-monitor-unavailable',
     'runtime-unavailable',
 ];
+export const PROJECT_RUNTIME_FIELD_POLICIES = [
+    {
+        consumers: ['Alembic', 'AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeTarget',
+        diagnosticPolicy: 'none',
+        extensionPolicy: 'strict',
+        failureKinds: ['invalid-input', 'not-found', 'unavailable'],
+        fieldClass: 'consumer-needed',
+        fieldPath: 'ProjectRuntimeTarget.projectId',
+        interfaceRole: 'consumer-projection',
+        ordinaryOutputAllowed: true,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts', 'npm run build:check'],
+    },
+    {
+        consumers: [],
+        contract: 'ProjectRuntimeTarget',
+        diagnosticPolicy: 'redacted-summary',
+        extensionPolicy: 'private-adapter',
+        failureKinds: ['invalid-input', 'permission-denied', 'sensitive-leak'],
+        fieldClass: 'sensitive',
+        fieldPath: 'ProjectRuntimeTarget.projectRoot',
+        interfaceRole: 'internal-runtime',
+        ordinaryOutputAllowed: false,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+    {
+        consumers: ['AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeIdentityContract',
+        diagnosticPolicy: 'none',
+        extensionPolicy: 'strict',
+        failureKinds: ['not-found', 'unavailable', 'capability-mismatch'],
+        fieldClass: 'consumer-needed',
+        fieldPath: 'ProjectRuntimeIdentityContract.projectScopeId',
+        interfaceRole: 'consumer-projection',
+        ordinaryOutputAllowed: true,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts', 'npm run build:check'],
+    },
+    {
+        consumers: ['AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeIdentityContract',
+        diagnosticPolicy: 'diagnostic-context',
+        extensionPolicy: 'diagnostic-ref',
+        failureKinds: ['not-found', 'permission-denied', 'unavailable'],
+        fieldClass: 'diagnostic',
+        fieldPath: 'ProjectRuntimeIdentityContract.projectRoot',
+        interfaceRole: 'diagnostic-extension',
+        ordinaryOutputAllowed: false,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+    {
+        consumers: [],
+        contract: 'ProjectRuntimeIdentityContract',
+        diagnosticPolicy: 'redacted-summary',
+        extensionPolicy: 'private-adapter',
+        failureKinds: ['permission-denied', 'sensitive-leak', 'unavailable'],
+        fieldClass: 'sensitive',
+        fieldPath: 'ProjectRuntimeIdentityContract.databasePath',
+        interfaceRole: 'internal-runtime',
+        ordinaryOutputAllowed: false,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+    {
+        consumers: ['Alembic', 'AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeFailureEnvelope',
+        diagnosticPolicy: 'none',
+        extensionPolicy: 'strict',
+        failureKinds: ['unavailable', 'capability-mismatch', 'internal-error'],
+        fieldClass: 'public',
+        fieldPath: 'ProjectRuntimeFailureEnvelope.reason',
+        interfaceRole: 'producer-contract',
+        ordinaryOutputAllowed: true,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts', 'npm run build:check'],
+    },
+    {
+        consumers: ['AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeFailureEnvelope',
+        diagnosticPolicy: 'diagnostic-context',
+        extensionPolicy: 'diagnostic-ref',
+        failureKinds: ['unavailable', 'degraded', 'internal-error'],
+        fieldClass: 'diagnostic',
+        fieldPath: 'ProjectRuntimeFailureEnvelope.identity',
+        interfaceRole: 'diagnostic-extension',
+        ordinaryOutputAllowed: false,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+    {
+        consumers: ['AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeReadinessSummary',
+        diagnosticPolicy: 'diagnostic-context',
+        extensionPolicy: 'diagnostic-ref',
+        failureKinds: ['partial', 'degraded', 'unavailable'],
+        fieldClass: 'diagnostic',
+        fieldPath: 'ProjectRuntimeReadinessSummary.failureEnvelopes',
+        interfaceRole: 'diagnostic-extension',
+        ordinaryOutputAllowed: false,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+    {
+        consumers: [],
+        contract: 'ProjectRuntimeScopeSummary',
+        diagnosticPolicy: 'none',
+        extensionPolicy: 'private-adapter',
+        failureKinds: ['schema-drift', 'internal-error'],
+        fieldClass: 'internal',
+        fieldPath: 'ProjectRuntimeScopeSummary.cacheKey',
+        interfaceRole: 'internal-runtime',
+        ordinaryOutputAllowed: false,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+    {
+        consumers: ['AlembicPlugin', 'AlembicDashboard'],
+        contract: 'ProjectRuntimeScopeSummary',
+        diagnosticPolicy: 'none',
+        extensionPolicy: 'strict',
+        failureKinds: ['unavailable', 'schema-drift'],
+        fieldClass: 'consumer-needed',
+        fieldPath: 'ProjectRuntimeScopeSummary.fileMonitor.acceptedEventSources',
+        interfaceRole: 'consumer-projection',
+        ordinaryOutputAllowed: true,
+        owner: 'AlembicCore',
+        validationCommands: ['npm run test -- ProjectRuntimeContracts'],
+    },
+];
+export function validateProjectRuntimeFieldTaxonomy(policies = PROJECT_RUNTIME_FIELD_POLICIES) {
+    const validation = validateCoreFieldPolicies(policies);
+    return {
+        ...validation,
+        contractVersion: PROJECT_RUNTIME_CONTRACT_VERSION,
+    };
+}
+export function summarizeProjectRuntimeFieldTaxonomy(policies = PROJECT_RUNTIME_FIELD_POLICIES) {
+    const summary = summarizeCoreFieldPolicies(policies);
+    const contracts = emptyProjectRuntimeFieldPolicyContractCounts();
+    for (const policy of policies) {
+        contracts[policy.contract] += 1;
+    }
+    return {
+        ...summary,
+        contracts,
+        contractVersion: PROJECT_RUNTIME_CONTRACT_VERSION,
+    };
+}
 export function createProjectRuntimeControlState(options = {}) {
     const updatedAt = options.updatedAt ?? new Date(0).toISOString();
     return {
@@ -316,6 +468,15 @@ function getDaemonFailureReason(daemon) {
         default:
             return 'daemon-not-checked';
     }
+}
+function emptyProjectRuntimeFieldPolicyContractCounts() {
+    return {
+        ProjectRuntimeFailureEnvelope: 0,
+        ProjectRuntimeIdentityContract: 0,
+        ProjectRuntimeReadinessSummary: 0,
+        ProjectRuntimeScopeSummary: 0,
+        ProjectRuntimeTarget: 0,
+    };
 }
 function asRecord(value) {
     return value && typeof value === 'object' && !Array.isArray(value)

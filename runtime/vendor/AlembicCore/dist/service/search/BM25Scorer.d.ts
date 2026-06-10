@@ -6,14 +6,14 @@
  *
  * @module BM25Scorer
  */
-import type { BM25Document, Scorer } from './SearchTypes.js';
+import type { Scorer, ScorerDocument, ScorerResult } from './SearchTypes.js';
 /** BM25 评分器 */
 export declare class BM25Scorer implements Scorer {
     _idIndex: Map<string, number>;
     _totalLength: number;
     avgLength: number;
     docFreq: Record<string, number>;
-    documents: (BM25Document | null)[];
+    documents: (ScorerDocument | null)[];
     totalDocs: number;
     constructor();
     /** 添加文档到索引 */
@@ -31,7 +31,7 @@ export declare class BM25Scorer implements Scorer {
     /** 压缩 documents 数组，清除 tombstone 空洞 */
     _compact(): void;
     /** 查询文档，返回按 BM25 分数排序的结果 */
-    search(query: string, limit?: number): import("./SearchTypes.js").ScorerResult[];
+    search(query: string, limit?: number): ScorerResult[];
     /** 清空索引 */
     clear(): void;
 }
