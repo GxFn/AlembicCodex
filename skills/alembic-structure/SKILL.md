@@ -7,6 +7,8 @@ description: Discover Alembic project structure and Recipe graph context proacti
 
 Use this skill when the user asks about Alembic module structure, targets, dependencies, call relationships, or how Recipes relate to each other. Use it proactively for project knowledge graph work only when this project has a local Alembic knowledge base or project-level Alembic knowledge skill.
 
+For current source-code facts, prefer the live MCP source graph guidance and visible source graph tools first: `alembic_source_graph_status`, then `alembic_code_explore` / `alembic_symbol_search` / node or relation tools only when they appear in the tool list. Keep Recipe graph tools for knowledge relationships; do not use them as proof that current source code is fresh.
+
 ## Project Structure Tools
 
 | Tool | Use |

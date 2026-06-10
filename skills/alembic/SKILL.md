@@ -37,6 +37,12 @@ For empty or uninitialized projects, do not proactively prime on ordinary user i
 
 Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_codex_diagnostics` / `alembic_codex_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
 
+## Source Graph Tool Choice
+
+Treat MCP initialize instructions as the live playbook for source graph tool choice; this skill only names the boundary. Use source graph tools for current code facts and source ranges, Recipe/knowledge tools for project standards and prior decisions, and Guard for scoped compliance after edits.
+
+Start with `alembic_source_graph_status` when current-code freshness or scope matters. Use `alembic_code_explore` / `alembic_symbol_search` before broad raw Read/Grep exploration, then drill into source nodes, callers, callees, impact, or affected tests only when those tools are visible in the MCP tool list. If source graph status is stale, partial, wrong-scope, or unsupported for the language, fall back to raw reads/search, name the uncertainty, and run matching validation.
+
 ## Long-Running Work
 
 Use `alembic_bootstrap` for default Codex host-agent cold start and `alembic_rescan` for host-agent refresh. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
