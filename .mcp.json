@@ -2,7 +2,7 @@
   "mcpServers": {
     "alembic": {
       "command": "node",
-      "args": ["./bin/alembic-codex-mcp-wrapper.mjs"],
+      "args": ["./bin/alembic-codex-start.mjs"],
       "cwd": ".",
       "env": {
         "ALEMBIC_CHANNEL_ID": "codex",

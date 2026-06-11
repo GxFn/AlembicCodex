@@ -49,13 +49,13 @@ main
 ## Runtime
 
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
-- 插件内置 Alembic Codex 运行时代码在 `./runtime`；这个内置 package artifact 是 `alembic-codex-plugin-runtime@0.2.0`。
-- Marketplace MCP 配置运行插件本地的 `./bin/alembic-codex-mcp-wrapper.mjs`；wrapper 会在插件专属 base 下为每个进程使用独立 npm cache，并用启动锁调用 `npx --package ./runtime.tgz alembic-codex-mcp`，确保使用插件本地 runtime tarball，同时避免共享 `_npx` 启动冲突。
+- 插件发布的是轻量 marketplace shell，不再内置运行时目录。shell 入口是 `./bin/alembic-codex-start.mjs`。
+- Marketplace shell 用 `npx --package @gxfn/alembic-codex-runtime@0.2.0 alembic-codex-mcp` 启动精确固定的 `@gxfn/alembic-codex-runtime@0.2.0` runtime package。
 - Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会设置 `ALEMBIC_CHANNEL_ID=codex`；项目功能判断应使用这个稳定渠道标识。
 - Marketplace MCP 配置会显式设置 `ALEMBIC_MCP_MODE=1` 和 `ALEMBIC_CODEX_MCP_MODE=1`；binary 入口仍会做同样兜底。
-- wrapper 不使用 `--prefix`，这样 `./runtime.tgz` 会相对于已安装插件根目录解析。
-- wrapper 会避免依赖安装写入已安装插件目录，并串行化短暂的 npx 启动/安装阶段，同时隔离每个 MCP wrapper 进程，避免 stale 或长驻 `_npx` install 互相冲突。
+- 公共插件 shell 不包含 `runtime.tgz`、`runtime/` 或 `node_modules/`。
+- shell 会把运行时安装放在已安装插件目录之外。首次运行 cache、升级和失败分类的细节属于 shell bootstrap 后续链路。
 - 默认 MCP tier 是 `agent`；只有同时设置 `ALEMBIC_MCP_TIER=admin` 和 `ALEMBIC_CODEX_ENABLE_ADMIN=1` 时，才会显示 admin tools。
 
 ## 首次检查
@@ -96,7 +96,7 @@ Codex MCP 工具调用返回干净的 `structuredContent`：`ok`、`status`、`s
 npm run release:codex-plugin
 ```
 
-这会构建 runtime，生成 `plugins/alembic-codex/runtime`，验证本地 Codex marketplace entry、内置 MCP runtime package、轻量 `alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、README runtime artifact 指引、npm tarball 内容、本地安装模拟，以及真实 MCP stdio 调用。Dashboard 前端构建和服务归 Alembic/AlembicDashboard；本插件只在本地 daemon 已提供 Dashboard 能力时交接 URL。
+这会构建 runtime，验证 `@gxfn/alembic-codex-runtime@0.2.0` package 边界、轻量 marketplace shell、`alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、npm tarball 内容、本地安装模拟、shell dry-run 启动，以及真实 MCP stdio 调用。Dashboard 前端构建和服务归 Alembic/AlembicDashboard；本插件只在本地 daemon 已提供 Dashboard 能力时交接 URL。
 
 完整本地 daemon 链路运行：
 
@@ -127,11 +127,11 @@ enabled = true
 
 Alembic 主仓库也保留本地开发 marketplace：`.agents/plugins/marketplace.json`，名称是 `alembic-codex`，指向 `./plugins/alembic-codex`。
 
-`npm run smoke:codex-plugin` 会打包 runtime，从 tarball 里解析 marketplace entry，把插件复制到临时安装目录，并验证已安装 manifest、内置 `./runtime` package、`./runtime.tgz` wrapper entry、MCP 配置、assets、skills 和 stdio MCP 调用。
+`npm run smoke:codex-plugin` 会打包发布内容，从 tarball 里解析 marketplace entry，把插件复制到临时安装目录，并验证已安装 manifest、shell entry、禁用 artifact 缺失、MCP 配置、assets、skills、shell dry-run 启动和 stdio MCP 调用。
 
 ## 离线 Fallback
 
-默认插件配置通过 wrapper 和 `npx` 启动内置 `./runtime.tgz` package。AlembicPlugin 不提供 root registry package fallback。如果首次运行无法解析生产依赖，请恢复 wrapper cache 的网络访问，必要时清理插件专用 npm cache，然后重新运行 `alembic_codex_diagnostics`。
+默认插件配置通过 marketplace shell 和 `npx` 启动 `@gxfn/alembic-codex-runtime@0.2.0`。如果首次运行无法解析生产依赖，请恢复 npm/npx 的 registry 访问，必要时清理相关 npm cache，然后重新运行 `alembic_codex_diagnostics`。
 
 ## 清理策略
 
