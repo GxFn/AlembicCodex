@@ -50,7 +50,7 @@ main
 
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
 - 插件发布的是轻量 marketplace shell，不再内置运行时目录。shell 入口是 `./bin/alembic-codex-start.mjs`。
-- Marketplace shell 用 `npx --package @gxfn/alembic-codex-runtime@0.2.0 alembic-codex-mcp` 启动精确固定的 `@gxfn/alembic-codex-runtime@0.2.0` runtime package。
+- Marketplace shell 会在需要时把精确固定的 `@gxfn/alembic-codex-runtime@0.2.0` runtime package 安装到确定的启动缓存，后续启动复用缓存，并用 Node 启动缓存中的 MCP entrypoint。
 - Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会设置 `ALEMBIC_CHANNEL_ID=codex`；项目功能判断应使用这个稳定渠道标识。
 - Marketplace MCP 配置会显式设置 `ALEMBIC_MCP_MODE=1` 和 `ALEMBIC_CODEX_MCP_MODE=1`；binary 入口仍会做同样兜底。
@@ -60,7 +60,7 @@ main
 
 ## 首次检查
 
-先使用 `alembic_codex_diagnostics`。它会报告 Node、npm、npx、package version、daemon version、插件元数据检查、portable runtime artifact 指引、清理策略，以及结构化的 `issues` / `nextActions`。
+先使用 `alembic_codex_diagnostics`。它会报告 Node、npm、runtime package/cache wiring、daemon version、插件元数据检查、portable runtime artifact 指引、清理策略，以及结构化的 `issues` / `nextActions`。
 
 使用 `alembic_codex_status` 检查工作区初始化和 daemon 状态，不会启动 daemon。返回结果包含 `onboarding` 块：当前状态、推荐的下一步 tool call、该调用是否会启动 daemon，以及后续动作。
 
@@ -131,7 +131,7 @@ Alembic 主仓库也保留本地开发 marketplace：`.agents/plugins/marketplac
 
 ## 离线 Fallback
 
-默认插件配置通过 marketplace shell 和 `npx` 启动 `@gxfn/alembic-codex-runtime@0.2.0`。如果首次运行无法解析生产依赖，请恢复 npm/npx 的 registry 访问，必要时清理相关 npm cache，然后重新运行 `alembic_codex_diagnostics`。
+默认插件配置通过 marketplace shell 启动 `@gxfn/alembic-codex-runtime@0.2.0`。如果首次运行无法解析生产依赖，请恢复 npm registry 访问，必要时清理 Alembic runtime cache，然后重新运行 `alembic_codex_diagnostics`。
 
 ## 清理策略
 

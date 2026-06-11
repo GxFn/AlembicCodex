@@ -18,5 +18,5 @@
   <text x="880" y="378" fill="#0F172A" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18">Agent tier by default</text>
   <text x="880" y="410" fill="#0F172A" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18">Admin requires opt-in</text>
   <rect x="112" y="516" width="1056" height="72" rx="12" fill="#F1F5F9"/>
-  <text x="140" y="561" fill="#334155" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="20">alembic_codex_diagnostics  ->  node, npm, npx, package, daemon, fallback</text>
+  <text x="140" y="561" fill="#334155" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="20">alembic_codex_diagnostics  ->  node, npm, cache, package, daemon, fallback</text>
 </svg>

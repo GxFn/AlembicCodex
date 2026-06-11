@@ -25,7 +25,7 @@ The plugin MCP config starts the shell:
 }
 ```
 
-The shell runs `npx --package @gxfn/alembic-codex-runtime@0.2.0 alembic-codex-mcp`. The public plugin shell must not contain `runtime.tgz`, `runtime/`, or `node_modules/`. First-run cache, upgrade, registry, and detailed failure semantics are owned by the shell bootstrap path after this boundary.
+The shell installs `@gxfn/alembic-codex-runtime@0.2.0` into the Alembic startup cache when needed, reuses that cache on later launches, and starts the cached MCP entrypoint with Node. The public plugin shell must not contain `runtime.tgz`, `runtime/`, or `node_modules/`. First-run cache, upgrade, registry, and detailed failure semantics are owned by the shell bootstrap path.
 
 Every package version bump must keep these surfaces aligned:
 
@@ -134,7 +134,7 @@ Run this against a fresh test repository and one real project before public prom
 
 | Symptom | First Check | Likely Cause | Fix |
 | --- | --- | --- | --- |
-| Plugin visible but MCP does not start | `alembic codex diagnostics --json` | Node < 22, missing npm/npx, or npx cannot resolve the pinned runtime package | Install Node 22, restore npm registry access, inspect shell bootstrap diagnostics |
+| Plugin visible but MCP does not start | `alembic codex diagnostics --json` | Node < 22, missing npm, runtime cache not writable, install failure, version mismatch, missing entrypoint, or startup lock timeout | Install Node 22, restore npm registry access, inspect shell bootstrap diagnostics and the Alembic runtime cache |
 | Diagnostics runtime mismatch | `plugins/alembic-codex/.mcp.json` and `plugins/alembic-codex/bin/alembic-codex-start.mjs` | Plugin config no longer points at the shell entry or the shell no longer targets the exact runtime package | Run `npm run prepare:codex-plugin-runtime` and rerun `npm run verify:codex-plugin` |
 | Artifact upload missing | Release workflow logs | Tag mismatch, tests failed, artifact upload path changed, or shell verification failed | Fix workflow failure, create a new patch version/tag |
 | Daemon starts but tools fail | `alembic daemon status --json` and daemon log path | stale daemon state, missing bridge token, health identity mismatch | Stop daemon, rerun dashboard/bootstrap, inspect `daemon.log` |

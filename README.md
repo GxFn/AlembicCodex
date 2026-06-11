@@ -50,7 +50,7 @@ Enable `alembic-codex` from the plugin list after installation.
 
 - Node.js 22 or newer is required. Node 22 LTS is recommended for local development; keep the MCP shim and daemon on the same Node executable.
 - The plugin ships a lightweight marketplace shell, not embedded runtime files. The shell entry is `./bin/alembic-codex-start.mjs`.
-- The marketplace shell starts the exact pinned runtime package `@gxfn/alembic-codex-runtime@0.2.0` with `npx --package @gxfn/alembic-codex-runtime@0.2.0 alembic-codex-mcp`.
+- The marketplace shell installs the exact pinned runtime package `@gxfn/alembic-codex-runtime@0.2.0` into a deterministic startup cache when needed, reuses that cache on later launches, and starts the cached MCP entrypoint with Node.
 - The marketplace MCP config sets `ALEMBIC_RUNTIME_MODE=plugin` as the generic plugin runtime signal and `ALEMBIC_PLUGIN_HOST=codex` as the current host signal.
 - The marketplace MCP config sets `ALEMBIC_CHANNEL_ID=codex`; project feature checks should use that stable channel id.
 - The marketplace MCP config explicitly sets `ALEMBIC_MCP_MODE=1` and `ALEMBIC_CODEX_MCP_MODE=1`; the binary still applies the same defaults as a safety net.
@@ -60,7 +60,7 @@ Enable `alembic-codex` from the plugin list after installation.
 
 ## First Checks
 
-Use `alembic_codex_diagnostics` first. It reports Node, npm, npx, package version, daemon version, plugin metadata checks, portable runtime artifact guidance, cleanup policy, and structured `issues` / `nextActions`.
+Use `alembic_codex_diagnostics` first. It reports Node, npm, runtime package/cache wiring, daemon version, plugin metadata checks, portable runtime artifact guidance, cleanup policy, and structured `issues` / `nextActions`.
 
 Use `alembic_codex_status` to inspect workspace initialization and daemon state without starting the daemon. The response includes an `onboarding` block with a concise state, primary recommended tool call, whether that call starts the daemon, and follow-up actions.
 
@@ -131,7 +131,7 @@ The Alembic monorepo also keeps a local development marketplace at `.agents/plug
 
 ## Offline Fallback
 
-The default plugin config launches `@gxfn/alembic-codex-runtime@0.2.0` through the marketplace shell and `npx`. If the first run cannot resolve production dependencies, restore registry access for npm/npx, clear the relevant npm cache if needed, and rerun `alembic_codex_diagnostics`.
+The default plugin config launches `@gxfn/alembic-codex-runtime@0.2.0` through the marketplace shell. If the first run cannot resolve production dependencies, restore registry access for npm, clear the Alembic runtime cache if needed, and rerun `alembic_codex_diagnostics`.
 
 ## Cleanup Policy
 
