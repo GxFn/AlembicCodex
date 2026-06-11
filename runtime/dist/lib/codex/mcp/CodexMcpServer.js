@@ -12,6 +12,7 @@ import { createAlembicResidentCapabilityClients, isResidentProjectScopeReady, } 
 import { getPackageVersion } from '../../shared/package-assets.js';
 import { buildCodexEnhancementRouteChoice, buildCodexHostProjectAlignment, buildCodexPostInitActions, buildCodexPostInitMessage, buildCodexProjectRootRequiredActions, buildCodexProjectRootRequiredMessage, buildCodexProjectRuntimeContext, buildCodexRecommendedAction, buildCodexRuntimeDiagnostics, buildCodexStatus, CODEX_RESIDENT_PROJECT_SCOPE_TOOL_NAMES, CODEX_SETUP_PROFILE, createCodexJobContext, EMPTY_CODEX_KNOWLEDGE_STATE, getCodexRuntimeFallbackIsolation, inspectCodexKnowledge, isCodexInitOnDemandTool, isTrustedCodexProjectRoot, preflightCodexTool, resolveCodexProjectRoot, resolveCodexRuntimeContext, resolveCodexServiceRequestBoundary, summarizeCodexDaemonStatus, summarizeCodexProjectRootResolution, writeCodexInitMarker, } from '../index.js';
 import { CodexEmbeddedToolExecutor, resetCodexPluginOwnedMcpServerForTests, resetPluginOwnedMcpServer, } from './host/embedded-executor.js';
+import { buildCodexMcpInitializeInstructions } from './host/guidance.js';
 import { buildCodexHostProjectHandoffBlock } from './host/host-project-handoff.js';
 import { dispatchCodexLocalTool } from './host/local-tool-dispatcher.js';
 import { attachPluginOpportunisticEvolutionSurface } from './host/opportunistic-evolution-presenter.js';
@@ -20,6 +21,7 @@ import { persistTrustedCodexProjectRootScope, resolveCodexProjectRootScope, } fr
 import { attachCodexServiceBoundary, attachEnhancementRoute, failureResult, isErrorResult, } from './host/results.js';
 import { getVisibleCodexTools } from './host/tool-visibility.js';
 import { createCleanMcpErrorResponse, createMcpStructuredToolResult, serializeMcpToolResult, } from './output-contract.js';
+import { buildSourceGraphOperation, buildSourceGraphStatus } from './source-graph/status.js';
 import './codex-local-tools/output.js';
 import { TIER_ORDER, TOOLS } from './tools.js';
 function summarizeResidentServiceResult(result) {
@@ -113,7 +115,11 @@ export class CodexMcpServer {
         this.sessionId = `codex-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     }
     async start() {
-        this.sdkServer = new SdkMcpServer({ name: 'alembic-codex', version: getPackageVersion() }, { capabilities: { tools: {} } });
+        const visibleTools = getVisibleCodexTools(undefined, this.projectRoot);
+        this.sdkServer = new SdkMcpServer({ name: 'alembic-codex', version: getPackageVersion() }, {
+            capabilities: { tools: {} },
+            instructions: buildCodexMcpInitializeInstructions(visibleTools),
+        });
         this.registerHandlers();
         await this.sdkServer.connect(new StdioServerTransport());
         process.stderr.write(`Alembic Codex MCP ready — ${getVisibleCodexTools(undefined, this.projectRoot).length} tools\n`);
@@ -150,6 +156,9 @@ export class CodexMcpServer {
                 }));
             }
         });
+    }
+    getInitializeInstructions() {
+        return buildCodexMcpInitializeInstructions(getVisibleCodexTools(undefined, this.projectRoot));
     }
     async handleToolCall(name, args, options = {}) {
         if (name === 'alembic_task') {
@@ -217,6 +226,8 @@ export class CodexMcpServer {
         }
         const localDispatch = dispatchCodexLocalTool(name, args, {
             buildDiagnostics: () => this.buildDiagnostics(),
+            buildSourceGraphOperation: async (toolName, nextArgs) => buildSourceGraphOperation(this.projectRoot, nextArgs, toolName),
+            buildSourceGraphStatus: async (nextArgs) => buildSourceGraphStatus(this.projectRoot, nextArgs),
             buildStatus: () => this.buildStatus(),
             cleanupRuntime: (nextArgs) => this.cleanupRuntime(nextArgs),
             initializeWorkspace: (nextArgs) => this.initializeWorkspace(nextArgs),

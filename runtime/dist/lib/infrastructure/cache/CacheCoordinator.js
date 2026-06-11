@@ -78,7 +78,17 @@ export class CacheCoordinator {
     }
     /** @returns true 如果版本变化并触发了失效 */
     #check() {
-        const current = this.#readVersion();
+        let current;
+        try {
+            current = this.#readVersion();
+        }
+        catch (err) {
+            this.stop();
+            Logger.warn('[CacheCoordinator] Stopped because database connection is unavailable', {
+                error: err.message,
+            });
+            return false;
+        }
         if (current === this.#lastVersion) {
             return false;
         }

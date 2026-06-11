@@ -95,6 +95,26 @@ export const AGENT_INTENT_DESIGN_FIELD_MAPPINGS = [
         evidence: ['alembic_intent.toolPlan.guardNeed'],
     },
     {
+        field: 'sourceGraphNeed',
+        disposition: 'public-result-field',
+        evidence: ['alembic_intent.toolPlan.sourceGraphNeed'],
+    },
+    {
+        field: 'sourceGraphPlan',
+        disposition: 'public-result-field',
+        evidence: ['alembic_intent.toolPlan.sourceGraphPlan'],
+    },
+    {
+        field: 'knowledgeNeed',
+        disposition: 'public-result-field',
+        evidence: ['alembic_intent.toolPlan.knowledgeNeed'],
+    },
+    {
+        field: 'decisionNeed',
+        disposition: 'public-result-field',
+        evidence: ['alembic_intent.toolPlan.decisionNeed'],
+    },
+    {
         field: 'vectorUseKind',
         disposition: 'public-result-field',
         evidence: ['alembic_intent.retrievalPlan.vectorUseKind'],
@@ -157,7 +177,16 @@ export const AGENT_PUBLIC_TOOL_ACTION_BY_NAME = {
     alembic_decision_record: 'decision-record',
 };
 export const AgentPublicToolRefSchema = z.object({
-    refType: z.enum(['intent', 'prime', 'work', 'finish', 'guard-result', 'decision', 'detail']),
+    refType: z.enum([
+        'intent',
+        'prime',
+        'source-graph',
+        'work',
+        'finish',
+        'guard-result',
+        'decision',
+        'detail',
+    ]),
     id: z.string().min(1).max(240),
     label: z.string().min(1).max(160).optional(),
     source: AgentInputSourceSchema.optional(),
@@ -210,6 +239,7 @@ export const AgentPublicToolReasonSchema = z.discriminatedUnion('kind', [
 export const AgentPublicToolRefsSchema = z.object({
     intentRef: AgentPublicToolRefSchema.optional(),
     primeRef: AgentPublicToolRefSchema.optional(),
+    sourceGraphRef: AgentPublicToolRefSchema.optional(),
     workRef: AgentPublicToolRefSchema.optional(),
     finishRef: AgentPublicToolRefSchema.optional(),
     guardResultRef: AgentPublicToolRefSchema.optional(),
@@ -283,6 +313,21 @@ export const PrimePublicPackageSchema = z
             visibleReceiptDirective: z.string().min(1).max(600),
         }))
             .length(PRIME_PUBLIC_TRUST_LAYERS.length),
+    }),
+    sourceGraphGuidance: z.object({
+        boundary: z.string().min(1).max(600),
+        recommendedQueries: z
+            .array(z.object({
+            changedFiles: z.array(z.string().min(1).max(1200)).max(40).optional(),
+            focus: z.string().min(1).max(240).optional(),
+            query: z.string().min(1).max(240).optional(),
+            tool: z.string().min(1).max(120),
+        }))
+            .max(8),
+        recommendedTools: z.array(z.string().min(1).max(120)).max(8),
+        sourceEvidenceRefs: z.array(z.string().min(1).max(240)).max(40),
+        sourceGraphRef: z.string().min(1).max(240).nullable(),
+        status: z.enum(['not-requested', 'recommended', 'ready-evidence', 'degraded']),
     }),
     trustReceipt: z.object({
         hostResponse: z.record(z.string(), z.unknown()).nullable(),
@@ -395,7 +440,7 @@ export const AGENT_PUBLIC_TOOL_CONTRACT_CATALOG = [
         implementationStatus: 'active-tool',
     }),
     definition('alembic_prime', {
-        acceptedRefs: ['intentRef', 'detailRefs'],
+        acceptedRefs: ['intentRef', 'sourceGraphRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource', 'intentRef'],
     }, ['primeRef', 'detailRefs'], {
         activeMcpSurface: true,
@@ -403,7 +448,7 @@ export const AGENT_PUBLIC_TOOL_CONTRACT_CATALOG = [
         implementationStatus: 'active-tool',
     }),
     definition('alembic_work_start', {
-        acceptedRefs: ['intentRef', 'primeRef', 'detailRefs'],
+        acceptedRefs: ['intentRef', 'primeRef', 'sourceGraphRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource', 'intentRef'],
     }, ['workRef', 'detailRefs'], {
         activeMcpSurface: true,
@@ -411,7 +456,7 @@ export const AGENT_PUBLIC_TOOL_CONTRACT_CATALOG = [
         implementationStatus: 'active-tool',
     }),
     definition('alembic_work_finish', {
-        acceptedRefs: ['intentRef', 'primeRef', 'workRef', 'detailRefs'],
+        acceptedRefs: ['intentRef', 'primeRef', 'sourceGraphRef', 'workRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource', 'workRef'],
     }, ['workRef', 'finishRef', 'detailRefs'], {
         activeMcpSurface: true,
@@ -419,7 +464,7 @@ export const AGENT_PUBLIC_TOOL_CONTRACT_CATALOG = [
         implementationStatus: 'active-tool',
     }),
     definition('alembic_code_guard', {
-        acceptedRefs: ['intentRef', 'workRef', 'detailRefs'],
+        acceptedRefs: ['intentRef', 'sourceGraphRef', 'workRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource'],
     }, ['guardResultRef', 'detailRefs'], {
         activeMcpSurface: true,
@@ -427,7 +472,7 @@ export const AGENT_PUBLIC_TOOL_CONTRACT_CATALOG = [
         implementationStatus: 'active-tool',
     }),
     definition('alembic_decision_record', {
-        acceptedRefs: ['intentRef', 'workRef', 'detailRefs'],
+        acceptedRefs: ['intentRef', 'sourceGraphRef', 'workRef', 'detailRefs'],
         requiredFields: ['agentHost', 'inputSource'],
     }, ['decisionRef', 'detailRefs'], {
         activeMcpSurface: true,

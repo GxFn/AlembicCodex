@@ -8,10 +8,11 @@ import { KnowledgeEdgeRepositoryImpl, } from './repository/knowledge/KnowledgeEd
 import { KnowledgeRepositoryImpl } from './repository/knowledge/KnowledgeRepository.impl.js';
 import { MemoryRepositoryImpl, } from './repository/memory/MemoryRepository.js';
 import { SessionRepositoryImpl, } from './repository/session/SessionRepository.js';
+import { SourceGraphRepositoryImpl, } from './repository/source-graph/SourceGraphRepository.js';
 import { RecipeSourceRefRepositoryImpl, } from './repository/sourceref/RecipeSourceRefRepository.js';
 import { RawDbSyncAdapter } from './repository/sync/SyncRepoAdapter.js';
 import { TokenUsageStore } from './repository/token/TokenUsageStore.js';
-export { BootstrapRepositoryImpl, CodeEntityRepositoryImpl, GuardViolationRepositoryImpl, KnowledgeEdgeRepositoryImpl, KnowledgeRepositoryImpl, LifecycleEventRepository, MemoryRepositoryImpl, ProposalRepository, RawDbSyncAdapter, RecipeSourceRefRepositoryImpl, SessionRepositoryImpl, TokenUsageStore, WarningRepository, getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, };
+export { BootstrapRepositoryImpl, CodeEntityRepositoryImpl, GuardViolationRepositoryImpl, KnowledgeEdgeRepositoryImpl, KnowledgeRepositoryImpl, LifecycleEventRepository, MemoryRepositoryImpl, ProposalRepository, RawDbSyncAdapter, RecipeSourceRefRepositoryImpl, SessionRepositoryImpl, SourceGraphRepositoryImpl, TokenUsageStore, WarningRepository, getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, };
 export const ALEMBIC_REPOSITORY_KEYS = [
     'knowledgeRepository',
     'knowledgeEdgeRepository',
@@ -20,6 +21,7 @@ export const ALEMBIC_REPOSITORY_KEYS = [
     'guardViolationRepository',
     'memoryRepository',
     'sessionRepository',
+    'sourceGraphRepository',
     'proposalRepository',
     'warningRepository',
     'lifecycleEventRepository',
@@ -35,6 +37,7 @@ export function createAlembicRepositories(database) {
         guardViolationRepository: new GuardViolationRepositoryImpl(drizzle),
         memoryRepository: new MemoryRepositoryImpl(drizzle),
         sessionRepository: new SessionRepositoryImpl(drizzle),
+        sourceGraphRepository: new SourceGraphRepositoryImpl(drizzle),
         proposalRepository: new ProposalRepository(drizzle),
         warningRepository: new WarningRepository(drizzle),
         lifecycleEventRepository: new LifecycleEventRepository(drizzle),

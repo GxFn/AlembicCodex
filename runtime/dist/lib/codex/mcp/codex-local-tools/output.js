@@ -1,8 +1,18 @@
 import { z } from 'zod';
 import { CleanMcpResponseBaseSchema, createCleanMcpError, createCleanMcpResponse, registerMcpOutputProjector, } from '../output-contract.js';
+import { SOURCE_GRAPH_OPERATION_TOOL_NAMES, SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES, } from '../source-graph/output.js';
 export const CODEX_LOCAL_CLEAN_OUTPUT_TOOL_NAMES = [
     'alembic_codex_status',
     'alembic_codex_diagnostics',
+    'alembic_source_graph_status',
+    'alembic_symbol_search',
+    'alembic_code_explore',
+    'alembic_source_node',
+    'alembic_callers',
+    'alembic_callees',
+    'alembic_code_impact',
+    'alembic_affected_tests',
+    'alembic_validation_plan',
     'alembic_codex_init',
     'alembic_codex_dashboard',
     'alembic_codex_bootstrap',
@@ -23,6 +33,7 @@ export const CODEX_LOCAL_BASE_OUTPUT_FIELD_NAMES = [
 export const CODEX_LOCAL_RUNTIME_DIAGNOSTIC_TOOL_NAMES = [
     'alembic_codex_status',
     'alembic_codex_diagnostics',
+    'alembic_source_graph_status',
     'alembic_codex_job',
     'alembic_codex_cleanup',
 ];
@@ -110,6 +121,15 @@ export const CODEX_LOCAL_TOOL_ALLOWED_BUSINESS_FIELD_NAMES = {
         'runtimeIdentity',
         'summary',
     ],
+    alembic_source_graph_status: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_source_graph_status,
+    alembic_symbol_search: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_symbol_search,
+    alembic_code_explore: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_code_explore,
+    alembic_source_node: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_source_node,
+    alembic_callers: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_callers,
+    alembic_callees: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_callees,
+    alembic_code_impact: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_code_impact,
+    alembic_affected_tests: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_affected_tests,
+    alembic_validation_plan: SOURCE_GRAPH_TOOL_ALLOWED_BUSINESS_FIELD_NAMES.alembic_validation_plan,
     alembic_codex_init: [
         'alreadyInitialized',
         'initialized',
@@ -141,6 +161,31 @@ export const CODEX_LOCAL_TOOL_ALLOWED_BUSINESS_FIELD_NAMES = {
         'workspace',
     ],
     alembic_codex_stop: ['daemonReady', 'daemonStatus', 'pidAlive', 'stopped'],
+};
+const CODEX_LOCAL_TOOL_SUMMARY_BUILDERS = {
+    alembic_codex_status: () => 'Alembic Codex status checked.',
+    alembic_codex_diagnostics: (input) => typeof input.business.businessSummary === 'string'
+        ? input.business.businessSummary
+        : 'Alembic Codex diagnostics completed.',
+    alembic_source_graph_status: buildSourceGraphStatusSummary,
+    alembic_symbol_search: buildSourceGraphOperationSummary,
+    alembic_code_explore: buildSourceGraphOperationSummary,
+    alembic_source_node: buildSourceGraphOperationSummary,
+    alembic_callers: buildSourceGraphOperationSummary,
+    alembic_callees: buildSourceGraphOperationSummary,
+    alembic_code_impact: buildSourceGraphOperationSummary,
+    alembic_affected_tests: buildSourceGraphOperationSummary,
+    alembic_validation_plan: buildSourceGraphOperationSummary,
+    alembic_codex_init: () => 'Alembic Codex workspace initialized.',
+    alembic_codex_dashboard: (input) => input.business.dashboardUrl
+        ? 'Alembic Dashboard handoff ready.'
+        : 'Alembic Dashboard handoff checked.',
+    alembic_codex_bootstrap: () => 'Alembic Codex bootstrap job checked.',
+    alembic_codex_rescan: () => 'Alembic Codex rescan job checked.',
+    alembic_codex_job: (input) => Array.isArray(input.business.jobs)
+        ? `Alembic Codex job list returned ${input.business.jobs.length} item(s).`
+        : 'Alembic Codex job status checked.',
+    alembic_codex_stop: () => 'Alembic Codex daemon stop requested.',
 };
 export const CodexLocalToolOutputBaseSchema = CleanMcpResponseBaseSchema.extend({
     toolName: CodexLocalCleanOutputToolNameSchema,
@@ -335,6 +380,9 @@ function pickAllowedBusinessFields(value, toolName) {
     return out;
 }
 function shouldStripRuntimeField(key, toolName) {
+    if (isSourceGraphOperationTool(toolName) && key === 'diagnostics') {
+        return false;
+    }
     return (!isRuntimeDiagnosticTool(toolName) &&
         (CODEX_LOCAL_IMPLICIT_RUNTIME_OUTPUT_KEYS.has(key) ||
             key === 'daemon' ||
@@ -344,10 +392,16 @@ function shouldForbidRuntimeField(key, toolName) {
     if (!toolName || isRuntimeDiagnosticTool(toolName)) {
         return false;
     }
+    if (isSourceGraphOperationTool(toolName) && key === 'diagnostics') {
+        return false;
+    }
     return CODEX_LOCAL_IMPLICIT_RUNTIME_OUTPUT_KEYS.has(key);
 }
 function isRuntimeDiagnosticTool(toolName) {
     return CODEX_LOCAL_RUNTIME_DIAGNOSTIC_TOOL_NAMES.includes(toolName);
+}
+function isSourceGraphOperationTool(toolName) {
+    return SOURCE_GRAPH_OPERATION_TOOL_NAMES.includes(toolName);
 }
 function isSensitiveCodexLocalOutputKey(key) {
     const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -402,6 +456,13 @@ function deriveCodexLocalToolStatus(input) {
     if (input.business.businessOk === false) {
         return 'degraded';
     }
+    if (isSourceGraphOperationTool(input.toolName)) {
+        const graph = isRecord(input.business.graph) ? input.business.graph : {};
+        if (input.business.ready === true) {
+            return 'ready';
+        }
+        return typeof graph.freshness === 'string' ? graph.freshness : 'unavailable';
+    }
     return 'ready';
 }
 function buildCodexLocalToolSummary(toolName, input) {
@@ -414,39 +475,28 @@ function buildCodexLocalToolSummary(toolName, input) {
     if (!input.ok) {
         return `${toolName} blocked.`;
     }
-    if (toolName === 'alembic_codex_status') {
-        return 'Alembic Codex status checked.';
-    }
-    if (toolName === 'alembic_codex_diagnostics') {
-        return typeof input.business.businessSummary === 'string'
-            ? input.business.businessSummary
-            : 'Alembic Codex diagnostics completed.';
-    }
-    if (toolName === 'alembic_codex_init') {
-        return 'Alembic Codex workspace initialized.';
-    }
-    if (toolName === 'alembic_codex_dashboard') {
-        return input.business.dashboardUrl
-            ? 'Alembic Dashboard handoff ready.'
-            : 'Alembic Dashboard handoff checked.';
-    }
-    if (toolName === 'alembic_codex_bootstrap') {
-        return 'Alembic Codex bootstrap job checked.';
-    }
-    if (toolName === 'alembic_codex_rescan') {
-        return 'Alembic Codex rescan job checked.';
-    }
-    if (toolName === 'alembic_codex_job') {
-        return Array.isArray(input.business.jobs)
-            ? `Alembic Codex job list returned ${input.business.jobs.length} item(s).`
-            : 'Alembic Codex job status checked.';
-    }
-    if (toolName === 'alembic_codex_stop') {
-        return 'Alembic Codex daemon stop requested.';
+    const buildSummary = CODEX_LOCAL_TOOL_SUMMARY_BUILDERS[toolName];
+    if (buildSummary) {
+        return buildSummary(input);
     }
     return input.business.dryRun === true
         ? 'Alembic Codex cleanup preview completed.'
         : 'Alembic Codex runtime cleanup completed.';
+}
+function buildSourceGraphStatusSummary(input) {
+    const graph = isRecord(input.business.graph) ? input.business.graph : {};
+    const freshness = typeof graph.freshness === 'string' ? graph.freshness : 'unavailable';
+    return input.business.ready === true
+        ? 'Alembic source graph is fresh.'
+        : `Alembic source graph is ${freshness}; source facts are not ready.`;
+}
+function buildSourceGraphOperationSummary(input) {
+    const operation = typeof input.business.operation === 'string' ? input.business.operation : 'source graph';
+    const graph = isRecord(input.business.graph) ? input.business.graph : {};
+    const freshness = typeof graph.freshness === 'string' ? graph.freshness : 'unavailable';
+    return input.business.ready === true
+        ? `Alembic ${operation} source graph query completed.`
+        : `Alembic ${operation} source graph query is ${freshness}; source facts are not ready.`;
 }
 function isRecord(value) {
     return !!value && typeof value === 'object' && !Array.isArray(value);

@@ -11,3 +11,4 @@ export { Reasoning as ReasoningV3 } from './knowledge/values/Reasoning.js';
 export { RELATION_BUCKETS, RELATION_BUCKETS as RelationType, Relations, } from './knowledge/values/Relations.js';
 export { Stats } from './knowledge/values/Stats.js';
 export { Snippet } from './snippet/Snippet.js';
+export * from './source-graph/index.js';

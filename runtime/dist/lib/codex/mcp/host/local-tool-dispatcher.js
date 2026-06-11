@@ -4,6 +4,17 @@ export function dispatchCodexLocalTool(name, args, handlers) {
             return { handled: true, result: handlers.buildStatus() };
         case 'alembic_codex_diagnostics':
             return { handled: true, result: handlers.buildDiagnostics() };
+        case 'alembic_source_graph_status':
+            return { handled: true, result: handlers.buildSourceGraphStatus(args) };
+        case 'alembic_symbol_search':
+        case 'alembic_code_explore':
+        case 'alembic_source_node':
+        case 'alembic_callers':
+        case 'alembic_callees':
+        case 'alembic_code_impact':
+        case 'alembic_affected_tests':
+        case 'alembic_validation_plan':
+            return { handled: true, result: handlers.buildSourceGraphOperation(name, args) };
         case 'alembic_codex_init':
             return { handled: true, result: handlers.initializeWorkspace(args) };
         case 'alembic_codex_dashboard':

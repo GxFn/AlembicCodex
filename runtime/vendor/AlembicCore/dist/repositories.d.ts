@@ -9,10 +9,11 @@ import { type EdgeInsert, type EdgeStats, type KnowledgeEdge, KnowledgeEdgeRepos
 import { KnowledgeRepositoryImpl } from './repository/knowledge/KnowledgeRepository.impl.js';
 import { MemoryRepositoryImpl, type MemoryStats, type SemanticMemoryEntity, type SemanticMemoryInsert, type SemanticMemorySimilarityResult, type SemanticMemoryUpdate } from './repository/memory/MemoryRepository.js';
 import { type SessionEntity, type SessionInsert, SessionRepositoryImpl } from './repository/session/SessionRepository.js';
+import { type SourceGraphClearResult, type SourceGraphEdgeDirection, type SourceGraphEdgeInsert, type SourceGraphEdgeQueryOptions, type SourceGraphReplaceInput, SourceGraphRepositoryImpl, type SourceGraphStats, type SourceGraphSymbolInsert, type SourceGraphSymbolSearchOptions } from './repository/source-graph/SourceGraphRepository.js';
 import { type RecipeSourceRefEntity, type RecipeSourceRefInsert, RecipeSourceRefRepositoryImpl } from './repository/sourceref/RecipeSourceRefRepository.js';
 import { RawDbSyncAdapter, type SyncRepo } from './repository/sync/SyncRepoAdapter.js';
 import { TokenUsageStore } from './repository/token/TokenUsageStore.js';
-export type { BootstrapSnapshotEntity, BootstrapSnapshotInsert, CodeEntity, CodeEntityInsert, CreateProposalInput, CreateWarningInput, DimFileEntry, DimFileInsert, DimensionStatMeta, EdgeInsert, EdgeStats, GuardViolationEntity, GuardViolationInsert, KnowledgeEdge, LegacyProposalType, MemoryStats, PaginatedViolations, ProposalFilter, ProposalRecord, ProposalSource, ProposalStatus, ProposalType, RecipeSourceRefEntity, RecipeSourceRefInsert, RecordEventInput, SemanticMemoryEntity, SemanticMemoryInsert, SemanticMemorySimilarityResult, SemanticMemoryUpdate, SessionEntity, SessionInsert, SyncRepo, TransitionEventRow, ViolationRecord, ViolationStatByRule, ViolationStats, WarningFilter, WarningRecord, WarningStatus, WarningType, };
+export type { BootstrapSnapshotEntity, BootstrapSnapshotInsert, CodeEntity, CodeEntityInsert, CreateProposalInput, CreateWarningInput, DimFileEntry, DimFileInsert, DimensionStatMeta, EdgeInsert, EdgeStats, GuardViolationEntity, GuardViolationInsert, KnowledgeEdge, LegacyProposalType, MemoryStats, PaginatedViolations, ProposalFilter, ProposalRecord, ProposalSource, ProposalStatus, ProposalType, RecipeSourceRefEntity, RecipeSourceRefInsert, RecordEventInput, SemanticMemoryEntity, SemanticMemoryInsert, SemanticMemorySimilarityResult, SemanticMemoryUpdate, SessionEntity, SessionInsert, SourceGraphClearResult, SourceGraphEdgeDirection, SourceGraphEdgeInsert, SourceGraphEdgeQueryOptions, SourceGraphReplaceInput, SourceGraphStats, SourceGraphSymbolInsert, SourceGraphSymbolSearchOptions, SyncRepo, TransitionEventRow, ViolationRecord, ViolationStatByRule, ViolationStats, WarningFilter, WarningRecord, WarningStatus, WarningType, };
 export type KnowledgeRepository = KnowledgeRepositoryImpl;
 export type KnowledgeEdgeRepository = KnowledgeEdgeRepositoryImpl;
 export type CodeEntityRepository = CodeEntityRepositoryImpl;
@@ -20,11 +21,12 @@ export type BootstrapRepository = BootstrapRepositoryImpl;
 export type GuardViolationRepository = GuardViolationRepositoryImpl;
 export type MemoryRepository = MemoryRepositoryImpl;
 export type SessionRepository = SessionRepositoryImpl;
+export type SourceGraphRepository = SourceGraphRepositoryImpl;
 export type SourceRefRepository = RecipeSourceRefRepositoryImpl;
 export type EvolutionProposalRepository = ProposalRepository;
 export type EvolutionWarningRepository = WarningRepository;
 export type EvolutionLifecycleEventRepository = LifecycleEventRepository;
-export { BootstrapRepositoryImpl, CodeEntityRepositoryImpl, GuardViolationRepositoryImpl, KnowledgeEdgeRepositoryImpl, KnowledgeRepositoryImpl, LifecycleEventRepository, MemoryRepositoryImpl, ProposalRepository, RawDbSyncAdapter, RecipeSourceRefRepositoryImpl, SessionRepositoryImpl, TokenUsageStore, WarningRepository, getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, };
+export { BootstrapRepositoryImpl, CodeEntityRepositoryImpl, GuardViolationRepositoryImpl, KnowledgeEdgeRepositoryImpl, KnowledgeRepositoryImpl, LifecycleEventRepository, MemoryRepositoryImpl, ProposalRepository, RawDbSyncAdapter, RecipeSourceRefRepositoryImpl, SessionRepositoryImpl, SourceGraphRepositoryImpl, TokenUsageStore, WarningRepository, getProposalSourceLabel, normalizeProposalSource, proposalSourceStorageValues, };
 export interface AlembicRepositoryDatabase extends AlembicDatabaseHandle {
     getDb(): SqliteDatabase;
     getDrizzle(): DrizzleDB;
@@ -37,12 +39,13 @@ export interface AlembicRepositoryBundle {
     guardViolationRepository: GuardViolationRepository;
     memoryRepository: MemoryRepository;
     sessionRepository: SessionRepository;
+    sourceGraphRepository: SourceGraphRepository;
     proposalRepository: EvolutionProposalRepository;
     warningRepository: EvolutionWarningRepository;
     lifecycleEventRepository: EvolutionLifecycleEventRepository;
     recipeSourceRefRepository: SourceRefRepository;
 }
-export declare const ALEMBIC_REPOSITORY_KEYS: readonly ["knowledgeRepository", "knowledgeEdgeRepository", "codeEntityRepository", "bootstrapRepository", "guardViolationRepository", "memoryRepository", "sessionRepository", "proposalRepository", "warningRepository", "lifecycleEventRepository", "recipeSourceRefRepository"];
+export declare const ALEMBIC_REPOSITORY_KEYS: readonly ["knowledgeRepository", "knowledgeEdgeRepository", "codeEntityRepository", "bootstrapRepository", "guardViolationRepository", "memoryRepository", "sessionRepository", "sourceGraphRepository", "proposalRepository", "warningRepository", "lifecycleEventRepository", "recipeSourceRefRepository"];
 export type AlembicRepositoryKey = (typeof ALEMBIC_REPOSITORY_KEYS)[number];
 export declare function createAlembicRepositories(database: AlembicRepositoryDatabase): AlembicRepositoryBundle;
 export declare function isAlembicRepositoryKey(value: string): value is AlembicRepositoryKey;

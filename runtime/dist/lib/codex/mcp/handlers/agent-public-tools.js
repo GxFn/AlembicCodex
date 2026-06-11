@@ -30,6 +30,7 @@ export async function intentHandler(ctx, args) {
         intentKind: intake.intentKind,
         refs: {
             detailRefs,
+            ...buildSourceGraphRefEntry(args.sourceGraphRef),
             ...(intentRef
                 ? {
                     intentRef: {
@@ -89,137 +90,142 @@ export async function primeHandler(ctx, args) {
     const primeRef = nextPrimeRef();
     const blockingReason = resolvePrimeBlockingReason(args, record, intake);
     if (blockingReason) {
-        const result = createAgentPublicToolResultEnvelope({
-            actionKind: 'prime',
-            agentHost: intake.agentHost,
-            inputSource: intake.inputSource,
-            intentKind: intake.intentKind,
-            reason: {
-                kind: 'blocked',
-                code: blockingReason.code,
-                message: blockingReason.message,
-                retryable: false,
-            },
-            refs: {
-                ...(args.intentRef
-                    ? {
-                        intentRef: {
-                            refType: 'intent',
-                            id: args.intentRef,
-                            toolName: 'alembic_intent',
-                        },
-                    }
-                    : {}),
-                detailRefs,
-                primeRef: { refType: 'prime', id: primeRef, toolName: 'alembic_prime' },
-            },
-            status: 'blocked',
-            summary: buildResultSummary(blockingReason.message),
-            toolName: 'alembic_prime',
-        });
-        const primePackage = buildPrimePublicPackage({
+        return buildPrimeBlockingOutput({
+            args,
             detailRefs,
             intake,
-            primeKnowledgeMaterial: null,
             primeRef,
-            result,
-            searchDegraded: false,
-            searchResult: null,
-        });
-        return createAgentPublicToolOutput(result, {
-            detailRefs,
-            primePackage,
+            blockingReason,
         });
     }
-    const lifecycle = intake.lifecycle;
     const effectiveProjectRoot = resolveEffectiveProjectRoot(ctx, args);
-    let searchResult = null;
-    let searchDegraded = false;
-    let skippedReason = null;
-    if (lifecycle.primeDecision.action === 'skip') {
-        skippedReason = mapPrimeSkipReason(lifecycle.primeDecision.reasonCode);
-    }
-    else {
-        const pipeline = getPipeline(ctx.container);
-        if (!pipeline) {
-            searchDegraded = true;
-        }
-        else {
-            try {
-                searchResult = await pipeline.search(intake.extracted, {
-                    hostIntentFrame: intake.hostIntentFrame,
-                    projectRoot: effectiveProjectRoot,
-                });
-            }
-            catch (err) {
-                searchDegraded = true;
-                process.stderr.write(`[MCP/AgentPublicTools] alembic_prime search degraded: ${err instanceof Error ? err.message : String(err)}\n`);
-            }
-        }
-    }
-    const projectRuntime = buildCodexPrimeRuntimeContext({
-        projectRoot: effectiveProjectRoot,
-        residentSearch: searchResult?.searchMeta.residentSearch ?? null,
+    const primeSearch = await runPrimeSearch(ctx, intake, effectiveProjectRoot);
+    return buildPrimeReadyOutput({
+        args,
+        ctx,
+        detailRefs,
+        effectiveProjectRoot,
+        intake,
+        primeRef,
+        primeSearch,
+        record,
     });
-    const primeKnowledgeMaterial = buildPrimeKnowledgeMaterial({
-        extracted: intake.extracted,
-        hostIntentFrame: intake.hostIntentFrame,
-        hostIntentInput: intake.hostIntentInput,
-        intentEpisode: createUnavailablePrimeIntentEpisodeMaterial('agent-public-prime keeps IntentEpisode handoff out of Stage 3 active surface'),
-        searchDegraded,
-        searchResult,
-        taskAnchorDecision: lifecycle.taskAnchorDecision,
+}
+function buildPrimeBlockingOutput(input) {
+    const result = buildPrimeBlockingResult(input);
+    const primePackage = buildPrimePublicPackage({
+        detailRefs: input.detailRefs,
+        intake: input.intake,
+        primeKnowledgeMaterial: null,
+        primeRef: input.primeRef,
+        result,
+        searchDegraded: false,
+        searchResult: null,
     });
-    const retrievalConsumer = searchResult?.searchMeta.retrievalConsumer ?? null;
-    const status = resolvePrimeStatus({
-        primeKnowledgeMaterial,
-        retrievalConsumer,
-        searchDegraded,
-        searchResult,
-        skippedReason,
+    return createAgentPublicToolOutput(result, {
+        detailRefs: input.detailRefs,
+        primePackage,
     });
-    const intentRef = record?.intentRef ?? args.intentRef;
-    const result = createAgentPublicToolResultEnvelope({
+}
+function buildPrimeBlockingResult(input) {
+    return createAgentPublicToolResultEnvelope({
         actionKind: 'prime',
-        agentHost: intake.agentHost,
-        inputSource: intake.inputSource,
-        intentKind: intake.intentKind,
-        refs: {
-            ...(intentRef
-                ? {
-                    intentRef: {
-                        refType: 'intent',
-                        id: intentRef,
-                        toolName: 'alembic_intent',
-                    },
-                }
-                : {}),
-            detailRefs,
-            primeRef: { refType: 'prime', id: primeRef, toolName: 'alembic_prime' },
+        agentHost: input.intake.agentHost,
+        inputSource: input.intake.inputSource,
+        intentKind: input.intake.intentKind,
+        reason: {
+            kind: 'blocked',
+            code: input.blockingReason.code,
+            message: input.blockingReason.message,
+            retryable: false,
         },
+        refs: buildPrimeRefs(input),
+        status: 'blocked',
+        summary: buildResultSummary(input.blockingReason.message),
+        toolName: 'alembic_prime',
+    });
+}
+function buildPrimeRefs(input) {
+    return {
+        ...buildSourceGraphRefEntry(input.args.sourceGraphRef),
+        ...(input.args.intentRef
+            ? {
+                intentRef: {
+                    refType: 'intent',
+                    id: input.args.intentRef,
+                    toolName: 'alembic_intent',
+                },
+            }
+            : {}),
+        detailRefs: input.detailRefs,
+        primeRef: { refType: 'prime', id: input.primeRef, toolName: 'alembic_prime' },
+    };
+}
+function buildPrimeReadyOutput(input) {
+    const projectRuntime = buildCodexPrimeRuntimeContext({
+        projectRoot: input.effectiveProjectRoot,
+        residentSearch: input.primeSearch.searchResult?.searchMeta.residentSearch ?? null,
+    });
+    const material = buildPrimeMaterialProjection(input.intake, input.primeSearch);
+    const status = resolvePrimeStatus({
+        primeKnowledgeMaterial: material.primeKnowledgeMaterial,
+        retrievalConsumer: material.retrievalConsumer,
+        searchDegraded: input.primeSearch.searchDegraded,
+        searchResult: input.primeSearch.searchResult,
+        skippedReason: input.primeSearch.skippedReason,
+    });
+    const result = buildPrimeReadyResult(input, status);
+    bindPrimeSessionIntent(input.ctx, input.intake, input.primeSearch.searchResult, projectRuntime);
+    const primePackage = buildPrimePublicPackage({
+        detailRefs: input.detailRefs,
+        intake: input.intake,
+        primeKnowledgeMaterial: material.primeKnowledgeMaterial,
+        primeRef: input.primeRef,
+        result,
+        searchDegraded: input.primeSearch.searchDegraded,
+        searchResult: input.primeSearch.searchResult,
+    });
+    return createAgentPublicToolOutput(result, {
+        detailRefs: input.detailRefs,
+        primePackage,
+    });
+}
+function buildPrimeMaterialProjection(intake, primeSearch) {
+    return {
+        primeKnowledgeMaterial: buildPrimeKnowledgeMaterial({
+            extracted: intake.extracted,
+            hostIntentFrame: intake.hostIntentFrame,
+            hostIntentInput: intake.hostIntentInput,
+            intentEpisode: createUnavailablePrimeIntentEpisodeMaterial('agent-public-prime keeps IntentEpisode handoff out of Stage 3 active surface'),
+            searchDegraded: primeSearch.searchDegraded,
+            searchResult: primeSearch.searchResult,
+            taskAnchorDecision: intake.lifecycle.taskAnchorDecision,
+        }),
+        retrievalConsumer: primeSearch.searchResult?.searchMeta.retrievalConsumer ?? null,
+    };
+}
+function buildPrimeReadyResult(input, status) {
+    const intentRef = input.record?.intentRef ?? input.args.intentRef;
+    return createAgentPublicToolResultEnvelope({
+        actionKind: 'prime',
+        agentHost: input.intake.agentHost,
+        inputSource: input.intake.inputSource,
+        intentKind: input.intake.intentKind,
+        refs: buildPrimeRefs({ ...input, args: { ...input.args, intentRef } }),
         ...(status.reason ? { reason: status.reason } : {}),
         status: status.status,
         summary: buildResultSummary(status.summary),
         toolName: 'alembic_prime',
     });
-    bindPrimeSessionIntent(ctx, intake, searchResult, projectRuntime);
-    const primePackage = buildPrimePublicPackage({
-        detailRefs,
-        intake,
-        primeKnowledgeMaterial,
-        primeRef,
-        result,
-        searchDegraded,
-        searchResult,
-    });
-    return createAgentPublicToolOutput(result, {
-        detailRefs,
-        primePackage,
-    });
 }
 export async function workStartHandler(ctx, args) {
     const intake = buildIntentIntake(ctx, args);
-    const detailRefs = buildBaseDetailRefs('alembic_work_start', uniqueStrings([...(args.sourceRefs ?? []), ...(args.workScope?.files ?? [])]));
+    const detailRefs = buildBaseDetailRefs('alembic_work_start', uniqueStrings([
+        ...(args.sourceRefs ?? []),
+        ...(args.sourceGraphRef ? [args.sourceGraphRef] : []),
+        ...(args.sourceEvidenceRefs ?? []),
+        ...(args.workScope?.files ?? []),
+    ]));
     const status = resolveWorkStartStatus(intake, args);
     if (status.status !== 'ready') {
         const result = createAgentPublicToolResultEnvelope({
@@ -229,6 +235,7 @@ export async function workStartHandler(ctx, args) {
             intentKind: intake.intentKind,
             reason: status.reason,
             refs: {
+                ...buildSourceGraphRefEntry(args.sourceGraphRef),
                 ...(args.intentRef
                     ? {
                         intentRef: {
@@ -263,6 +270,8 @@ export async function workStartHandler(ctx, args) {
         intentKind: intake.intentKind,
         ...(args.intentRef ? { intentRef: args.intentRef } : {}),
         ...(args.primeRef ? { primeRef: args.primeRef } : {}),
+        ...(args.sourceGraphRef ? { sourceGraphRef: args.sourceGraphRef } : {}),
+        sourceEvidenceRefs: uniqueStrings(args.sourceEvidenceRefs ?? []),
         scopeFiles,
         sourceRefs: intake.sourceRefs,
         title,
@@ -276,6 +285,7 @@ export async function workStartHandler(ctx, args) {
         inputSource: intake.inputSource,
         intentKind: intake.intentKind,
         refs: {
+            ...buildSourceGraphRefEntry(args.sourceGraphRef),
             ...(args.intentRef
                 ? {
                     intentRef: {
@@ -314,7 +324,12 @@ export async function workStartHandler(ctx, args) {
 }
 export async function workFinishHandler(ctx, args) {
     const intake = buildIntentIntake(ctx, args);
-    const detailRefs = buildBaseDetailRefs('alembic_work_finish', uniqueStrings([...(args.sourceRefs ?? []), ...(args.evidenceRefs ?? [])]));
+    const detailRefs = buildBaseDetailRefs('alembic_work_finish', uniqueStrings([
+        ...(args.sourceRefs ?? []),
+        ...(args.sourceGraphRef ? [args.sourceGraphRef] : []),
+        ...(args.sourceEvidenceRefs ?? []),
+        ...(args.evidenceRefs ?? []),
+    ]));
     const record = typeof args.workRef === 'string' ? WORK_RECORDS.get(args.workRef) : undefined;
     if (!args.workRef || !record) {
         const result = createAgentPublicToolResultEnvelope({
@@ -330,7 +345,10 @@ export async function workFinishHandler(ctx, args) {
                     : 'alembic_work_finish requires a workRef returned by alembic_work_start.',
                 retryable: false,
             },
-            refs: { detailRefs },
+            refs: {
+                ...buildSourceGraphRefEntry(args.sourceGraphRef),
+                detailRefs,
+            },
             status: 'blocked',
             summary: buildResultSummary('Work finish blocked because workRef is missing.'),
             toolName: 'alembic_work_finish',
@@ -351,6 +369,13 @@ export async function workFinishHandler(ctx, args) {
     const finishedAt = new Date().toISOString();
     record.finishRef = finishRef;
     record.finishedAt = finishedAt;
+    if (args.sourceGraphRef) {
+        record.sourceGraphRef = args.sourceGraphRef;
+    }
+    record.sourceEvidenceRefs = uniqueStrings([
+        ...record.sourceEvidenceRefs,
+        ...(args.sourceEvidenceRefs ?? []),
+    ]);
     const outcome = args.outcome ?? 'completed';
     const summary = firstString(args.summary, args.reason) ??
         (outcome === 'completed'
@@ -362,6 +387,7 @@ export async function workFinishHandler(ctx, args) {
         inputSource: intake.inputSource,
         intentKind: intake.intentKind,
         refs: {
+            ...buildSourceGraphRefEntry(record.sourceGraphRef),
             ...(record.intentRef
                 ? {
                     intentRef: {
@@ -393,19 +419,43 @@ export async function workFinishHandler(ctx, args) {
         detailRefs,
         evidenceRefs: args.evidenceRefs ?? [],
         finishRef,
-        guardRecommendation: buildGuardRecommendation(guardDecision),
+        guardRecommendation: buildGuardRecommendation(guardDecision, {
+            sourceEvidenceRefs: record.sourceEvidenceRefs,
+            sourceGraphRef: record.sourceGraphRef,
+            validationPlan: args.validationPlan,
+        }),
         localRecord: {
             finishedAt,
             outcome,
             workRef: record.workRef,
         },
         outcome,
+        ...(record.sourceEvidenceRefs.length ? { sourceEvidenceRefs: record.sourceEvidenceRefs } : {}),
+        ...(record.sourceGraphRef ? { sourceGraphRef: record.sourceGraphRef } : {}),
         workRef: record.workRef,
     });
 }
 export async function codeGuardHandler(ctx, args) {
     const intake = buildIntentIntake(ctx, args);
-    const detailRefs = buildBaseDetailRefs('alembic_code_guard', args.sourceRefs ?? []);
+    const detailRefs = buildBaseDetailRefs('alembic_code_guard', uniqueStrings([
+        ...(args.sourceRefs ?? []),
+        ...(args.sourceGraphRef ? [args.sourceGraphRef] : []),
+        ...(args.sourceEvidenceRefs ?? []),
+    ]));
+    const scope = resolveCodeGuardScope(ctx, args);
+    const preflight = buildCodeGuardPreflightOutput({ args, detailRefs, intake, scope });
+    if (preflight) {
+        return preflight;
+    }
+    try {
+        const guardEnvelope = await executeScopedCodeGuard(ctx, args, scope);
+        return buildCodeGuardReadyOutput({ args, detailRefs, guardEnvelope, intake, scope });
+    }
+    catch (err) {
+        return buildCodeGuardFailureOutput({ args, detailRefs, err, intake });
+    }
+}
+function resolveCodeGuardScope(ctx, args) {
     const hasCode = typeof args.code === 'string' && args.code.trim().length > 0;
     const effectiveProjectRoot = resolveEffectiveProjectRoot(ctx, args);
     const explicitFiles = normalizeTaskLifecycleFileRefs(args.files ?? [], {
@@ -413,177 +463,195 @@ export async function codeGuardHandler(ctx, args) {
     });
     const workRecord = typeof args.workRef === 'string' ? WORK_RECORDS.get(args.workRef) : undefined;
     const workRefFiles = !hasCode && explicitFiles.length === 0 && workRecord
-        ? normalizeTaskLifecycleFileRefs(workRecord.scopeFiles, {
-            projectRoot: effectiveProjectRoot,
-        })
+        ? normalizeTaskLifecycleFileRefs(workRecord.scopeFiles, { projectRoot: effectiveProjectRoot })
         : [];
-    const files = explicitFiles.length > 0 ? explicitFiles : workRefFiles;
-    const unsupportedScopeFields = collectUnsupportedCodeGuardScopeFields(args);
-    if (!hasCode && explicitFiles.length === 0 && args.workRef && !workRecord) {
-        const result = createAgentPublicToolResultEnvelope({
-            actionKind: 'code-guard',
-            agentHost: intake.agentHost,
-            inputSource: intake.inputSource,
-            intentKind: intake.intentKind,
-            reason: {
-                kind: 'blocked',
-                code: 'missing-work-ref',
-                message: `No active work record exists for workRef ${args.workRef}; provide explicit files/code or start scoped work first.`,
-                retryable: false,
-            },
-            refs: {
-                detailRefs,
-            },
-            status: 'blocked',
-            summary: buildResultSummary('Code Guard blocked because the requested workRef is not active in this Plugin session.'),
-            toolName: 'alembic_code_guard',
-        });
-        return createAgentPublicToolOutput(result, {
-            unsupportedScopeFields,
-        });
+    return {
+        explicitFiles,
+        files: explicitFiles.length > 0 ? explicitFiles : workRefFiles,
+        hasCode,
+        unsupportedScopeFields: collectUnsupportedCodeGuardScopeFields(args),
+        workRecord,
+        workRefFiles,
+    };
+}
+function buildCodeGuardPreflightOutput(input) {
+    const { args, scope } = input;
+    if (!scope.hasCode && scope.explicitFiles.length === 0 && args.workRef && !scope.workRecord) {
+        return buildMissingWorkRefGuardOutput(input);
     }
-    if (!hasCode && explicitFiles.length === 0 && workRecord && files.length === 0) {
-        const result = createAgentPublicToolResultEnvelope({
-            actionKind: 'code-guard',
-            agentHost: intake.agentHost,
-            inputSource: intake.inputSource,
-            intentKind: intake.intentKind,
-            reason: {
-                kind: 'skip',
-                code: 'no-code-scope',
-                message: 'The referenced workRef is active but has no scoped source files; provide files or inline code to run Guard.',
-                retryable: false,
-            },
-            refs: {
-                workRef: {
-                    refType: 'work',
-                    id: workRecord.workRef,
-                    toolName: 'alembic_work_start',
-                },
-                detailRefs,
-            },
-            status: 'skipped',
-            summary: buildResultSummary('Code Guard skipped because the workRef has no scoped source files.'),
-            toolName: 'alembic_code_guard',
-        });
-        return createAgentPublicToolOutput(result, {
-            explicitScope: { files: [], kind: 'workRef', workRef: workRecord.workRef },
-            unsupportedScopeFields,
-        });
+    if (!scope.hasCode &&
+        scope.explicitFiles.length === 0 &&
+        scope.workRecord &&
+        scope.files.length === 0) {
+        return buildEmptyWorkRefGuardOutput(input, scope.workRecord);
     }
-    if (!hasCode && files.length === 0) {
-        const result = createAgentPublicToolResultEnvelope({
-            actionKind: 'code-guard',
-            agentHost: intake.agentHost,
-            inputSource: intake.inputSource,
-            intentKind: intake.intentKind,
-            reason: {
-                kind: 'blocked',
-                code: 'missing-guard-scope',
-                message: buildMissingGuardScopeMessage(unsupportedScopeFields),
-                retryable: false,
-            },
-            refs: {
-                ...(args.workRef
-                    ? {
-                        workRef: {
-                            refType: 'work',
-                            id: args.workRef,
-                            toolName: 'alembic_work_start',
-                        },
-                    }
-                    : {}),
-                detailRefs,
-            },
-            status: 'blocked',
-            summary: buildResultSummary('Code Guard blocked because no explicit scope was provided.'),
-            toolName: 'alembic_code_guard',
-        });
-        return createAgentPublicToolOutput(result, { unsupportedScopeFields });
+    if (!scope.hasCode && scope.files.length === 0) {
+        return buildMissingScopeGuardOutput(input);
     }
-    try {
-        const guardEnvelope = hasCode
-            ? await guardHandlers.guardCheck(ctx, {
-                code: args.code,
-                filePath: args.filePath,
-                language: args.language,
-            })
-            : await guardHandlers.guardReview(ctx, { files });
-        const guardResultRef = nextGuardResultRef();
-        const result = createAgentPublicToolResultEnvelope({
-            actionKind: 'code-guard',
-            agentHost: intake.agentHost,
-            inputSource: intake.inputSource,
-            intentKind: intake.intentKind,
-            refs: {
-                ...(args.intentRef
-                    ? {
-                        intentRef: {
-                            refType: 'intent',
-                            id: args.intentRef,
-                            toolName: 'alembic_intent',
-                        },
-                    }
-                    : {}),
-                ...(args.workRef
-                    ? {
-                        workRef: {
-                            refType: 'work',
-                            id: args.workRef,
-                            toolName: 'alembic_work_start',
-                        },
-                    }
-                    : {}),
-                detailRefs,
-                guardResultRef: {
-                    refType: 'guard-result',
-                    id: guardResultRef,
-                    toolName: 'alembic_code_guard',
-                },
+    return null;
+}
+function buildMissingWorkRefGuardOutput(input) {
+    const { args, detailRefs, intake, scope } = input;
+    const result = createAgentPublicToolResultEnvelope({
+        actionKind: 'code-guard',
+        agentHost: intake.agentHost,
+        inputSource: intake.inputSource,
+        intentKind: intake.intentKind,
+        reason: {
+            kind: 'blocked',
+            code: 'missing-work-ref',
+            message: `No active work record exists for workRef ${args.workRef}; provide explicit files/code or start scoped work first.`,
+            retryable: false,
+        },
+        refs: { ...buildSourceGraphRefEntry(args.sourceGraphRef), detailRefs },
+        status: 'blocked',
+        summary: buildResultSummary('Code Guard blocked because the requested workRef is not active in this Plugin session.'),
+        toolName: 'alembic_code_guard',
+    });
+    return createAgentPublicToolOutput(result, {
+        unsupportedScopeFields: scope.unsupportedScopeFields,
+    });
+}
+function buildEmptyWorkRefGuardOutput(input, workRecord) {
+    const { args, detailRefs, intake, scope } = input;
+    const result = createAgentPublicToolResultEnvelope({
+        actionKind: 'code-guard',
+        agentHost: intake.agentHost,
+        inputSource: intake.inputSource,
+        intentKind: intake.intentKind,
+        reason: {
+            kind: 'skip',
+            code: 'no-code-scope',
+            message: 'The referenced workRef is active but has no scoped source files; provide files or inline code to run Guard.',
+            retryable: false,
+        },
+        refs: {
+            ...buildSourceGraphRefEntry(args.sourceGraphRef),
+            workRef: {
+                refType: 'work',
+                id: workRecord.workRef,
+                toolName: 'alembic_work_start',
             },
-            status: 'ready',
-            summary: buildResultSummary(hasCode
-                ? 'Code Guard checked explicit inline code.'
-                : `Code Guard checked ${files.length} explicit file(s).`),
-            toolName: 'alembic_code_guard',
-        });
-        return createAgentPublicToolOutput(result, {
             detailRefs,
-            explicitScope: hasCode
-                ? { kind: 'code', filePath: args.filePath ?? null }
-                : {
-                    files,
-                    kind: explicitFiles.length > 0 ? 'files' : 'workRef',
-                    ...(explicitFiles.length === 0 && workRecord ? { workRef: workRecord.workRef } : {}),
-                },
-            guard: projectGuardBusinessPayload(guardEnvelope),
-            guardResultRef,
-            unsupportedScopeFields,
+        },
+        status: 'skipped',
+        summary: buildResultSummary('Code Guard skipped because the workRef has no scoped source files.'),
+        toolName: 'alembic_code_guard',
+    });
+    return createAgentPublicToolOutput(result, {
+        explicitScope: { files: [], kind: 'workRef', workRef: workRecord.workRef },
+        unsupportedScopeFields: scope.unsupportedScopeFields,
+    });
+}
+function buildMissingScopeGuardOutput(input) {
+    const { args, detailRefs, intake, scope } = input;
+    const result = createAgentPublicToolResultEnvelope({
+        actionKind: 'code-guard',
+        agentHost: intake.agentHost,
+        inputSource: intake.inputSource,
+        intentKind: intake.intentKind,
+        reason: {
+            kind: 'blocked',
+            code: 'missing-guard-scope',
+            message: buildMissingGuardScopeMessage(scope.unsupportedScopeFields),
+            retryable: false,
+        },
+        refs: {
+            ...buildSourceGraphRefEntry(args.sourceGraphRef),
+            ...buildWorkRefEntry(args.workRef),
+            detailRefs,
+        },
+        status: 'blocked',
+        summary: buildResultSummary('Code Guard blocked because no explicit scope was provided.'),
+        toolName: 'alembic_code_guard',
+    });
+    return createAgentPublicToolOutput(result, {
+        unsupportedScopeFields: scope.unsupportedScopeFields,
+    });
+}
+async function executeScopedCodeGuard(ctx, args, scope) {
+    if (scope.hasCode) {
+        return guardHandlers.guardCheck(ctx, {
+            code: args.code,
+            filePath: args.filePath,
+            language: args.language,
         });
     }
-    catch (err) {
-        const result = createAgentPublicToolResultEnvelope({
-            actionKind: 'code-guard',
-            agentHost: intake.agentHost,
-            inputSource: intake.inputSource,
-            intentKind: intake.intentKind,
-            reason: {
-                kind: 'failure',
-                code: 'handler-error',
-                message: `Scoped Code Guard failed: ${err instanceof Error ? err.message : String(err)}.`,
-                retryable: true,
+    return guardHandlers.guardReview(ctx, { files: scope.files });
+}
+function buildCodeGuardReadyOutput(input) {
+    const { args, detailRefs, guardEnvelope, intake, scope } = input;
+    const guardResultRef = nextGuardResultRef();
+    const result = createAgentPublicToolResultEnvelope({
+        actionKind: 'code-guard',
+        agentHost: intake.agentHost,
+        inputSource: intake.inputSource,
+        intentKind: intake.intentKind,
+        refs: {
+            ...buildSourceGraphRefEntry(args.sourceGraphRef),
+            ...buildIntentRefEntry(args.intentRef),
+            ...buildWorkRefEntry(args.workRef),
+            detailRefs,
+            guardResultRef: {
+                refType: 'guard-result',
+                id: guardResultRef,
+                toolName: 'alembic_code_guard',
             },
-            refs: { detailRefs },
-            status: 'failed',
-            summary: buildResultSummary('Scoped Code Guard failed before producing results.'),
-            toolName: 'alembic_code_guard',
-        });
-        return createAgentPublicToolOutput(result);
+        },
+        status: 'ready',
+        summary: buildResultSummary(scope.hasCode
+            ? 'Code Guard checked explicit inline code.'
+            : `Code Guard checked ${scope.files.length} explicit file(s).`),
+        toolName: 'alembic_code_guard',
+    });
+    return createAgentPublicToolOutput(result, {
+        detailRefs,
+        explicitScope: buildCodeGuardExplicitScope(args, scope),
+        guard: projectGuardBusinessPayload(guardEnvelope),
+        guardResultRef,
+        unsupportedScopeFields: scope.unsupportedScopeFields,
+    });
+}
+function buildCodeGuardFailureOutput(input) {
+    const { args, detailRefs, err, intake } = input;
+    const result = createAgentPublicToolResultEnvelope({
+        actionKind: 'code-guard',
+        agentHost: intake.agentHost,
+        inputSource: intake.inputSource,
+        intentKind: intake.intentKind,
+        reason: {
+            kind: 'failure',
+            code: 'handler-error',
+            message: `Scoped Code Guard failed: ${err instanceof Error ? err.message : String(err)}.`,
+            retryable: true,
+        },
+        refs: { ...buildSourceGraphRefEntry(args.sourceGraphRef), detailRefs },
+        status: 'failed',
+        summary: buildResultSummary('Scoped Code Guard failed before producing results.'),
+        toolName: 'alembic_code_guard',
+    });
+    return createAgentPublicToolOutput(result);
+}
+function buildCodeGuardExplicitScope(args, scope) {
+    if (scope.hasCode) {
+        return { kind: 'code', filePath: args.filePath ?? null };
     }
+    return {
+        files: scope.files,
+        kind: scope.explicitFiles.length > 0 ? 'files' : 'workRef',
+        ...(scope.explicitFiles.length === 0 && scope.workRecord
+            ? { workRef: scope.workRecord.workRef }
+            : {}),
+    };
 }
 export async function decisionRecordHandler(ctx, args) {
     const intake = buildIntentIntake(ctx, args);
-    const sourceRefs = uniqueStrings([...(args.sourceRefs ?? []), ...(args.evidenceRefs ?? [])]);
+    const sourceRefs = uniqueStrings([
+        ...(args.sourceRefs ?? []),
+        ...(args.sourceGraphRef ? [args.sourceGraphRef] : []),
+        ...(args.sourceEvidenceRefs ?? []),
+        ...(args.evidenceRefs ?? []),
+    ]);
     const detailRefs = buildBaseDetailRefs('alembic_decision_record', sourceRefs);
     const action = args.action ?? 'create';
     const scopeBlocker = resolveDecisionScopeBlocker(action, args);
@@ -599,7 +667,10 @@ export async function decisionRecordHandler(ctx, args) {
                 message: scopeBlocker,
                 retryable: false,
             },
-            refs: { detailRefs },
+            refs: {
+                ...buildSourceGraphRefEntry(args.sourceGraphRef),
+                detailRefs,
+            },
             status: 'blocked',
             summary: buildResultSummary('Decision record blocked because decision scope is incomplete.'),
             toolName: 'alembic_decision_record',
@@ -704,6 +775,8 @@ function buildIntentIntake(ctx, args) {
     });
     const sourceRefs = uniqueStrings([
         ...(args.sourceRefs ?? []),
+        ...(args.sourceGraphRef ? [args.sourceGraphRef] : []),
+        ...(args.sourceEvidenceRefs ?? []),
         ...(hostIntentFrame.recognizedIntentDraft.sourceRefs ?? []),
         ...(hostIntentFrame.hostDeclaredIntent?.sourceRefs ?? []),
     ]);
@@ -833,6 +906,30 @@ function resolvePrimeBlockingReason(args, record, intake) {
     }
     return null;
 }
+async function runPrimeSearch(ctx, intake, effectiveProjectRoot) {
+    if (intake.lifecycle.primeDecision.action === 'skip') {
+        return {
+            searchDegraded: false,
+            searchResult: null,
+            skippedReason: mapPrimeSkipReason(intake.lifecycle.primeDecision.reasonCode),
+        };
+    }
+    const pipeline = getPipeline(ctx.container);
+    if (!pipeline) {
+        return { searchDegraded: true, searchResult: null, skippedReason: null };
+    }
+    try {
+        const searchResult = await pipeline.search(intake.extracted, {
+            hostIntentFrame: intake.hostIntentFrame,
+            projectRoot: effectiveProjectRoot,
+        });
+        return { searchDegraded: false, searchResult, skippedReason: null };
+    }
+    catch (err) {
+        process.stderr.write(`[MCP/AgentPublicTools] alembic_prime search degraded: ${err instanceof Error ? err.message : String(err)}\n`);
+        return { searchDegraded: true, searchResult: null, skippedReason: null };
+    }
+}
 function resolvePrimeStatus(input) {
     if (input.skippedReason) {
         return {
@@ -944,12 +1041,23 @@ function resolveWorkStartStatus(intake, args) {
         summary: 'Work start can create a Plugin-owned workRef.',
     };
 }
-function buildGuardRecommendation(decision) {
+function buildGuardRecommendation(decision, sourceGraph) {
+    const validationPlan = projectValidationPlanAdvisory(sourceGraph?.validationPlan, {
+        sourceGraphRef: sourceGraph?.sourceGraphRef,
+    });
+    const sourceGraphEvidence = compactRecord({
+        ...(sourceGraph?.sourceGraphRef ? { sourceGraphRef: sourceGraph.sourceGraphRef } : {}),
+        ...(sourceGraph?.sourceEvidenceRefs?.length
+            ? { sourceEvidenceRefs: uniqueStrings(sourceGraph.sourceEvidenceRefs).slice(0, 40) }
+            : {}),
+        ...(validationPlan ? { validationPlan } : {}),
+    });
     if (decision.action === 'run') {
         return {
             action: 'run',
             input: { files: decision.taskScopedFiles },
             reasonCode: decision.reasonCode,
+            ...sourceGraphEvidence,
             taskScopedFiles: decision.taskScopedFiles,
             tool: 'alembic_code_guard',
         };
@@ -958,9 +1066,69 @@ function buildGuardRecommendation(decision) {
         action: 'skip',
         reason: `Guard skipped by Codex-aware lifecycle policy: ${decision.reasonCode}.`,
         reasonCode: decision.reasonCode,
+        ...sourceGraphEvidence,
         taskScopedFiles: decision.taskScopedFiles,
         tool: 'alembic_code_guard',
     };
+}
+function projectValidationPlanAdvisory(value, options = {}) {
+    const source = asValidationPlanSource(value);
+    if (!source) {
+        return undefined;
+    }
+    const buckets = {
+        manualReview: projectValidationBucket(source.manualReview),
+        mustRun: projectValidationBucket(source.mustRun),
+        recommended: projectValidationBucket(source.recommended),
+        unknown: projectValidationBucket(source.unknown),
+    };
+    return {
+        ...(firstString(source.acceptanceBoundary)
+            ? { acceptanceBoundary: firstString(source.acceptanceBoundary) }
+            : {}),
+        advisoryOnly: true,
+        buckets,
+        ...(options.sourceGraphRef ? { sourceGraphRef: options.sourceGraphRef } : {}),
+    };
+}
+function projectValidationBucket(value) {
+    const recommendations = Array.isArray(value) ? value.filter(isRecord) : [];
+    return {
+        commands: uniqueStrings(recommendations.flatMap((item) => validationCommandRefs(item))).slice(0, 20),
+        count: Math.min(recommendations.length, 1000),
+        diagnosticCodes: uniqueStrings(recommendations.flatMap((item) => validationDiagnosticRefs(item))).slice(0, 20),
+        files: uniqueStrings(recommendations.flatMap((item) => validationFileRefs(item))).slice(0, 40),
+    };
+}
+function asValidationPlanSource(value) {
+    const record = isRecord(value) ? value : {};
+    if (isRecord(record.validationPlan)) {
+        return record.validationPlan;
+    }
+    if (Array.isArray(record.mustRun) ||
+        Array.isArray(record.recommended) ||
+        Array.isArray(record.manualReview) ||
+        Array.isArray(record.unknown)) {
+        return record;
+    }
+    return null;
+}
+function validationCommandRefs(item) {
+    return [firstString(item.command)].filter((entry) => Boolean(entry));
+}
+function validationDiagnosticRefs(item) {
+    const evidence = Array.isArray(item.evidence) ? item.evidence.filter(isRecord) : [];
+    return [
+        firstString(item.diagnosticCode),
+        ...evidence.map((entry) => firstString(entry.diagnosticCode)),
+    ].filter((entry) => Boolean(entry));
+}
+function validationFileRefs(item) {
+    const evidence = Array.isArray(item.evidence) ? item.evidence.filter(isRecord) : [];
+    return [
+        firstString(item.filePath),
+        ...evidence.map((entry) => firstString(entry.filePath)),
+    ].filter((entry) => Boolean(entry));
 }
 function projectGuardBusinessPayload(guardEnvelope) {
     if (!guardEnvelope || typeof guardEnvelope !== 'object') {
@@ -1030,6 +1198,7 @@ function buildDecisionRecordBlockedResult(input) {
 }
 function buildDecisionRecordRefs(args, detailRefs, decisionId) {
     return {
+        ...buildSourceGraphRefEntry(args.sourceGraphRef),
         ...(args.intentRef
             ? {
                 intentRef: {
@@ -1058,6 +1227,46 @@ function buildDecisionRecordRefs(args, detailRefs, decisionId) {
             }
             : {}),
         detailRefs,
+    };
+}
+function buildSourceGraphRefEntry(sourceGraphRef) {
+    const id = firstString(sourceGraphRef);
+    if (!id) {
+        return {};
+    }
+    return {
+        sourceGraphRef: {
+            refType: 'source-graph',
+            id,
+            label: 'Core source graph evidence',
+            source: 'tool-result',
+        },
+    };
+}
+function buildIntentRefEntry(intentRef) {
+    const id = firstString(intentRef);
+    if (!id) {
+        return {};
+    }
+    return {
+        intentRef: {
+            refType: 'intent',
+            id,
+            toolName: 'alembic_intent',
+        },
+    };
+}
+function buildWorkRefEntry(workRef) {
+    const id = firstString(workRef);
+    if (!id) {
+        return {};
+    }
+    return {
+        workRef: {
+            refType: 'work',
+            id,
+            toolName: 'alembic_work_start',
+        },
     };
 }
 function resolveResidentDecisionRegisterClient(container) {
@@ -1129,6 +1338,10 @@ function buildDecisionRegisterRequestBody(input) {
         },
         rationale: firstString(input.args.rationale),
         sourceRefs: input.sourceRefs.length > 0 ? input.sourceRefs : undefined,
+        sourceEvidenceRefs: input.args.sourceEvidenceRefs?.length
+            ? uniqueStrings(input.args.sourceEvidenceRefs)
+            : undefined,
+        sourceGraphRef: firstString(input.args.sourceGraphRef),
         tags: input.args.tags?.length ? uniqueStrings(input.args.tags) : undefined,
         title,
         turnId: firstString(input.args.hostTurnMeta?.turnId, input.args.hostTurnMeta?.messageId),
@@ -1347,9 +1560,14 @@ function buildIntentRetrievalPlan(vectorPlan) {
     };
 }
 function buildIntentToolPlan(intake, persistence) {
+    const primeNeed = resolvePrimeNeed(intake, persistence);
     return {
+        decisionNeed: resolveDecisionNeed(intake),
         guardNeed: resolveGuardNeed(intake),
-        primeNeed: resolvePrimeNeed(intake, persistence),
+        knowledgeNeed: resolveKnowledgeNeed(primeNeed),
+        primeNeed,
+        sourceGraphNeed: resolveSourceGraphNeed(intake, persistence),
+        sourceGraphPlan: buildSourceGraphPlan(intake, persistence),
         workNeed: resolveWorkNeed(intake),
     };
 }
@@ -1417,6 +1635,60 @@ function resolvePrimeNeed(intake, persistence) {
     }
     if (intake.intentKind === 'read-only-analysis' || intake.intentKind === 'review-task') {
         return 'optional';
+    }
+    return 'none';
+}
+function resolveKnowledgeNeed(primeNeed) {
+    return primeNeed;
+}
+function resolveSourceGraphNeed(intake, persistence) {
+    if (!persistence.consumable) {
+        return 'none';
+    }
+    if (intake.intentKind === 'implementation-task' ||
+        intake.intentKind === 'fix-task' ||
+        intake.intentKind === 'refactor-task' ||
+        intake.intentKind === 'review-task') {
+        return 'recommended';
+    }
+    if (intake.intentKind === 'read-only-analysis' &&
+        (intake.hostIntentInput.activeFile || intake.extracted.module)) {
+        return 'optional';
+    }
+    return 'none';
+}
+function buildSourceGraphPlan(intake, persistence) {
+    const need = resolveSourceGraphNeed(intake, persistence);
+    if (need === 'none') {
+        return {
+            action: 'skip',
+            reasonCode: 'no-source-graph-needed',
+            tools: [],
+        };
+    }
+    const changedFileLikely = intake.intentKind === 'implementation-task' ||
+        intake.intentKind === 'fix-task' ||
+        intake.intentKind === 'refactor-task';
+    return {
+        action: changedFileLikely
+            ? 'validation-plan-after-work'
+            : 'query-before-work',
+        reasonCode: changedFileLikely
+            ? 'source-graph-validation-plan-after-changes'
+            : 'source-graph-query-before-source-claim',
+        tools: changedFileLikely
+            ? ['alembic_source_graph_status', 'alembic_code_explore', 'alembic_validation_plan']
+            : ['alembic_source_graph_status', 'alembic_code_explore'],
+    };
+}
+function resolveDecisionNeed(intake) {
+    if (intake.intentKind === 'decision') {
+        return 'required-before-work';
+    }
+    if (intake.intentKind === 'implementation-task' ||
+        intake.intentKind === 'fix-task' ||
+        intake.intentKind === 'refactor-task') {
+        return 'record-if-confirmed';
     }
     return 'none';
 }
@@ -1513,6 +1785,7 @@ function buildPrimePublicPackage(input) {
         reason: input.result.reason,
         refs: input.result.refs,
         status: input.result.status,
+        sourceGraphGuidance: buildPrimeSourceGraphGuidance(input),
         summary: input.result.summary,
         trustPosture: buildPrimeTrustPostureProjection(input.primeKnowledgeMaterial, input.result),
         trustReceipt: {
@@ -1523,6 +1796,42 @@ function buildPrimePublicPackage(input) {
             status: input.primeKnowledgeMaterial?.status ?? primeTrustStatusFromResult(input.result),
         },
     });
+}
+function buildPrimeSourceGraphGuidance(input) {
+    const sourceGraphRef = input.result.refs.sourceGraphRef?.id ?? null;
+    const sourceEvidenceRefs = input.result.refs.detailRefs
+        .filter((ref) => ref.kind === 'source-ref')
+        .map((ref) => ref.id)
+        .slice(0, 40);
+    const activeFile = input.intake.hostIntentInput.activeFile;
+    const query = firstString(input.intake.extracted.queries[0], input.intake.hostIntentFrame.recognizedIntentDraft.query);
+    const recommendedQueries = [
+        {
+            ...(query ? { query } : {}),
+            ...(activeFile ? { focus: activeFile } : {}),
+            tool: 'alembic_code_explore',
+        },
+        ...(activeFile
+            ? [
+                {
+                    changedFiles: [activeFile],
+                    tool: 'alembic_validation_plan',
+                },
+            ]
+            : []),
+    ].slice(0, 8);
+    return {
+        boundary: 'Source graph guidance is code-fact evidence only; it does not backfill Recipe provenance or replace Guard, repository tests, controller acceptance, or Test-window validation.',
+        recommendedQueries,
+        recommendedTools: [
+            'alembic_source_graph_status',
+            'alembic_code_explore',
+            'alembic_validation_plan',
+        ],
+        sourceEvidenceRefs,
+        sourceGraphRef,
+        status: sourceGraphRef ? 'ready-evidence' : 'recommended',
+    };
 }
 function buildPrimeFeedbackDigest(searchResult) {
     const consumer = searchResult?.searchMeta.retrievalConsumer;
