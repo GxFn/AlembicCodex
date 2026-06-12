@@ -49,7 +49,7 @@ Enable `alembic-codex` from the plugin list after installation.
 ## Runtime
 
 - Node.js 22 or newer is required. Node 22 LTS is recommended for local development; keep the MCP shim and daemon on the same Node executable.
-- The plugin ships a lightweight marketplace shell, not embedded runtime files. The shell entry is `./bin/alembic-codex-start.mjs`.
+- The plugin ships a lightweight marketplace shell, not embedded runtime files. The shell entry is `./bin/alembic-start.mjs`.
 - The marketplace shell installs the exact pinned runtime package `@gxfn/alembic-runtime@0.2.0` into a deterministic startup cache when needed, reuses that cache on later launches, and starts the cached MCP entrypoint with Node.
 - The marketplace MCP config sets `ALEMBIC_RUNTIME_MODE=plugin` as the generic plugin runtime signal and `ALEMBIC_PLUGIN_HOST=codex` as the current host signal.
 - The marketplace MCP config sets `ALEMBIC_CHANNEL_ID=codex`; project feature checks should use that stable channel id.

@@ -11,7 +11,7 @@ Alembic for Codex is built from the AlembicPlugin repository with explicit sibli
 - The AlembicPlugin root package is private and is not a registry distribution package.
 - The Codex plugin submodule is `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
 - The installable plugin shell is `plugins/alembic-codex`.
-- The shell entry is `plugins/alembic-codex/bin/alembic-codex-start.mjs`.
+- The shell entry is `plugins/alembic-codex/bin/alembic-start.mjs`.
 - The runtime package boundary is `packages/alembic-codex-runtime`, published or consumed as `@gxfn/alembic-runtime@0.2.0`.
 - The repo-local Codex marketplace entry is `.agents/plugins/marketplace.json`.
 
@@ -20,7 +20,7 @@ The plugin MCP config starts the shell:
 ```json
 {
   "command": "node",
-  "args": ["./bin/alembic-codex-start.mjs"],
+  "args": ["./bin/alembic-start.mjs"],
   "cwd": "."
 }
 ```
@@ -34,7 +34,7 @@ Every package version bump must keep these surfaces aligned:
 - `packages/alembic-codex-runtime/package.json`
 - `channels/codex/channel.json`
 - `plugins/alembic-codex/.mcp.json`
-- `plugins/alembic-codex/bin/alembic-codex-start.mjs`
+- `plugins/alembic-codex/bin/alembic-start.mjs`
 - `plugins/alembic-codex/README.md`
 - `plugins/alembic-codex/README.zh-CN.md`
 - the `GxFn/AlembicCodex` submodule commit
@@ -85,7 +85,7 @@ It must pass:
 - `npm run verify:codex-channel`.
 - `npm run verify:codex-plugin`.
 - `npm run verify:release-package-boundary`.
-- Marketplace shell artifact check for `bin/alembic-codex-start.mjs` and absence of old embedded artifacts.
+- Marketplace shell artifact check for `bin/alembic-start.mjs` and absence of old embedded artifacts.
 - `npm run lint -- --diagnostic-level=error`.
 - `npm run test:unit`.
 - `npm run test:integration`.
@@ -135,7 +135,7 @@ Run this against a fresh test repository and one real project before public prom
 | Symptom | First Check | Likely Cause | Fix |
 | --- | --- | --- | --- |
 | Plugin visible but MCP does not start | `alembic codex diagnostics --json` | Node < 22, missing npm, runtime cache not writable, install failure, version mismatch, missing entrypoint, or startup lock timeout | Install Node 22, restore npm registry access, inspect shell bootstrap diagnostics and the Alembic runtime cache |
-| Diagnostics runtime mismatch | `plugins/alembic-codex/.mcp.json` and `plugins/alembic-codex/bin/alembic-codex-start.mjs` | Plugin config no longer points at the shell entry or the shell no longer targets the exact runtime package | Run `npm run prepare:codex-plugin-runtime` and rerun `npm run verify:codex-plugin` |
+| Diagnostics runtime mismatch | `plugins/alembic-codex/.mcp.json` and `plugins/alembic-codex/bin/alembic-start.mjs` | Plugin config no longer points at the shell entry or the shell no longer targets the exact runtime package | Run `npm run prepare:codex-plugin-runtime` and rerun `npm run verify:codex-plugin` |
 | Artifact upload missing | Release workflow logs | Tag mismatch, tests failed, artifact upload path changed, or shell verification failed | Fix workflow failure, create a new patch version/tag |
 | Daemon starts but tools fail | `alembic daemon status --json` and daemon log path | stale daemon state, missing bridge token, health identity mismatch | Stop daemon, rerun dashboard/bootstrap, inspect `daemon.log` |
 | Job remains running forever | `alembic_codex_job` and Dashboard jobs page | daemon restart before interruption marking, old JobStore record | Restart daemon; lifecycle should mark active jobs failed with interruption reason |

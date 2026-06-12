@@ -5,5 +5,5 @@
   "sourceRepo": "GxFn/Alembic",
   "sourcePath": "plugins/alembic-codex",
   "runtimePackage": "@gxfn/alembic-runtime@0.2.0",
-  "shellEntry": "bin/alembic-codex-start.mjs"
+  "shellEntry": "bin/alembic-start.mjs"
 }

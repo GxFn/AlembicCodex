@@ -49,7 +49,7 @@ main
 ## Runtime
 
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
-- 插件发布的是轻量 marketplace shell，不再内置运行时目录。shell 入口是 `./bin/alembic-codex-start.mjs`。
+- 插件发布的是轻量 marketplace shell，不再内置运行时目录。shell 入口是 `./bin/alembic-start.mjs`。
 - Marketplace shell 会在需要时把精确固定的 `@gxfn/alembic-runtime@0.2.0` runtime package 安装到确定的启动缓存，后续启动复用缓存，并用 Node 启动缓存中的 MCP entrypoint。
 - Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会设置 `ALEMBIC_CHANNEL_ID=codex`；项目功能判断应使用这个稳定渠道标识。
