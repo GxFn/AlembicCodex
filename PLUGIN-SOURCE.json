@@ -1,9 +1,9 @@
 {
   "generatedAt": "2026-05-12T11:50:42.435Z",
-  "package": "@gxfn/alembic-codex-runtime@0.2.0",
-  "plugin": "alembic-codex",
+  "package": "@gxfn/alembic-runtime@0.2.0",
+  "plugin": "alembic",
   "sourceRepo": "GxFn/Alembic",
   "sourcePath": "plugins/alembic-codex",
-  "runtimePackage": "@gxfn/alembic-codex-runtime@0.2.0",
+  "runtimePackage": "@gxfn/alembic-runtime@0.2.0",
   "shellEntry": "bin/alembic-codex-start.mjs"
 }
