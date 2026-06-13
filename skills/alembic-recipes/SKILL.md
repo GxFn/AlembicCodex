@@ -22,9 +22,9 @@ In standard mode these files usually live under `Alembic/` in the project. In Gh
 
 Allowed:
 
-- Search or browse knowledge with `alembic_search` and `alembic_knowledge`.
+- Search, get, or expand compact project knowledge with `alembic_search`.
 - Submit candidates with `alembic_submit_knowledge`.
-- Confirm usage with `alembic_knowledge(operation: "confirm_usage")` when the user adopts a Recipe.
+- Cite returned Recipe/detail refs in work summaries when a Recipe guides the change.
 
 Do not:
 
@@ -35,12 +35,12 @@ Do not:
 ## Lookup Order
 
 1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_intent` and then `alembic_prime` before semantic coding or knowledge turns. Use a concise semantic query or `hostDeclaredIntent`; do not raw-prime automation/direct-thread envelopes.
-2. Use `alembic_search(mode: "auto")` for general lookup.
-3. Use `alembic_search(mode: "context")` for coding assistance.
+2. Use `alembic_search(operation: "search", mode: "auto")` for general lookup.
+3. Use `alembic_search(operation: "search", mode: "context")` for coding assistance.
 4. Use clean `structuredContent` from `alembic_prime` / `alembic_search` as the Recipe context contract; visible text is summary-only.
 5. For runtime route or vector-readiness diagnostics, call `alembic_codex_diagnostics` / `alembic_mcp_status` instead of relying on ordinary knowledge-tool payloads.
-6. Use `alembic_knowledge(operation: "list")` with filters when browsing by kind, language, or category.
-7. Use `alembic_knowledge(operation: "get", id)` for full Recipe content.
+6. Use `alembic_search(operation: "get", refId: "...")` for one bounded result returned by search.
+7. Use `alembic_search(operation: "expand", refId: "...")` for one detail ref that needs more context.
 
 ## How To Apply Recipes
 

@@ -26,7 +26,7 @@ When the current project has a project-level Alembic knowledge skill in `.agents
 1. Before code reading, shell search, edit, Guard check, or conclusion for a semantic task, call `alembic_intent` with `hostDeclaredIntent` or another concise semantic query. If the visible input is an automation/direct-thread envelope, pass a curated `hostDeclaredIntent`; do not raw-prime the envelope text.
 2. Call `alembic_prime` with the returned `intentRef` or the same structured `hostDeclaredIntent` to load compact project knowledge. Immediately after the result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: briefly and actively shout as Codex or "I" which Recipe constraints, Guard rules, patterns, or judgment basis you accepted, or say you received no usable project knowledge because the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary. Keep evidence refs in the payload for later verification or user-requested citations; do not dump paths or line numbers by default. Do not make "Alembic prime", prime, or any tool/process the speaker or subject of the visible receipt.
 3. Use `alembic_work_start` when the user has asked for concrete implementation, fix, refactor, review, or other evidence-producing work.
-4. Use `alembic_search`, `alembic_knowledge`, or `alembic_structure` when more project context is needed.
+4. Use `alembic_project_matrix`, `alembic_search`, or `alembic_graph` when more project context is needed.
 5. Make code changes according to approved Recipes and project evidence.
 6. After meaningful code edits, call `alembic_work_finish` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
 7. Use `alembic_decision_record` for confirmed durable decisions. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
@@ -87,4 +87,4 @@ Plugin uninstall never removes user data. Use `alembic_codex_cleanup` for explic
 - `alembic-recipes`: Recipe lookup and application.
 - `alembic-create`: Candidate submission rules.
 - `alembic-guard`: Compliance checks.
-- `alembic-structure`: Project targets, files, metadata, graph, and call context.
+- `alembic-structure`: Project matrix navigation, project graph, and source-backed structure context.
