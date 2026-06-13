@@ -52,7 +52,6 @@ Enable `alembic-codex` from the plugin list after installation.
 - The plugin ships a lightweight marketplace shell, not embedded runtime files. The shell entry is `./bin/alembic-start.mjs`.
 - The marketplace shell installs the exact pinned runtime package `@gxfn/alembic-runtime@0.2.0` into a deterministic startup cache when needed, reuses that cache on later launches, and starts the cached MCP entrypoint with Node.
 - The marketplace MCP config sets `ALEMBIC_RUNTIME_MODE=plugin` as the generic plugin runtime signal and `ALEMBIC_PLUGIN_HOST=codex` as the current host signal.
-- The marketplace MCP config sets `ALEMBIC_CHANNEL_ID=codex`; project feature checks should use that stable channel id.
 - The marketplace MCP config explicitly sets `ALEMBIC_MCP_MODE=1` and `ALEMBIC_CODEX_MCP_MODE=1`; the binary still applies the same defaults as a safety net.
 - The public plugin shell does not contain `runtime.tgz`, `runtime/`, or `node_modules/`.
 - The shell keeps runtime installation outside the installed plugin directory. Detailed first-run cache, upgrade, and failure classification belongs to the shell bootstrap path.
@@ -62,7 +61,7 @@ Enable `alembic-codex` from the plugin list after installation.
 
 Use `alembic_codex_diagnostics` first. It reports Node, npm, runtime package/cache wiring, daemon version, plugin metadata checks, portable runtime artifact guidance, cleanup policy, and structured `issues` / `nextActions`.
 
-Use `alembic_codex_status` to inspect workspace initialization and daemon state without starting the daemon. The response includes an `onboarding` block with a concise state, primary recommended tool call, whether that call starts the daemon, and follow-up actions.
+Use `alembic_mcp_status` to inspect workspace initialization and daemon state without starting the daemon. The response includes an `onboarding` block with a concise state, primary recommended tool call, whether that call starts the daemon, and follow-up actions.
 
 Outside Codex, the same runtime checks are available from the CLI:
 
@@ -74,8 +73,8 @@ alembic codex status --json
 The normal first minute is:
 
 1. `alembic_codex_diagnostics`
-2. `alembic_codex_status`
-3. `alembic_codex_init` when status reports `needs_init`
+2. `alembic_mcp_status`
+3. `alembic_mcp_init` when status reports `needs_init`
 4. `alembic_bootstrap` for first project knowledge, `alembic_rescan` to refresh existing knowledge, or `alembic_intent` + `alembic_prime` before coding work
 
 Codex MCP tool calls return clean `structuredContent`: `ok`, `status`, `summary`, optional `error`, optional `meta`, and tool-specific fields. Visible tool text is summary-only, so host integrations should not parse legacy JSON envelopes from text.
@@ -84,7 +83,7 @@ Codex MCP tool calls return clean `structuredContent`: `ok`, `status`, `summary`
 
 `alembic_bootstrap` and `alembic_rescan` are the default Codex host-agent workflows. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions. These workflows do not require an Alembic AI Provider.
 
-`alembic_codex_bootstrap` and `alembic_codex_rescan` are explicit provider-backed Alembic daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the local Alembic UI refreshes.
+`alembic_mcp_bootstrap_job` and `alembic_mcp_rescan_job` are explicit provider-backed Alembic daemon jobs. They require configured AI Provider credentials and return a durable job id immediately. Use `alembic_codex_job` with that id to resume status checks after Codex reconnects or the local Alembic UI refreshes.
 
 If the Alembic daemon shuts down or restarts before an active provider-backed daemon job completes, the next daemon lifecycle marks that job as `failed` with an interruption reason instead of leaving it stuck in `queued` or `running`. Start a new provider-backed daemon job or use the host-agent workflow to retry.
 

@@ -12,7 +12,7 @@ Alembic for Codex is built from the AlembicPlugin repository with explicit sibli
 - The Codex plugin submodule is `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
 - The installable plugin shell is `plugins/alembic-codex`.
 - The shell entry is `plugins/alembic-codex/bin/alembic-start.mjs`.
-- The runtime package boundary is `packages/alembic-codex-runtime`, published or consumed as `@gxfn/alembic-runtime@0.2.0`.
+- The runtime package boundary is `packages/alembic-runtime`, published or consumed as `@gxfn/alembic-runtime@0.2.0`.
 - The repo-local Codex marketplace entry is `.agents/plugins/marketplace.json`.
 
 The plugin MCP config starts the shell:
@@ -31,8 +31,8 @@ Every package version bump must keep these surfaces aligned:
 
 - `package.json`
 - `package-lock.json`
-- `packages/alembic-codex-runtime/package.json`
-- `channels/codex/channel.json`
+- `packages/alembic-runtime/package.json`
+- `.agents/plugins/marketplace.json`
 - `plugins/alembic-codex/.mcp.json`
 - `plugins/alembic-codex/bin/alembic-start.mjs`
 - `plugins/alembic-codex/README.md`
@@ -68,7 +68,7 @@ git push origin v0.2.0
 ```
 
 8. Watch the `Release` workflow. It verifies the tag matches `package.json`, checks out sibling `AlembicCore`, builds runtime assets, runs lint, unit and integration tests, verifies the runtime package boundary, smokes the Codex plugin package, and uploads the Codex plugin shell artifacts.
-9. Confirm the uploaded artifact includes plugin manifests, the shell startup script, plugin READMEs, `channels/codex/channel.json`, `packages/alembic-codex-runtime/package.json`, and `.agents/plugins/marketplace.json`.
+9. Confirm the uploaded artifact includes plugin manifests, the shell startup script, plugin READMEs, `packages/alembic-runtime/package.json`, and `.agents/plugins/marketplace.json`.
 10. Confirm no uploaded plugin shell artifact contains `runtime.tgz`, `runtime/`, or `node_modules/`.
 
 ## Release Workflow Contract
@@ -82,7 +82,7 @@ It must pass:
 - `npm run build`.
 - `npm run prepare:codex-plugin-runtime`.
 - `npm run verify:codex-runtime-package`.
-- `npm run verify:codex-channel`.
+- `npm run verify:plugin-distribution`.
 - `npm run verify:codex-plugin`.
 - `npm run verify:release-package-boundary`.
 - Marketplace shell artifact check for `bin/alembic-start.mjs` and absence of old embedded artifacts.
@@ -90,7 +90,7 @@ It must pass:
 - `npm run test:unit`.
 - `npm run test:integration`.
 - `npm run smoke:codex-plugin`.
-- `actions/upload-artifact` with the Codex plugin manifest, shell startup, marketplace/channel metadata, runtime package metadata, and READMEs.
+- `actions/upload-artifact` with the Codex plugin manifest, shell startup, marketplace metadata, runtime package metadata, and READMEs.
 
 `prepublishOnly` intentionally points to `npm run release:root-npm-publish:disabled` so an accidental root package registry attempt fails with an explicit artifact-only message. Run `npm run release:codex-plugin` directly for local plugin release readiness.
 
@@ -119,13 +119,13 @@ Run this against a fresh test repository and one real project before public prom
 1. Confirm the Alembic plugin appears in Codex plugins.
 2. Enable/install the plugin.
 3. Run `alembic_codex_diagnostics`.
-4. Run `alembic_codex_status`.
-5. If uninitialized, run `alembic_codex_init`.
+4. Run `alembic_mcp_status`.
+5. If uninitialized, run `alembic_mcp_init`.
 6. Confirm Ghost mode did not create project-local `.asd/`, `Alembic/`, `.cursor/`, `.vscode/mcp.json`, or `.env`.
-7. Run `alembic_codex_status` again and confirm the primary action is the agent-facing public prime path (`alembic_prime`, with `alembic_intent` available for intent normalization).
+7. Run `alembic_mcp_status` again and confirm the primary action is the agent-facing public prime path (`alembic_prime`, with `alembic_intent` available for intent normalization).
 8. Run `alembic_codex_dashboard`; if no local Alembic Dashboard daemon is active, confirm it fails closed with `CODEX_DASHBOARD_HANDOFF_UNAVAILABLE` and no embedded URL.
 9. Run `alembic_bootstrap` and confirm Codex receives a Mission Briefing for the host-agent workflow without requiring an AI Provider.
-10. Optional daemon-job line: when the Alembic resident service is already configured for jobs, run `alembic_codex_bootstrap` and capture the job id.
+10. Optional daemon-job line: when the Alembic resident service is already configured for jobs, run `alembic_mcp_bootstrap_job` and capture the job id.
 11. Run `alembic_codex_job` with the job id from the optional provider-backed daemon job line.
 12. Restart Codex or stop the daemon, then confirm `alembic_codex_job` returns a recoverable status instead of leaving the provider-backed daemon job stuck.
 13. Run `alembic_codex_cleanup` without `confirm` and verify it is a dry run.

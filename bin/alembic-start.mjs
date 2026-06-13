@@ -88,7 +88,6 @@ function buildLaunchPlan(input) {
   const installArgs = buildNpmInstallArgs(cache.installRoot);
   const env = {
     ...input.env,
-    ALEMBIC_CHANNEL_ID: input.env.ALEMBIC_CHANNEL_ID || 'codex',
     ALEMBIC_CODEX_ENABLE_ADMIN: input.env.ALEMBIC_CODEX_ENABLE_ADMIN || '0',
     ALEMBIC_CODEX_MCP_MODE: '1',
     ALEMBIC_CODEX_PLUGIN_ROOT: input.pluginRoot,
@@ -545,7 +544,6 @@ function collectRuntimeArgs(args) {
 
 function summarizePublicEnv(env) {
   return {
-    ALEMBIC_CHANNEL_ID: env.ALEMBIC_CHANNEL_ID,
     ALEMBIC_CODEX_ENABLE_ADMIN: env.ALEMBIC_CODEX_ENABLE_ADMIN,
     ALEMBIC_CODEX_MCP_MODE: env.ALEMBIC_CODEX_MCP_MODE,
     ALEMBIC_CODEX_PLUGIN_ROOT: env.ALEMBIC_CODEX_PLUGIN_ROOT,

@@ -11,13 +11,13 @@ Knowledge-dependent Alembic behavior is project-scoped. Use Recipes, Guard, proj
 
 ## First Move
 
-Call `alembic_codex_status` before assuming Alembic is initialized. This status check is local and must not start the daemon.
+Call `alembic_mcp_status` before assuming Alembic is initialized. This status check is local and must not start the daemon.
 
 If status reports runtime or environment problems, call `alembic_codex_diagnostics` and surface the suggested fix. Diagnostics also runs without starting the daemon.
 
 If status or diagnostics says the project root is unresolved or points inside the Codex plugin cache, pass the current workspace directory as the `projectRoot` argument on subsequent Alembic tool calls. `projectRoot` must be an absolute path; without it, Alembic project workflows cannot run.
 
-If the workspace is not initialized and the user wants Alembic knowledge for this project, call `alembic_codex_init`. The default profile is Ghost mode, so Alembic data is stored in the external workspace data root and Codex does not write IDE configuration into the project.
+If the workspace is not initialized and the user wants Alembic knowledge for this project, call `alembic_mcp_init`. The default profile is Ghost mode, so Alembic data is stored in the external workspace data root and Codex does not write IDE configuration into the project.
 
 ## Knowledge-Backed Turn Flow
 
@@ -35,7 +35,7 @@ When the current project has a project-level Alembic knowledge skill in `.agents
 
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 
-Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_codex_diagnostics` / `alembic_codex_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
+Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_codex_diagnostics` / `alembic_mcp_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
 
 ## Source Graph Tool Choice
 
@@ -47,7 +47,7 @@ Start with `alembic_source_graph_status` when current-code freshness or scope ma
 
 Use `alembic_bootstrap` for default Codex host-agent cold start and `alembic_rescan` for host-agent refresh. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
 
-Use `alembic_codex_bootstrap` and `alembic_codex_rescan` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; these tools only start/connect to the daemon, enqueue work, and return a recoverable job id.
+Use `alembic_mcp_bootstrap_job` and `alembic_mcp_rescan_job` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; these tools only start/connect to the daemon, enqueue work, and return a recoverable job id.
 
 Use `alembic_codex_job` to check explicit provider-backed daemon job status later. Job lookup is local and should not start the daemon.
 

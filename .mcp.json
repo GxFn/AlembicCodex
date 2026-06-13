@@ -5,7 +5,6 @@
       "args": ["./bin/alembic-start.mjs"],
       "cwd": ".",
       "env": {
-        "ALEMBIC_CHANNEL_ID": "codex",
         "ALEMBIC_PLUGIN_HOST": "codex",
         "ALEMBIC_CODEX_ENABLE_ADMIN": "0",
         "ALEMBIC_CODEX_MCP_MODE": "1",
