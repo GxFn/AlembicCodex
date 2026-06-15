@@ -37,11 +37,11 @@ For empty or uninitialized projects, do not proactively prime on ordinary user i
 
 Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_codex_diagnostics` / `alembic_mcp_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
 
-## Source Graph Tool Choice
+## ProjectContext Tool Choice
 
-Treat MCP initialize instructions as the live playbook for source graph tool choice; this skill only names the boundary. Use source graph tools for current code facts and source ranges, Recipe/knowledge tools for project standards and prior decisions, and Guard for scoped compliance after edits.
+Treat MCP initialize instructions as the live playbook for ProjectContext tool choice; this skill only names the boundary. Use `alembic_project_matrix` and `alembic_graph` for compact project orientation and bounded structure relations, Recipe/knowledge tools for project standards and prior decisions, and Guard for scoped compliance after edits.
 
-Start with `alembic_source_graph_status` when current-code freshness or scope matters. Use `alembic_code_explore` / `alembic_symbol_search` before broad raw Read/Grep exploration, then drill into source nodes, callers, callees, impact, or affected tests only when those tools are visible in the MCP tool list. If source graph status is stale, partial, wrong-scope, or unsupported for the language, fall back to raw reads/search, name the uncertainty, and run matching validation.
+Start with `alembic_project_matrix` when project scope or entrypoint orientation matters. Use `alembic_graph` for bounded project, package, module, file, symbol, dependency, and impact-radius hints before broad raw Read/Grep exploration. ProjectContext output is orientation evidence only; validate current code behavior with raw reads/search, Guard, and matching repository tests.
 
 ## Long-Running Work
 
