@@ -75,7 +75,7 @@ alembic codex status --json
 1. `alembic_codex_diagnostics`
 2. `alembic_mcp_status`
 3. 状态为 `needs_init` 时调用 `alembic_mcp_init`
-4. 用 `alembic_bootstrap` 构建第一轮项目知识，用 `alembic_rescan` 刷新已有知识，或在编码前调用 `alembic_intent` + `alembic_prime`
+4. 用 `alembic_bootstrap` 构建第一轮项目知识，用 `alembic_rescan` 刷新已有知识，或在编码前直接调用 standalone `alembic_prime`
 
 Codex MCP 工具调用返回干净的 `structuredContent`：`ok`、`status`、`summary`、可选 `error`、可选 `meta` 和工具专属字段。可见 tool text 只承载 summary，宿主集成不要再从文本里解析旧 JSON envelope。
 

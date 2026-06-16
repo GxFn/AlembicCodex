@@ -75,7 +75,7 @@ The normal first minute is:
 1. `alembic_codex_diagnostics`
 2. `alembic_mcp_status`
 3. `alembic_mcp_init` when status reports `needs_init`
-4. `alembic_bootstrap` for first project knowledge, `alembic_rescan` to refresh existing knowledge, or `alembic_intent` + `alembic_prime` before coding work
+4. `alembic_bootstrap` for first project knowledge, `alembic_rescan` to refresh existing knowledge, or direct standalone `alembic_prime` before coding work
 
 Codex MCP tool calls return clean `structuredContent`: `ok`, `status`, `summary`, optional `error`, optional `meta`, and tool-specific fields. Visible tool text is summary-only, so host integrations should not parse legacy JSON envelopes from text.
 

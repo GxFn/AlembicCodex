@@ -34,7 +34,7 @@ Do not:
 
 ## Lookup Order
 
-1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_intent` and then `alembic_prime` before semantic coding or knowledge turns. Use a concise semantic query or `hostDeclaredIntent`; do not raw-prime automation/direct-thread envelopes.
+1. In projects with a project-level Alembic knowledge skill or local Alembic knowledge base, call `alembic_prime` directly before coding with `taskAction`, `requirementGoal`, and locator facets. Use `alembic_intent` only for separate intent normalization; do not raw-prime automation/direct-thread envelopes or pass `intentRef` / `recognizedIntent` into prime.
 2. Use `alembic_search(operation: "search", mode: "auto")` for general lookup.
 3. Use `alembic_search(operation: "search", mode: "semantic")` for concept-level coding assistance when semantic retrieval is available.
 4. Use clean `structuredContent` from `alembic_prime` / `alembic_search` as the Recipe context contract; visible text is summary-only.
