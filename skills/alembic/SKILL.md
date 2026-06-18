@@ -11,32 +11,32 @@ Knowledge-dependent Alembic behavior is project-scoped. Use Recipes, Guard, proj
 
 ## First Move
 
-Call `alembic_mcp_status` before assuming Alembic is initialized. This status check is local and must not start the daemon.
+Call `alembic_status` before assuming Alembic is initialized. This status check is local and must not start the daemon.
 
-If status reports runtime or environment problems, call `alembic_codex_diagnostics` and surface the suggested fix. Diagnostics also runs without starting the daemon.
+If status reports runtime or environment problems, call `alembic_status` and surface the suggested fix. Diagnostics also runs without starting the daemon.
 
 If status or diagnostics says the project root is unresolved or points inside the Codex plugin cache, pass the current workspace directory as the `projectRoot` argument on subsequent Alembic tool calls. `projectRoot` must be an absolute path; without it, Alembic project workflows cannot run.
 
-If the workspace is not initialized and the user wants Alembic knowledge for this project, call `alembic_mcp_init`. The default profile is Ghost mode, so Alembic data is stored in the external workspace data root and Codex does not write IDE configuration into the project.
+If the workspace is not initialized and the user wants Alembic knowledge for this project, call `alembic_init`. The default profile is Ghost mode, so Alembic data is stored in the external workspace data root and Codex does not write IDE configuration into the project.
 
 ## Knowledge-Backed Turn Flow
 
 When the current project has a project-level Alembic knowledge skill in `.agents/skills` or a local Alembic knowledge base, every semantic coding or knowledge request is a knowledge-backed turn:
 
 1. Before code reading, shell search, edit, Guard check, or conclusion for a coding task, call `alembic_prime` directly with `taskAction`, `requirementGoal`, and at least one locator facet (`capability`, `scenario`, `domainObjects`, `integrationBoundary`, or `qualityConcerns`). If the visible input is an automation/direct-thread envelope, do not raw-prime the envelope text; extract a curated standalone coding requirement frame first.
-2. Use `alembic_intent` only when you need separate intent normalization for non-prime routing. Do not pass `intentRef`, `recognizedIntent`, raw `query`, or `hostDeclaredIntent` as successful prime input.
+2. Do not pass `intentRef`, `recognizedIntent`, raw `query`, or `hostDeclaredIntent` as prime input; `alembic_prime` normalizes intent internally from the curated requirement frame.
 3. Immediately after a prime result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: briefly and actively shout as Codex or "I" which Recipe constraints, Guard rules, patterns, or judgment basis you accepted, or say you received no usable project knowledge because the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary. Keep evidence refs in the payload for later verification or user-requested citations; do not dump paths or line numbers by default. Do not make "Alembic prime", prime, or any tool/process the speaker or subject of the visible receipt.
-4. Use `alembic_work_start` when the user has asked for concrete implementation, fix, refactor, review, or other evidence-producing work.
-5. Use `alembic_project_matrix`, `alembic_search`, or `alembic_graph` when more project context is needed.
+4. Use `alembic_work` when the user has asked for concrete implementation, fix, refactor, review, or other evidence-producing work.
+5. Use `alembic_recipe_map`, `alembic_search`, or `alembic_graph` when more project context is needed.
 6. Make code changes according to approved Recipes and project evidence.
-7. After meaningful code edits, call `alembic_work_finish` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
-8. Use `alembic_decision_record` for confirmed durable decisions. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
+7. After meaningful code edits, call `alembic_work` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
+8. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
-`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the six agent-facing public tools for Codex lifecycle work.
+`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the four agent-facing public tools for Codex lifecycle work.
 
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 
-Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_codex_diagnostics` / `alembic_mcp_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
+Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_status` / `alembic_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
 
 ## ProjectContext Tool Choice
 
@@ -48,11 +48,11 @@ Start with `alembic_project_matrix` when project scope or entrypoint orientation
 
 Use `alembic_bootstrap` for default Codex host-agent cold start and `alembic_rescan` for host-agent refresh. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
 
-Use `alembic_mcp_bootstrap_job` and `alembic_mcp_rescan_job` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; these tools only start/connect to the daemon, enqueue work, and return a recoverable job id.
+Use `alembic_job` and `alembic_job` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; these tools only start/connect to the daemon, enqueue work, and return a recoverable job id.
 
-Use `alembic_codex_job` to check explicit provider-backed daemon job status later. Job lookup is local and should not start the daemon.
+Use `alembic_job` to check explicit provider-backed daemon job status later. Job lookup is local and should not start the daemon.
 
-Use `alembic_codex_dashboard` when the user needs review, candidates, or progress visualization and a local Alembic Dashboard daemon is already available for the selected project. Return its URL instead of opening a browser yourself; if the tool reports missing Dashboard handoff capability, surface that next step instead of inventing an embedded Dashboard URL.
+Use `alembic_dashboard` when the user needs review, candidates, or progress visualization and a local Alembic Dashboard daemon is already available for the selected project. Return its URL instead of opening a browser yourself; if the tool reports missing Dashboard handoff capability, surface that next step instead of inventing an embedded Dashboard URL.
 
 ## Project Skill Delivery
 
@@ -81,7 +81,7 @@ Do not edit host configuration files, `AGENTS.md`, or project Alembic data unles
 
 ## Cleanup
 
-Plugin uninstall never removes user data. Use `alembic_codex_cleanup` for explicit cleanup. The default call is a dry run; `confirm=true` only removes daemon runtime state, logs, locks, and job files.
+Plugin uninstall never removes user data. Use `alembic_runtime` for explicit cleanup. The default call is a dry run; `confirm=true` only removes daemon runtime state, logs, locks, and job files.
 
 ## Related Skills
 

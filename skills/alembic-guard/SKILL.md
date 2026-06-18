@@ -13,7 +13,7 @@ Guard is a scoped Recipe-adherence check. It is not repo lint, security audit, g
 
 Use `alembic_code_guard` for agent-facing checks. Supported public scopes are explicit `files`, inline `code`, or an active `workRef` whose current Plugin session recorded scoped files. `diffRef`, `primeRef`, `acceptedGuards`, and `applicableRecipe` are not public Guard scope fields yet.
 
-`alembic_guard` is a compatibility/report surface, not the agent-facing default. It no longer accepts no-args whole-diff checks and must already receive an explicit scope.
+`alembic_code_guard` is a compatibility/report surface, not the agent-facing default. It no longer accepts no-args whole-diff checks and must already receive an explicit scope.
 
 Common calls:
 
@@ -26,7 +26,7 @@ Common calls:
 }
 ```
 
-Checks specific files. Prefer this when `alembic_work_finish` returns a Guard recommendation with explicit files.
+Checks specific files. Prefer this when `alembic_work` returns a Guard recommendation with explicit files.
 
 ```json
 {

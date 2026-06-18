@@ -118,17 +118,17 @@ Run this against a fresh test repository and one real project before public prom
 
 1. Confirm the Alembic plugin appears in Codex plugins.
 2. Enable/install the plugin.
-3. Run `alembic_codex_diagnostics`.
-4. Run `alembic_mcp_status`.
-5. If uninitialized, run `alembic_mcp_init`.
+3. Run `alembic_status`.
+4. Run `alembic_status`.
+5. If uninitialized, run `alembic_init`.
 6. Confirm Ghost mode did not create project-local `.asd/`, `Alembic/`, `.cursor/`, `.vscode/mcp.json`, or `.env`.
-7. Run `alembic_mcp_status` again and confirm the primary action is the agent-facing public prime path (`alembic_prime`, with `alembic_intent` available for intent normalization).
-8. Run `alembic_codex_dashboard`; if no local Alembic Dashboard daemon is active, confirm it fails closed with `CODEX_DASHBOARD_HANDOFF_UNAVAILABLE` and no embedded URL.
+7. Run `alembic_status` again and confirm the primary action is the agent-facing public prime path (`alembic_prime`).
+8. Run `alembic_dashboard`; if no local Alembic Dashboard daemon is active, confirm it fails closed with `CODEX_DASHBOARD_HANDOFF_UNAVAILABLE` and no embedded URL.
 9. Run `alembic_bootstrap` and confirm Codex receives a Mission Briefing for the host-agent workflow without requiring an AI Provider.
-10. Optional daemon-job line: when the Alembic resident service is already configured for jobs, run `alembic_mcp_bootstrap_job` and capture the job id.
-11. Run `alembic_codex_job` with the job id from the optional provider-backed daemon job line.
-12. Restart Codex or stop the daemon, then confirm `alembic_codex_job` returns a recoverable status instead of leaving the provider-backed daemon job stuck.
-13. Run `alembic_codex_cleanup` without `confirm` and verify it is a dry run.
+10. Optional daemon-job line: when the Alembic resident service is already configured for jobs, run `alembic_job` and capture the job id.
+11. Run `alembic_job` with the job id from the optional provider-backed daemon job line.
+12. Restart Codex or stop the daemon, then confirm `alembic_job` returns a recoverable status instead of leaving the provider-backed daemon job stuck.
+13. Run `alembic_runtime` without `confirm` and verify it is a dry run.
 
 ## Failure Triage
 
@@ -138,7 +138,7 @@ Run this against a fresh test repository and one real project before public prom
 | Diagnostics runtime mismatch | `plugins/alembic-codex/.mcp.json` and `plugins/alembic-codex/bin/alembic-start.mjs` | Plugin config no longer points at the shell entry or the shell no longer targets the exact runtime package | Run `npm run prepare:codex-plugin-runtime` and rerun `npm run verify:codex-plugin` |
 | Artifact upload missing | Release workflow logs | Tag mismatch, tests failed, artifact upload path changed, or shell verification failed | Fix workflow failure, create a new patch version/tag |
 | Daemon starts but tools fail | `alembic daemon status --json` and daemon log path | stale daemon state, missing bridge token, health identity mismatch | Stop daemon, rerun dashboard/bootstrap, inspect `daemon.log` |
-| Job remains running forever | `alembic_codex_job` and Dashboard jobs page | daemon restart before interruption marking, old JobStore record | Restart daemon; lifecycle should mark active jobs failed with interruption reason |
+| Job remains running forever | `alembic_job` and Dashboard jobs page | daemon restart before interruption marking, old JobStore record | Restart daemon; lifecycle should mark active jobs failed with interruption reason |
 | Codex creates project artifacts in Ghost mode | `alembic codex status --json` | setup profile regression or manual standard init | Fix setup profile; rerun on clean test project |
 
 ## Promotion Plan
