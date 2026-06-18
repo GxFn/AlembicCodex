@@ -432,7 +432,7 @@ function runtimeCachePaths(candidate) {
     cacheRoot: candidate.cacheRoot,
     installRoot,
     packageRoot,
-    entrypointPath: resolve(packageRoot, 'dist', 'bin', 'codex-mcp.js'),
+    entrypointPath: resolve(packageRoot, 'dist', 'bin', 'host-mcp.js'),
     lockDir: resolve(candidate.cacheRoot, '.install.lock'),
     npmCacheDir: resolve(candidate.cacheRoot, 'npm-cache'),
   };
@@ -487,7 +487,7 @@ function resolveRuntimeEntrypoint(packageRoot, packageJson) {
   if (bin && typeof bin === 'object' && typeof bin[RUNTIME_BIN] === 'string') {
     return resolve(packageRoot, bin[RUNTIME_BIN]);
   }
-  return resolve(packageRoot, 'dist', 'bin', 'codex-mcp.js');
+  return resolve(packageRoot, 'dist', 'bin', 'host-mcp.js');
 }
 
 function runtimeCommand({ launchPlan, entrypointPath }) {
