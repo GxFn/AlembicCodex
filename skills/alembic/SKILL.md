@@ -32,7 +32,7 @@ When the current project has a project-level Alembic knowledge skill in `.agents
 7. After meaningful code edits, call `alembic_work` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
 8. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
-`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the four agent-facing public tools for Codex lifecycle work.
+`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the active agent-facing public tools for Codex lifecycle and project context work (`alembic_prime`, `alembic_work`, `alembic_code_guard`, `alembic_search`, `alembic_recipe_map`, and `alembic_graph`).
 
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 
@@ -40,15 +40,15 @@ Prime and search return clean `structuredContent`; visible tool text is summary-
 
 ## ProjectContext Tool Choice
 
-Treat MCP initialize instructions as the live playbook for ProjectContext tool choice; this skill only names the boundary. Use `alembic_project_matrix` and `alembic_graph` for compact project orientation and bounded structure relations, Recipe/knowledge tools for project standards and prior decisions, and Guard for scoped compliance after edits.
+Treat MCP initialize instructions as the live playbook for ProjectContext tool choice; this skill only names the boundary. Use `alembic_recipe_map` and `alembic_graph` for compact project orientation and bounded structure relations, Recipe/knowledge tools for project standards and prior decisions, and Guard for scoped compliance after edits.
 
-Start with `alembic_project_matrix` when project scope or entrypoint orientation matters. Use `alembic_graph` for bounded project, package, module, file, symbol, dependency, and impact-radius hints before broad raw Read/Grep exploration. ProjectContext output is orientation evidence only; validate current code behavior with raw reads/search, Guard, and matching repository tests.
+Start with `alembic_recipe_map` when project scope, entrypoint orientation, or Recipe-mounted structure matters. Use `alembic_graph` for bounded project, package, module, file, symbol, dependency, and impact-radius hints before broad raw Read/Grep exploration. ProjectContext output is orientation evidence only; validate current code behavior with raw reads/search, Guard, and matching repository tests.
 
 ## Long-Running Work
 
 Use `alembic_bootstrap` for default Codex host-agent cold start and `alembic_rescan` for host-agent refresh. Codex reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
 
-Use `alembic_job` and `alembic_job` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; these tools only start/connect to the daemon, enqueue work, and return a recoverable job id.
+Use `alembic_job` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this Codex plugin; this tool only starts/connects to the daemon, enqueues work, and returns a recoverable job id.
 
 Use `alembic_job` to check explicit provider-backed daemon job status later. Job lookup is local and should not start the daemon.
 
@@ -88,4 +88,4 @@ Plugin uninstall never removes user data. Use `alembic_runtime` for explicit cle
 - `alembic-recipes`: Recipe lookup and application.
 - `alembic-create`: Candidate submission rules.
 - `alembic-guard`: Compliance checks.
-- `alembic-structure`: Project matrix navigation, project graph, and source-backed structure context.
+- `alembic-structure`: Recipe-mounted ProjectContext navigation, project graph, and source-backed structure context.

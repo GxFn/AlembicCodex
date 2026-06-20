@@ -38,7 +38,7 @@ Do not:
 2. Use `alembic_search(operation: "search", mode: "auto")` for general lookup.
 3. Use `alembic_search(operation: "search", mode: "semantic")` for concept-level coding assistance when semantic retrieval is available.
 4. Use clean `structuredContent` from `alembic_prime` / `alembic_search` as the Recipe context contract; visible text is summary-only.
-5. For runtime route or vector-readiness diagnostics, call `alembic_status` / `alembic_status` instead of relying on ordinary knowledge-tool payloads.
+5. For runtime route or vector-readiness diagnostics, call `alembic_status` with `aspect: "runtime"` or `aspect: "knowledge"` instead of relying on ordinary knowledge-tool payloads.
 6. Use `alembic_search(operation: "get", refId: "...")` for one bounded result returned by search.
 7. Use `alembic_search(operation: "expand", refId: "...")` for one detail ref that needs more context.
 
