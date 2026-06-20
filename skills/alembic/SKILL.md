@@ -1,6 +1,6 @@
 ---
 name: alembic
-description: Use Alembic setup/status/diagnostics/bootstrap/rescan when the user explicitly asks for Alembic. When the current project has a project-level Alembic knowledge skill or local Alembic knowledge base, use the agent-facing intent, prime, work, Guard, and decision tools proactively. For empty projects, do not proactively prime unless the user explicitly asks for Alembic.
+description: Use Alembic setup/status/diagnostics/bootstrap/rescan when the user explicitly asks for Alembic. When the current project has a project-level Alembic knowledge skill or local Alembic knowledge base, use the agent-facing prime, work, and Guard tools proactively. For empty projects, do not proactively prime unless the user explicitly asks for Alembic.
 ---
 
 # Alembic Host Agent Workflow
@@ -32,7 +32,7 @@ When the current project has a project-level Alembic knowledge skill in `.agents
 7. After meaningful code edits, call `alembic_work` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
 8. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
-`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the active agent-facing public tools for lifecycle and project context work (`alembic_prime`, `alembic_work`, `alembic_code_guard`, `alembic_search`, `alembic_recipe_map`, and `alembic_graph`).
+`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the three agent-facing public tools (`alembic_prime`, `alembic_work`, `alembic_code_guard`) plus project-context tools (`alembic_search`, `alembic_recipe_map`, and `alembic_graph`) for lifecycle and project context work.
 
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 

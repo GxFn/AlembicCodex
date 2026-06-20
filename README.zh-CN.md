@@ -6,7 +6,7 @@ English version: [README.md](README.md)
 
 适合这些 Codex 工作：
 
-- 编码前先识别 intent，再用项目 Recipes prime Codex。
+- 编码前先用项目 Recipes prime Codex。
 - 对具体 work 开始/结束做记录，并对当前改动运行 scoped Guard 检查。
 - 通过 Codex 宿主 Agent workflow 构建或刷新项目知识。
 - 只在需要视觉交接时打开本地 Dashboard。

@@ -6,7 +6,7 @@ Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
 Use it when you want Codex to:
 
-- Normalize intent and prime itself with project Recipes before coding.
+- Prime itself with project Recipes before coding.
 - Start/finish tracked work and run scoped Guard checks against the current change.
 - Build or refresh project knowledge through Codex host-agent workflows.
 - Open the local Dashboard only when a visual handoff is useful.
