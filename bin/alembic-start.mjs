@@ -13,9 +13,9 @@ import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const RUNTIME_PACKAGE_NAME = '@gxfn/alembic-runtime';
+const RUNTIME_PACKAGE_NAME = 'alembic-runtime';
 const RUNTIME_PACKAGE_VERSION = '0.3.0';
-const RUNTIME_PACKAGE_SPECIFIER = '@gxfn/alembic-runtime@0.3.0';
+const RUNTIME_PACKAGE_SPECIFIER = 'alembic-runtime@0.3.0';
 const RUNTIME_BIN = 'alembic-codex-mcp';
 const STARTUP_SOURCE = 'alembic-codex-start';
 const DEFAULT_LOCK_TIMEOUT_MS = 60_000;

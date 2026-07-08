@@ -1,6 +1,6 @@
 # Alembic Codex Plugin Release Playbook
 
-This playbook describes how to release, test, and promote the Alembic Codex plugin. AlembicPlugin keeps the root package private. The public installable plugin is a lightweight marketplace shell in `GxFn/AlembicCodex`; runtime code is consumed through the exact pinned npm package `@gxfn/alembic-runtime@0.3.0`.
+This playbook describes how to release, test, and promote the Alembic Codex plugin. AlembicPlugin keeps the root package private. The public installable plugin is a lightweight marketplace shell in `GxFn/AlembicCodex`; runtime code is consumed through the exact pinned npm package `alembic-runtime@0.3.0`.
 
 ## Release Model
 
@@ -12,7 +12,7 @@ Alembic for Codex is built from the AlembicPlugin repository with explicit sibli
 - The Codex plugin submodule is `plugins/alembic-codex` -> `GxFn/AlembicCodex`.
 - The installable plugin shell is `plugins/alembic-codex`.
 - The shell entry is `plugins/alembic-codex/bin/alembic-start.mjs`.
-- The runtime package boundary is `packages/alembic-runtime`, published or consumed as `@gxfn/alembic-runtime@0.3.0`.
+- The runtime package boundary is `packages/alembic-runtime`, published or consumed as `alembic-runtime@0.3.0`.
 - The repo-local Codex marketplace entry is `.agents/plugins/marketplace.json`.
 
 The plugin MCP config starts the shell:
@@ -25,7 +25,7 @@ The plugin MCP config starts the shell:
 }
 ```
 
-The shell installs `@gxfn/alembic-runtime@0.3.0` into the Alembic startup cache when needed, reuses that cache on later launches, and starts the cached MCP entrypoint with Node. The public plugin shell must not contain `runtime.tgz`, `runtime/`, or `node_modules/`. First-run cache, upgrade, registry, and detailed failure semantics are owned by the shell bootstrap path.
+The shell installs `alembic-runtime@0.3.0` into the Alembic startup cache when needed, reuses that cache on later launches, and starts the cached MCP entrypoint with Node. The public plugin shell must not contain `runtime.tgz`, `runtime/`, or `node_modules/`. First-run cache, upgrade, registry, and detailed failure semantics are owned by the shell bootstrap path.
 
 Every package version bump must keep these surfaces aligned:
 
@@ -100,7 +100,7 @@ It must pass:
 | --- | --- | --- | --- |
 | Static plugin metadata | `npm run verify:codex-plugin` | Manifest, assets, skills, marketplace entry, shell entry, README release copy, and forbidden artifact absence | Every plugin metadata or docs change |
 | Runtime build | `npm run build` | TypeScript builds and CLI/MCP bins are generated | Every code change |
-| Runtime package boundary | `npm run verify:codex-runtime-package` | `@gxfn/alembic-runtime@0.3.0` packs without old public shell artifacts and pins Core correctly | Runtime package or release changes |
+| Runtime package boundary | `npm run verify:codex-runtime-package` | `alembic-runtime@0.3.0` packs without old public shell artifacts and pins Core correctly | Runtime package or release changes |
 | Shell preparation | `npm run prepare:codex-plugin-runtime` | Public plugin shell is ready and points at the exact pinned runtime package | Every release candidate |
 | Package/install smoke | `npm run smoke:codex-plugin -- --no-stdio` | Plugin artifact contents, local marketplace install simulation, shell dry-run startup | Docs/metadata/package files changes |
 | MCP stdio smoke | `npm run smoke:codex-plugin` | Real MCP client can list/call Codex tools through stdio using the built runtime | MCP shim changes |

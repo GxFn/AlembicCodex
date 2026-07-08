@@ -50,7 +50,7 @@ main
 
 - 需要 Node.js 22 或更新版本。本地开发推荐 Node 22 LTS；MCP shim 和 daemon 应使用同一个 Node 可执行文件。
 - 插件发布的是轻量 marketplace shell，不再内置运行时目录。shell 入口是 `./bin/alembic-start.mjs`。
-- Marketplace shell 会在需要时把精确固定的 `@gxfn/alembic-runtime@0.3.0` runtime package 安装到确定的启动缓存，后续启动复用缓存，并用 Node 启动缓存中的 MCP entrypoint。
+- Marketplace shell 会在需要时把精确固定的 `alembic-runtime@0.3.0` runtime package 安装到确定的启动缓存，后续启动复用缓存，并用 Node 启动缓存中的 MCP entrypoint。
 - Marketplace MCP 配置会设置 `ALEMBIC_RUNTIME_MODE=plugin` 作为通用插件运行时信号，并设置 `ALEMBIC_PLUGIN_HOST=codex` 表示当前宿主是 Codex。
 - Marketplace MCP 配置会显式设置 `ALEMBIC_MCP_MODE=1` 和 `ALEMBIC_CODEX_MCP_MODE=1`；binary 入口仍会做同样兜底。
 - 公共插件 shell 不包含 `runtime.tgz`、`runtime/` 或 `node_modules/`。
@@ -95,7 +95,7 @@ Codex MCP 工具调用返回干净的 `structuredContent`：`ok`、`status`、`s
 npm run release:codex-plugin
 ```
 
-这会构建 runtime，验证 `@gxfn/alembic-runtime@0.3.0` package 边界、轻量 marketplace shell、`alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、npm tarball 内容、本地安装模拟、shell dry-run 启动，以及真实 MCP stdio 调用。Dashboard 前端构建和服务归 Alembic/AlembicDashboard；本插件只在本地 daemon 已提供 Dashboard 能力时交接 URL。
+这会构建 runtime，验证 `alembic-runtime@0.3.0` package 边界、轻量 marketplace shell、`alembic-codex-mcp` binary、默认 agent tier、关闭的 admin gate、声明的 assets、随包 skills、default prompts、npm tarball 内容、本地安装模拟、shell dry-run 启动，以及真实 MCP stdio 调用。Dashboard 前端构建和服务归 Alembic/AlembicDashboard；本插件只在本地 daemon 已提供 Dashboard 能力时交接 URL。
 
 完整本地 daemon 链路运行：
 
@@ -130,7 +130,7 @@ Alembic 主仓库也保留本地开发 marketplace：`.agents/plugins/marketplac
 
 ## 离线 Fallback
 
-默认插件配置通过 marketplace shell 启动 `@gxfn/alembic-runtime@0.3.0`。如果首次运行无法解析生产依赖，请恢复 npm registry 访问，必要时清理 Alembic runtime cache，然后重新运行 `alembic_status`。
+默认插件配置通过 marketplace shell 启动 `alembic-runtime@0.3.0`。如果首次运行无法解析生产依赖，请恢复 npm registry 访问，必要时清理 Alembic runtime cache，然后重新运行 `alembic_status`。
 
 ## 清理策略
 
