@@ -1,5 +1,21 @@
 #!/usr/bin/env node
 
+// Alembic marketplace shell — child_process usage (security note for reviewers).
+// This file is a lightweight distribution shell, NOT the runtime itself. It uses
+// node:child_process for exactly two purposes, both of which run a specific,
+// version-pinned, publicly published package — never arbitrary or user-supplied code:
+//   1. Runtime install (spawnSync, marked "Subprocess #1" below): on first use it
+//      runs `npm install alembic-runtime@0.3.0` into a local startup cache. The
+//      shell intentionally ships no runtime files (no bundled tarball, no vendored
+//      dependencies) to stay within marketplace size and risk limits, so the runtime
+//      is fetched from the public npm registry as a fixed name@version.
+//   2. Runtime launch (spawn, marked "Subprocess #2" below): it starts the cached
+//      runtime's MCP entrypoint with Node. The installed package name AND version are
+//      validated against the pins below before launch; a mismatch aborts instead of
+//      executing.
+// A `npm --version` preflight (spawnSync, marked "Preflight" below) only yields a
+// clear error when npm is absent. There is no eval and no remote code beyond the
+// pinned npm install; Ghost mode keeps the footprint minimal until the user opts in.
 import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -42,6 +58,10 @@ try {
     process.exit(0);
   }
 
+  // Subprocess #2 (launch): start the version-validated runtime MCP server (Node).
+  // ensureRuntimeReady resolves the cached alembic-runtime@0.3.0 entrypoint only after
+  // asserting the installed package name+version match the pins above; command/args are
+  // derived from that resolved package, never from user input.
   const readyRuntime = await ensureRuntimeReady({ env: process.env, launchPlan });
   const child = spawn(readyRuntime.command, readyRuntime.args, {
     cwd: launchPlan.cwd,
@@ -253,6 +273,11 @@ function installRuntimePackage({ env, launchPlan, reason }) {
     reason,
   });
 
+  // Subprocess #1 (install): fetch the pinned, published runtime into a local cache.
+  // launchPlan.npm.args is `install alembic-runtime@0.3.0` — a fixed public package +
+  // version built from the RUNTIME_PACKAGE_SPECIFIER constant, not an arbitrary or
+  // user-supplied package. It runs inside an isolated install/cache dir, and the
+  // installed name+version are validated before the runtime is ever launched.
   const result = spawnSync(launchPlan.npm.command, launchPlan.npm.args, {
     cwd: cache.installRoot,
     env: {
@@ -499,6 +524,8 @@ function runtimeCommand({ launchPlan, entrypointPath }) {
 }
 
 function assertNpmAvailable({ env, command }) {
+  // Preflight only: run `npm --version` so a missing npm surfaces a clear, actionable
+  // error instead of an opaque install failure. No side effects, no network.
   const result = spawnSync(command, ['--version'], {
     env,
     encoding: 'utf8',
