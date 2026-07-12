@@ -27,7 +27,7 @@
   "interface": {
     "displayName": "Alembic",
     "shortDescription": "Local project memory and Guard checks for Codex",
-    "longDescription": "Alembic helps Codex understand how your project is actually written. It distills source code into local Recipes, exposes request-scoped project knowledge through MCP, primes Codex before coding work, and checks changes with Guard. Every tool uses the current call's project root and remains available without a resident service or selected-project state.",
+    "longDescription": "Alembic helps Codex understand how your project is actually written. It distills source code into local Recipes, exposes request-scoped project knowledge through MCP, primes Codex before coding work, and checks changes with Guard. Every tool resolves the current call's project root directly and remains available without a resident service.",
     "developerName": "gaoxuefeng",
     "category": "Coding",
     "capabilities": [
