@@ -11,9 +11,9 @@ Knowledge-dependent Alembic behavior is project-scoped. Use Recipes, Guard, proj
 
 ## First Move
 
-Call `alembic_status` before assuming Alembic is initialized. This status check is local and must not start the daemon.
+Call `alembic_status` before assuming Alembic is initialized. This check only reports the current request project's location and knowledge availability.
 
-If status reports runtime or environment problems, call `alembic_status` and surface the suggested fix. Diagnostics also runs without starting the daemon.
+If status reports runtime or environment problems, call `alembic_status` and surface the request-scoped facts.
 
 If status or diagnostics says the project root is unresolved or points inside the plugin cache, pass the current workspace directory as the `projectRoot` argument on subsequent Alembic tool calls. `projectRoot` must be an absolute path; without it, Alembic project workflows cannot run.
 
@@ -23,8 +23,8 @@ If the workspace is not initialized and the user wants Alembic knowledge for thi
 
 When the current project has a project-level Alembic knowledge skill in `.agents/skills` or a local Alembic knowledge base, every semantic coding or knowledge request is a knowledge-backed turn:
 
-1. Before code reading, shell search, edit, Guard check, or conclusion for a coding task, call `alembic_prime` directly with `taskAction`, `requirementGoal`, and at least one locator facet (`capability`, `scenario`, `domainObjects`, `integrationBoundary`, or `qualityConcerns`). If the visible input is an automation/direct-thread envelope, do not raw-prime the envelope text; extract a curated standalone coding requirement frame first.
-2. Do not pass `intentRef`, `recognizedIntent`, raw `query`, or `hostDeclaredIntent` as prime input; `alembic_prime` normalizes intent internally from the curated requirement frame.
+1. Before code reading, shell search, edit, Guard check, or conclusion for a coding task, call `alembic_prime` with an optional concise `query` and/or `context`. Prime has no intent-admission frame; do not pass raw automation envelopes as knowledge queries.
+2. Treat an empty Prime result as a truthful no-match result, not as a readiness or trust failure.
 3. Immediately after a prime result, make a developer-visible receipt shout in your own words from `primeKnowledgeMaterial`: briefly and actively shout as the host agent or "I" which Recipe constraints, Guard rules, patterns, or judgment basis you accepted, or say you received no usable project knowledge because the result was empty or degraded. This must be the next visible response before any search, code reading, edit, Guard check, or final summary. Keep evidence refs in the payload for later verification or user-requested citations; do not dump paths or line numbers by default. Do not make "Alembic prime", prime, or any tool/process the speaker or subject of the visible receipt.
 4. Use `alembic_work` when the user has asked for concrete implementation, fix, refactor, review, or other evidence-producing work.
 5. Use `alembic_recipe_map`, `alembic_search`, or `alembic_graph` when more project context is needed.
@@ -32,11 +32,9 @@ When the current project has a project-level Alembic knowledge skill in `.agents
 7. After meaningful code edits, call `alembic_work` with changed files, evidence refs, and summary. If it recommends Guard, call `alembic_code_guard` with the explicit returned files; if it skips Guard, report the lifecycle reason instead of forcing a no-args Guard.
 8. If a reusable convention appears, submit a candidate with `alembic_submit_knowledge`; do not write Recipe files directly.
 
-`alembic_task` is retired. Direct calls fail closed with `CODEX_TOOL_RETIRED`; use the three agent-facing public tools (`alembic_prime`, `alembic_work`, `alembic_code_guard`) plus project-context tools (`alembic_search`, `alembic_recipe_map`, and `alembic_graph`) for lifecycle and project context work.
-
 For empty or uninitialized projects, do not proactively prime on ordinary user input. Use Alembic setup/status/diagnostics/bootstrap/rescan, Guard, or knowledge tools only when the user explicitly asks for Alembic or wants knowledge created for the project.
 
-Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_status` / `alembic_status` for runtime route and resident-service diagnostics instead of relying on ordinary knowledge-tool payloads.
+Prime and search return clean `structuredContent`; visible tool text is summary-only. Use `alembic_status` for request-scoped runtime and knowledge-location facts instead of relying on ordinary knowledge-tool payloads.
 
 ## ProjectContext Tool Choice
 
@@ -48,11 +46,7 @@ Start with `alembic_recipe_map` when project scope, entrypoint orientation, or R
 
 Use `alembic_bootstrap` for default host-agent cold start and `alembic_rescan` for host-agent refresh. The host agent reads the Mission Briefing, analyzes the project, submits knowledge, and completes dimensions; this path does not require an Alembic AI Provider.
 
-Use `alembic_job` only when the user explicitly wants Alembic daemon jobs. Any provider credentials or model choices belong to the Alembic resident service, not this plugin; this tool only starts/connects to the daemon, enqueues work, and returns a recoverable job id.
-
-Use `alembic_job` to check explicit provider-backed daemon job status later. Job lookup is local and should not start the daemon.
-
-Use `alembic_dashboard` when the user needs review, candidates, or progress visualization and a local Alembic Dashboard daemon is already available for the selected project. Return its URL instead of opening a browser yourself; if the tool reports missing Dashboard handoff capability, surface that next step instead of inventing an embedded Dashboard URL.
+Use `alembic_job` only for explicit Plugin-owned local jobs. Job lookup and tool execution depend only on the current request project.
 
 ## Project Skill Delivery
 
@@ -73,15 +67,13 @@ Use `alembic_project_skill` whenever the user needs runtime-visible Project Skil
 
 ## Permission Boundary
 
-Default agent mode is agent tier. It may search knowledge, prime tasks, run Guard, use host-agent bootstrap/rescan, and submit candidates. Explicit daemon jobs may require Alembic resident-service configuration, but this plugin does not configure third-party AI providers or store API keys.
-
-Do not publish, deprecate, delete, or directly edit Recipes from the default tier. Admin tools only appear when both `ALEMBIC_MCP_TIER=admin` and `ALEMBIC_CODEX_ENABLE_ADMIN=1` are set.
+All Plugin MCP tools share one ordinary public surface. Capability-specific input validation and explicit destructive-write confirmation still apply; there is no role or tier visibility gate.
 
 Do not edit host configuration files, `AGENTS.md`, or project Alembic data unless the user explicitly asks for a standard, project-written setup.
 
 ## Cleanup
 
-Plugin uninstall never removes user data. Use `alembic_runtime` for explicit cleanup. The default call is a dry run; `confirm=true` only removes daemon runtime state, logs, locks, and job files.
+Plugin uninstall never removes user data. Use `alembic_runtime` for explicit cleanup. The default call is a dry run; `confirm=true` only removes Plugin runtime state, logs, locks, and job files.
 
 ## Related Skills
 
